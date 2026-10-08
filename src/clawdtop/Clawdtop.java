@@ -420,6 +420,19 @@ public final class Clawdtop {
         JMenuItem joke = new JMenuItem("Tell me a joke");
         joke.addActionListener(e -> tellJoke());
         menu.add(joke);
+        JMenuItem checkup = new JMenuItem("How's my computer?");
+        checkup.addActionListener(e -> worker.execute(() -> {
+            String report = Useful.checkup();
+            SwingUtilities.invokeLater(() -> pet.say(report));
+        }));
+        menu.add(checkup);
+        javax.swing.JMenu open = new javax.swing.JMenu("Open...");
+        for (String[] thing : Useful.OPENABLE) {
+            JMenuItem item = new JMenuItem(thing[0]);
+            item.addActionListener(e -> Useful.open(thing[1]));
+            open.add(item);
+        }
+        menu.add(open);
         if (settings.owns("dancing")) {
             JMenuItem dance = new JMenuItem("Dance!");
             dance.addActionListener(e -> pet.dance());
@@ -672,6 +685,44 @@ public final class Clawdtop {
                 !boxed && !hidden && !farewell);
     }
 
+    private long remindedWater = System.currentTimeMillis(), remindedStretch = System.currentTimeMillis();
+
+    /**
+     * The useful reminders, while you're actually at the computer (the mouse moved in the last couple of minutes):
+     * water every hour, a stretch every two, a restart after a week on, and a drive that's nearly full.
+     */
+    private void remindMe(long now) {
+        if (now - lastMoved > 2 * 60_000 || job != null || pet.busyNow() || hidden || bubble.showing()) return;
+        java.util.Random r = new java.util.Random();
+        if (settings.on("water") && now - remindedWater >= 60 * 60_000L) {
+            remindedWater = now;
+            pet.say(Useful.WATER[r.nextInt(Useful.WATER.length)]);
+            return;
+        }
+        if (settings.on("stretch") && now - remindedStretch >= 2 * 60 * 60_000L) {
+            remindedStretch = now;
+            pet.say(Useful.STRETCH[r.nextInt(Useful.STRETCH.length)]);
+            return;
+        }
+        String today = java.time.LocalDate.now().toString();
+        worker.execute(() -> {
+            long up = Useful.uptime();
+            java.io.File full = Useful.nearlyFull();
+            SwingUtilities.invokeLater(() -> {
+                if (settings.on("restart") && up >= 7 * 86_400_000L && !settings.seen("restart:" + today)) {
+                    settings.once("restart:" + today);
+                    pet.say("Your computer's been on for " + up / 86_400_000L + " days straight!\nA restart would make it feel fresh.");
+                } else if (settings.on("diskSpace") && full != null && !settings.seen("disk:" + today)) {
+                    settings.once("disk:" + today);
+                    bubble.ask("Your " + full.getPath().replace("\\", "") + " drive is nearly full (" + Cleaner.size(full.getUsableSpace()) + " left).\n"
+                            + "Want me to clean out a folder?", new String[] {"Yes, clean one", "Not now"}, c -> {
+                                if (c == 0) startCleaning();
+                            }, window.getBounds(), screenBounds());
+                }
+            });
+        });
+    }
+
     private void startCleaning() {
         if (!Cleaner.canRecycle()) {
             bubble.show("I can't reach the Recycle Bin on this computer,\nso I won't clean anything.", window.getBounds(), screenBounds());
@@ -892,6 +943,7 @@ public final class Clawdtop {
             pet.birthday(settings.name());
         }
         if (ticks % 300 == 150) checkTimes();
+        if (ticks % 900 == 450) remindMe(nowMs);
         if (ticks % 150 == 75) worker.execute(() -> {
             Power.criticalLevel(); // asked once, here in the background
             Power.State b = Power.now();
@@ -1003,7 +1055,8 @@ public final class Clawdtop {
             default -> 1;
         };
         window.setAlwaysOnTop(s.on("onTop"));
-        canvas.setToolTipText(s.on("pointsTag") ? s.points() + " Clawd Points" : null);
+        String tag = (s.on("nameTag") ? "Clawd" : "") + (s.on("nameTag") && s.on("pointsTag") ? " - " : "") + (s.on("pointsTag") ? s.points() + " Clawd Points" : "");
+        canvas.setToolTipText(tag.isEmpty() ? null : tag);
         pet.setHome(s.home());
     }
 

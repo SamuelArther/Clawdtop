@@ -540,6 +540,12 @@ public class ClawdtopTest {
         check("and always has something nice to say", allNice + " " + Games.compliment(java.util.List.of(), new java.util.Random()), "true null");
         check("launchers count", Games.launcher("steam.exe") + " " + Games.launcher("EADesktop.exe") + " " + Games.launcher("notepad.exe"), "true true false");
 
+        // ---- Being useful ----
+        String report = Useful.checkup();
+        check("How's my computer? says how it's doing", report.contains("Memory:") && (report.startsWith("Your computer's doing great!") || report.startsWith("Here's how")), true);
+        check("he knows how long it's been on", Useful.uptime() > 0, true);
+        check("reminders have something to say", Useful.WATER.length >= 3 && Useful.STRETCH.length >= 3, true);
+
         // ---- No tomfoolery ----
         Settings calm = Settings.load();
         calm.set("serious", "true");

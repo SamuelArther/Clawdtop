@@ -73,7 +73,7 @@ final class Options {
             // On screen
             Option.on("Screen", "onTop", "Always on top", true),
             Option.on("Screen", "hideFullScreen", "Hide for full-screen games and videos", true),
-            Option.on("Screen", "nameTag", "Name tag under him", false),
+            Option.on("Screen", "nameTag", "His name when you hover over him", false),
             Option.on("Screen", "pointsTag", "Show his points when you hover", false),
             Option.number("Screen", "nudge", "Nudge up or down (pixels)", 0, -40, 40),
             // His brain (Ask me a question, through Ollama on this PC)

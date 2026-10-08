@@ -66,6 +66,12 @@ final class Useful {
         if (ManagementFactory.getOperatingSystemMXBean() instanceof com.sun.management.OperatingSystemMXBean os) {
             long total = os.getTotalMemorySize(), free = os.getFreeMemorySize();
             if (total > 0) lines.add("Memory: " + (total - free) * 100 / total + "% in use (" + Cleaner.size(free) + " free)");
+            os.getCpuLoad(); // the first reading is always 0: take another a moment later
+            try {
+                Thread.sleep(400);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
             double cpu = os.getCpuLoad();
             if (cpu >= 0) lines.add("Processor: " + Math.round(cpu * 100) + "% busy");
         }
@@ -107,6 +113,20 @@ final class Useful {
         m.copyFrom(java.lang.foreign.MemorySegment.ofArray(bytes));
         return m;
     }
+
+    /** Water reminders. */
+    static final String[] WATER = {
+            "Sip of water? Your brain is mostly water.\nMine is mostly pixels.",
+            "Water break! Hydrated humans code better.",
+            "Have you had any water lately?\nI'll wait. (I'm a crab. I'm good at waiting.)",
+            "Drink some water! Doctor's orders.\n(I'm not a doctor. I'm a crab.)"};
+
+    /** Stretch reminders. */
+    static final String[] STRETCH = {
+            "Stretch break! Reach up high.\nI'd join you, but... no arms.",
+            "You've been sitting a while. Stand up and stretch!",
+            "Roll your shoulders, look at something far away\nfor 20 seconds. Your eyes will thank you.",
+            "Time to stretch! Wiggle your fingers.\nThey do a lot of typing."};
 
     /** Things he can open for you, by name: folders, and handy Windows tools. */
     static final String[][] OPENABLE = {
