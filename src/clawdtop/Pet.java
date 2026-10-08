@@ -82,7 +82,15 @@ public final class Pet {
         /** duck.py: a duck fell from the sky! He loves it. He makes MORE. And more. (Click him to stop it.) */
         DUCKS,
         /** Thinking about your question: laptop out, typing away. */
-        THINK
+        THINK,
+        /** The cursor's been resting on him a while: he's all shy. Pink cheeks, happy squinty eyes. */
+        BLUSH,
+        /** The cursor swiped across his face: cross-eyed for a moment. Boop! */
+        BOOPED,
+        /** Hic! Hic! Hic! */
+        HICCUP,
+        /** Good morning! A great big stretch. */
+        STRETCH
     }
 
     private boolean canJuggle, canWave;
@@ -242,6 +250,18 @@ public final class Pet {
                 }
             }
             case CARPET, ROCKET, THINK -> { }
+            case BLUSH -> { if (!hovered && moodFor > nextChange) set(Mood.IDLE, idleTime()); }
+            case BOOPED, STRETCH -> { if (moodFor > nextChange) set(Mood.IDLE, idleTime()); }
+            case HICCUP -> {
+                if ((moodFor / 1000) != ((moodFor - ms) / 1000) && moodFor < 3000) {
+                    wants = Beep.CLICKED;
+                    if (moodFor >= 2000) line = "...hic!";
+                }
+                if (moodFor > nextChange) {
+                    line = "Okay. I think they're gone.";
+                    set(Mood.IDLE, idleTime());
+                }
+            }
             case DUCKS -> {
                 if (moodFor >= DUCK_SURPRISE + 400 && !sang) {
                     sang = true;
@@ -352,6 +372,10 @@ public final class Pet {
                     sneezed = false;
                     line = "Ah... ah...";
                     set(Mood.SNEEZE, 1300);
+                } else if (moodFor > 10_000 && prefs.on("hiccups") && random.nextInt(30_000) == 0) {
+                    line = "hic!";
+                    wants = Beep.CLICKED;
+                    set(Mood.HICCUP, 3600);
                 } else if (moodFor > 20_000 && prefs.on("creates") && random.nextInt(24_000) == 0) {
                     wantsToCreate = true; // feeling creative: the window picks what
                 } else if (moodFor > 8000 && prefs.on("flies") && random.nextInt(9000) == 0) {
@@ -790,6 +814,10 @@ public final class Pet {
     public String hat() {
         if (birthdayToday) return "birthday";
         if (!hat.isEmpty()) return hat;
+        if (mood == Mood.SLEEP) { // a nightcap, at night
+            int hour = java.time.LocalTime.now().getHour();
+            if (hour >= 21 || hour < 6) return "nightcap";
+        }
         if (!prefs.on("seasonalHats")) return "";
         java.time.LocalDate d = java.time.LocalDate.now();
         if (d.getMonthValue() == 12 && d.getDayOfMonth() >= 20 && d.getDayOfMonth() <= 26) return "santa";
@@ -816,6 +844,36 @@ public final class Pet {
                     GOODBYE, FREAKOUT -> true;
             default -> false;
         };
+    }
+
+    private boolean hovered;
+    private long hoverFor;
+
+    /** Whether the cursor is resting on him. Long enough and he gets shy. */
+    public void hover(boolean over, long ms) {
+        hovered = over;
+        hoverFor = over ? hoverFor + ms : 0;
+        if (over && hoverFor > 1600 && (mood == Mood.IDLE || mood == Mood.SIT) && prefs.on("blush")) {
+            if (random.nextInt(3) == 0) line = random.nextBoolean() ? "...hi." : "Oh! Um. Hello.";
+            set(Mood.BLUSH, 900);
+        }
+    }
+
+    /** The cursor swiped across his face. Boop! */
+    public void booped() {
+        if (mood != Mood.IDLE && mood != Mood.SIT && mood != Mood.BLUSH) return;
+        if (!prefs.on("boop")) return;
+        if (random.nextInt(3) == 0) line = "boop!";
+        wants = Beep.CLICKED;
+        set(Mood.BOOPED, 800);
+    }
+
+    /** Good morning: a great big stretch (the first time you're on the computer each morning). */
+    public void morning(String name) {
+        if (busy() || mood == Mood.SLEEP) return;
+        line = "Good morning" + (name.isEmpty() ? "" : ", " + name) + "!";
+        wants = Beep.YAWN;
+        set(Mood.STRETCH, 1800);
     }
 
     /** Thinking about your question (laptop out), or done thinking (it goes away). */
@@ -974,6 +1032,8 @@ public final class Pet {
     /** How high he is off the ground right now, in his own pixels (bouncing when happy, breathing otherwise). */
     public float lift() {
         if (mood == Mood.HAPPY) return (float) Math.abs(Math.sin(time / 130.0)) * 3;
+        if (mood == Mood.HICCUP) return moodFor % 1000 < 180 && moodFor < 3000 ? 1.5f : 0; // a little jump with each hic
+        if (mood == Mood.STRETCH) return (float) Math.sin(Math.min(1, moodFor / 600.0) * Math.PI / 2) * (moodFor < 1400 ? 1.5f : 0);
         if (mood == Mood.FREAKOUT) return (float) Math.abs(Math.sin(time / 60.0)) * (nextChange == Long.MAX_VALUE ? 3 : 1.5f); // jumping about
         if (mood == Mood.DANCE) return (float) Math.abs(Math.sin(time / 180.0)) * 2;
         if (mood == Mood.WALK) return (time / 150) % 2 == 0 ? 0 : 0.5f; // a little bob with each step

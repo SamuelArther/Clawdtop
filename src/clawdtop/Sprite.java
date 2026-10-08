@@ -264,6 +264,10 @@ public final class Sprite {
             boolean flail = (pet.time() / 70) % 2 == 0;
             box(g, unit, LEFT - 2, top + (flail ? -0.5 : 3), 1.2, 2.5, body);
             box(g, unit, LEFT + 13.8, top + (flail ? 3 : -0.5), 1.2, 2.5, body);
+        } else if (mood == Pet.Mood.STRETCH && pet.moodTime() < 1400) {
+            // reaching up as high as he can
+            box(g, unit, LEFT - 1, top - 3, 1, 3, body);
+            box(g, unit, LEFT + 13, top - 3, 1, 3, body);
         } else if (mood == Pet.Mood.HAPPY || mood == Pet.Mood.RIDE || mood == Pet.Mood.PARTY
                 || mood == Pet.Mood.CARPET || (mood == Pet.Mood.DUCKS && pet.moodTime() >= Pet.DUCK_SURPRISE + 400)) {
             box(g, unit, LEFT - 2, top - 1, 1, 3, body);
@@ -279,6 +283,7 @@ public final class Sprite {
         double ex = pet.lookX() * 0.5;
         double ey = pet.lookY() * 0.5;
         boolean sleepy = mood == Pet.Mood.LIE || mood == Pet.Mood.GOODBYE || mood == Pet.Mood.SAD // half-shut eyes: dozy, or sad
+                || (mood == Pet.Mood.STRETCH && pet.moodTime() < 1400)
                 || mood == Pet.Mood.SORRY || made(pet, Creation.Effect.RAIN);
         for (int x : new int[] {3, 11}) {
             double eyeX = LEFT + x + ex;
@@ -296,12 +301,26 @@ public final class Sprite {
                     || (mood == Pet.Mood.DUCKS && pet.moodTime() >= Pet.DUCK_SURPRISE && pet.moodTime() < Pet.DUCK_SURPRISE + 400)) {
                 box(g, unit, eyeX - 0.5, eyeY - 0.5, 2, 3, EYE); // eyes wide open in shock
                 box(g, unit, eyeX, eyeY + 0.5, 1, 1, LIT);
+            } else if (mood == Pet.Mood.BLUSH) {
+                // happy squinty eyes: little upside-down Vs
+                box(g, unit, LEFT + x - 0.5, top + 3, 0.6, 0.6, EYE);
+                box(g, unit, LEFT + x, top + 2.5, 0.6, 0.6, EYE);
+                box(g, unit, LEFT + x + 0.5, top + 3, 0.6, 0.6, EYE);
+            } else if (mood == Pet.Mood.BOOPED) {
+                box(g, unit, LEFT + x + (x == 3 ? 1.2 : -1.2), eyeY, 1, 2, EYE); // cross-eyed
             } else if (sleepy) {
                 box(g, unit, eyeX, eyeY + 1, 1, 1, EYE);
             } else {
                 box(g, unit, eyeX, eyeY, 1, 2, EYE);
             }
         }
+        // Blushing: little pink cheeks
+        if (mood == Pet.Mood.BLUSH) {
+            Color pink = new Color(255, 130, 160, 200);
+            box(g, unit, LEFT + 1.2, top + 5, 2, 1, pink);
+            box(g, unit, LEFT + 10.8, top + 5, 2, 1, pink);
+        }
+
         // Mouth: only while he beeps, flapping open and shut between his eyes
         if (pet.talking()) {
             if (pet.mouthOpen()) {
@@ -840,6 +859,16 @@ public final class Sprite {
                 box(g, unit, mid - 1, top - 3, 2, 1, blue);
                 box(g, unit, mid - 0.5, top - 4, 1, 1, yellow);
                 box(g, unit, mid - 0.75, top - 5, 1.5, 1, new Color(255, 120, 170));
+            }
+            case "nightcap" -> {
+                // a floppy sleeping cap, drooping to one side, with a pom-pom
+                Color blue = new Color(90, 120, 210), stripe = new Color(230, 235, 255);
+                box(g, unit, mid - 3, top - 1, 6, 1, stripe);
+                box(g, unit, mid - 2.5, top - 2, 5, 1, blue);
+                box(g, unit, mid - 1, top - 3, 4, 1, blue);
+                box(g, unit, mid + 1.5, top - 3.5, 2.5, 0.8, stripe);
+                box(g, unit, mid + 3.5, top - 3.5, 1.2, 2, blue);
+                box(g, unit, mid + 3.6, top - 1.8, 1, 1, Color.WHITE);
             }
             case "pumpkin" -> {
                 box(g, unit, mid - 2.5, top - 2.5, 5, 2.5, new Color(240, 140, 30));

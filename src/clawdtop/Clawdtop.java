@@ -174,6 +174,7 @@ public final class Clawdtop {
         canvas.addMouseMotionListener(mouse);
     }
 
+    private Point lastMouseForBoop;
     private final Ask askBox = new Ask();
     private final Brain brain = new Brain();
     private boolean thinking;
@@ -547,6 +548,10 @@ public final class Clawdtop {
      * the computer). He might have missed you, and it might be your birthday.
      */
     private void cameBack(long awayFor) {
+        int hourNow = java.time.LocalTime.now().getHour();
+        if (hourNow >= 5 && hourNow < 12 && settings.on("morning") && settings.once("morning:" + java.time.LocalDate.now())) {
+            pet.morning(settings.name());
+        }
         long gap = System.currentTimeMillis() - settings.lastSeen();
         if (settings.lastSeen() > 0 && gap >= 2 * 86_400_000L && settings.on("missedYou")) {
             pet.say("Hi.... I missed you..... you've been gone for " + Settings.howLong(gap) + "...."
@@ -958,6 +963,11 @@ public final class Clawdtop {
         }
         double eyesX = window.getX() + Sprite.eyesX() * unit;
         double eyesY = window.getY() + Sprite.eyesY() * unit;
+        // the cursor resting on him (he gets shy), or swiping across his face (boop!)
+        boolean overHim = Math.abs(mouse.x - eyesX) < 7 * unit && Math.abs(mouse.y - eyesY) < 4 * unit && body.state() == Body.State.HOME;
+        pet.hover(overHim && !moved, FRAME_MS);
+        if (overHim && lastMouseForBoop != null && lastMouseForBoop.distance(mouse) > 6 * unit) pet.booped();
+        lastMouseForBoop = mouse;
         pet.tick(FRAME_MS, mouse.x - eyesX, mouse.y - eyesY, moved, devApp);
         Pet.Beep beep = pet.takeBeep();
         if (beep != null && mayBeep()) beeps.play(beep);

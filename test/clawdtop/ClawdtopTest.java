@@ -239,7 +239,7 @@ public class ClawdtopTest {
         funny.takeBeep();
         String funnySeen = "";
         java.util.Set<String> lines = new java.util.HashSet<>();
-        for (int i = 0; i < 3 * 60 * 60 * 30 && !(funnySeen.contains("FLY") && lines.size() >= 3); i++) { // up to 3 hours of him standing around
+        for (int i = 0; i < 3 * 60 * 60 * 30 && !(funnySeen.contains("FLY") && lines.contains("ACHOO!") && (lines.contains("Got it!") || lines.contains("...it got away."))); i++) { // up to 3 hours of him standing around
             funny.tick(33, 0, 0, true, false);
             String l = funny.takeLine();
             if (l != null) lines.add(l);
@@ -251,6 +251,7 @@ public class ClawdtopTest {
             }
         }
         check("left alone a while, he sneezes and a fly comes by", funnySeen.contains("SNEEZE") && funnySeen.contains("FLY"), true);
+        check("and other things happen too (hiccups...)", lines.size() >= 3, true);
         check("ACHOO, and the fly gets caught or gets away", lines.contains("ACHOO!") && (lines.contains("Got it!") || lines.contains("...it got away.")), true);
         Pet spinner = new Pet(16);
         spinner.takeBeep();
