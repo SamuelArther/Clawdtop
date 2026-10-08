@@ -5,6 +5,8 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 /** Clawdtop's tests: no window opens. Pictures of every mood go to build/frames, to look at. */
@@ -523,10 +525,30 @@ public class ClawdtopTest {
         worker.takeBeep();
         worker.job(Pet.Mood.WORK);
         worker.follow(Body.State.PERCH);
-        for (int i = 0; i < 20; i++) worker.tick(33, 0, 0, false, false);
+        // Every step of getting the laptop out, typing, and putting it away, in one picture (a row per 0.6 s)
+        int cols = 9, cell = 8;
+        List<BufferedImage> laptopFrames = new ArrayList<>();
+        for (int i = 0; i < 27; i++) {
+            laptopFrames.add(picture(worker));
+            for (int k = 0; k < 2; k++) worker.tick(33, 0, 0, false, false);
+            worker.follow(Body.State.PERCH);
+        }
         save(worker, frames.resolve("working on his laptop.png"));
+        check("after setting up he's still at it", worker.mood(), Pet.Mood.WORK);
         worker.job(Pet.Mood.PEEK);
         worker.follow(Body.State.PERCH);
+        check("he puts the laptop away before anything else", worker.mood(), Pet.Mood.PACK);
+        for (int i = 0; i < 10; i++) {
+            laptopFrames.add(picture(worker));
+            for (int k = 0; k < 2; k++) worker.tick(33, 0, 0, false, false);
+            worker.follow(Body.State.PERCH);
+        }
+        check("then it's the next thing (peeking)", worker.mood(), Pet.Mood.PEEK);
+        BufferedImage sheet = new BufferedImage(cols * Sprite.WIDTH * cell, (laptopFrames.size() + cols - 1) / cols * Sprite.HEIGHT * cell, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D sg = sheet.createGraphics();
+        for (int i = 0; i < laptopFrames.size(); i++) sg.drawImage(laptopFrames.get(i), i % cols * Sprite.WIDTH * cell, i / cols * Sprite.HEIGHT * cell, null);
+        sg.dispose();
+        ImageIO.write(sheet, "png", frames.resolve("laptop (every step).png").toFile());
         save(worker, frames.resolve("peeking hands.png"));
         worker.job(null);
         worker.follow(Body.State.PERCH);
@@ -617,6 +639,20 @@ public class ClawdtopTest {
     /** One picture, 8 screen pixels to his pixel, on a taskbar-gray background so the see-through parts show. */
     static void save(Pet pet, Path file) throws Exception {
         save(pet, file, 0);
+    }
+
+    /** A picture of him as he is now, on a dark background with a faint line round it (8 pixels a unit). */
+    static BufferedImage picture(Pet pet) {
+        int unit = 8;
+        BufferedImage image = new BufferedImage(Sprite.WIDTH * unit, Sprite.HEIGHT * unit, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = image.createGraphics();
+        g.setColor(new java.awt.Color(32, 32, 36));
+        g.fillRect(0, 0, image.getWidth(), image.getHeight());
+        g.setColor(new java.awt.Color(60, 60, 66));
+        g.drawRect(0, 0, image.getWidth() - 1, image.getHeight() - 1);
+        Sprite.draw(g, pet, unit);
+        g.dispose();
+        return image;
     }
 
     static void save(Pet pet, Path file, double angle) throws Exception {

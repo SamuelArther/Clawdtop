@@ -64,7 +64,9 @@ public final class Pet {
         /** Moving house: carrying a big box over his head. */
         CARRY,
         /** Just moved in: unpacking his boxes. */
-        UNPACK
+        UNPACK,
+        /** Done with his laptop: he stands up, folds it shut and puts it away. */
+        PACK
     }
 
     private boolean canJuggle, canWave;
@@ -193,6 +195,7 @@ public final class Pet {
 
         switch (mood) {
             case RIDE, FALL, DIZZY, SHAKE, WALK, WORK, PEEK -> { } // his body or his job decides these (see follow and job)
+            case PACK -> { if (moodFor > nextChange) set(Mood.IDLE, idleTime()); }
             case GOODBYE -> { }
             case SAD, LOVED, JUGGLE, DANCE, WAVE, YELLED, ANNOYED, SPIN, PARTY -> { if (moodFor > nextChange) set(Mood.IDLE, idleTime()); }
             case CARRY -> { }
@@ -318,8 +321,14 @@ public final class Pet {
 
     /** Keeps his mood in step with what his body is doing: riding, falling, dizzy, walking home, or back home. */
     public void follow(Body.State body) {
+        if (mood == Mood.PACK && moodFor <= nextChange) return; // putting his laptop away first
         if (job != null && (body == Body.State.PERCH || body == Body.State.HOP_TO)) {
-            if (mood != job) set(job, Long.MAX_VALUE);
+            if (mood == Mood.WORK && job != Mood.WORK) set(Mood.PACK, Sprite.PUT_AWAY);
+            else if (mood != job) set(job, Long.MAX_VALUE);
+            return;
+        }
+        if (mood == Mood.WORK) { // off the job: the laptop goes away before anything else
+            set(Mood.PACK, Sprite.PUT_AWAY);
             return;
         }
         Mood want = switch (body) {
@@ -337,7 +346,7 @@ public final class Pet {
                 return;
             }
             if (mood == Mood.RIDE || mood == Mood.FALL || mood == Mood.DIZZY || mood == Mood.SHAKE || mood == Mood.WALK
-                    || mood == Mood.WORK || mood == Mood.PEEK) {
+                    || mood == Mood.PEEK || mood == Mood.PACK) {
                 set(Mood.IDLE, idleTime());
             }
             return;
@@ -642,7 +651,7 @@ public final class Pet {
         if (mood == Mood.FREAKOUT) return (float) Math.abs(Math.sin(time / 60.0)) * (nextChange == Long.MAX_VALUE ? 3 : 1.5f); // jumping about
         if (mood == Mood.DANCE) return (float) Math.abs(Math.sin(time / 180.0)) * 2;
         if (mood == Mood.WALK) return (time / 150) % 2 == 0 ? 0 : 0.5f; // a little bob with each step
-        if (mood == Mood.RIDE || mood == Mood.FALL || mood == Mood.DIZZY || mood == Mood.WORK || mood == Mood.PEEK) return 0;
+        if (mood == Mood.RIDE || mood == Mood.FALL || mood == Mood.DIZZY || mood == Mood.WORK || mood == Mood.PEEK || mood == Mood.PACK) return 0;
         if (mood == Mood.SLEEP || mood == Mood.LIE) return 0;
         if (!prefs.on("breathing")) return 0;
         return (time / 900) % 2 == 0 ? 0 : 0.5f; // a slow breath

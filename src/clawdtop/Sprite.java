@@ -9,7 +9,7 @@ import java.awt.Graphics2D;
  */
 public final class Sprite {
     /** How big the drawing is, in units: room to bounce, raise his arms and let out z's. */
-    public static final int WIDTH = 21;
+    public static final int WIDTH = 23; // (room at his right for his laptop)
     public static final int HEIGHT = 15;
 
     static final Color ORANGE = new Color(215, 119, 87); // his own color
@@ -19,12 +19,10 @@ public final class Sprite {
     static final Color LIT = new Color(255, 251, 214);
     static final Color GLOW = new Color(255, 214, 102, 150);
     static final Color ZZZ = new Color(200, 210, 230, 220);
-    static final Color LAPTOP = new Color(150, 158, 170);
-    static final Color LAPTOP_DARK = new Color(96, 104, 116);
-    static final Color SCREEN_GLOW = new Color(150, 210, 255, 120);
+    static final Color LAPTOP = new Color(128, 128, 128); // the plain gray laptop from the Claude Code animation
 
     private static final int GROUND = 14; // the row his feet stand on (the bottom of the drawing)
-    private static final int LEFT = 4;    // where his body starts
+    private static final int LEFT = 5;    // where his body starts (in the middle)
 
     private Sprite() {
     }
@@ -79,6 +77,10 @@ public final class Sprite {
     }
 
     private static void drawBody(Graphics2D g, Pet pet, int unit, Pet.Mood mood) {
+        if (mood == Pet.Mood.WORK || mood == Pet.Mood.PACK) {
+            drawAtLaptop(g, pet, unit, mood);
+            return;
+        }
         if (mood == Pet.Mood.PEEK) {
             // Hiding behind the window's top edge: just his two little hands gripping it
             box(g, unit, LEFT + 2, GROUND - 1, 1, 1, body);
@@ -108,10 +110,7 @@ public final class Sprite {
         // Body
         box(g, unit, LEFT, top, 13, 8, body);
         // Arms: out to the sides, or up in the air when he's happy
-        if (mood == Pet.Mood.WORK) {
-            // His side nubs are his hands, and they float free (no arms, like a Mii): while he types they're over at
-            // the laptop, drawn with it below
-        } else if (mood == Pet.Mood.DANCE || mood == Pet.Mood.JUGGLE) {
+        if (mood == Pet.Mood.DANCE || mood == Pet.Mood.JUGGLE) {
             // hands going up and down in turns (dancing, or tossing balls)
             boolean up = (pet.time() / (mood == Pet.Mood.DANCE ? 180 : 140)) % 2 == 0;
             box(g, unit, LEFT - 2, top + (up ? 0 : 3), 1, 2, body);
@@ -175,29 +174,6 @@ public final class Sprite {
                 box(g, unit, eyeX, eyeY, 1, 2, EYE);
             }
         }
-        // His laptop, out in front of him (it rises up as he pulls it out), seen from the back of its screen
-        if (mood == Pet.Mood.WORK) {
-            double out = Math.min(1, pet.moodTime() / 450.0);
-            double ly = GROUND - out * 4.5; // low enough that his eyes peek over it
-            Graphics2D clip = (Graphics2D) g.create();
-            clip.clipRect(0, 0, WIDTH * unit, GROUND * unit);
-            box(clip, unit, LEFT + 3.5, ly - 0.5, 6, 0.5, SCREEN_GLOW);  // light from the screen over its top
-            box(clip, unit, LEFT + 3.5, ly, 6, 3.5, LAPTOP_DARK);         // the screen's back
-            box(clip, unit, LEFT + 6, ly + 1.25, 1, 1, body);            // a tiny orange logo
-            box(clip, unit, LEFT + 2.5, ly + 3.5, 8, 1, LAPTOP);          // the keyboard part
-            clip.dispose();
-            // His two floating hands typing on the keyboard where it sticks out past the screen, taking turns,
-            // never in front of the screen. Until the laptop's all the way out they're still at his sides.
-            boolean tap = (pet.time() / 110) % 2 == 0;
-            if (out >= 1) {
-                box(g, unit, LEFT + 2.5, ly + 2.5 + (tap ? 0.75 : 0), 1, 1, hand);
-                box(g, unit, LEFT + 9.5, ly + 2.5 + (tap ? 0 : 0.75), 1, 1, hand);
-            } else {
-                box(g, unit, LEFT - 2, top + 4, 2, 2, body);
-                box(g, unit, LEFT + 13, top + 4, 2, 2, body);
-            }
-        }
-
         // Mouth: only while he beeps, flapping open and shut between his eyes
         if (pet.talking()) {
             if (pet.mouthOpen()) {
@@ -254,10 +230,10 @@ public final class Sprite {
         // Birthday: a cake by his side, and his party blower going out and back from his mouth
         if (pet.birthdayToday() && mood != Pet.Mood.WORK && mood != Pet.Mood.PEEK) {
             Color cake = new Color(250, 225, 200), icing = new Color(255, 140, 180);
-            box(g, unit, 0.5, GROUND - 3, 3.5, 3, cake);
-            box(g, unit, 0.5, GROUND - 3, 3.5, 0.8, icing);
-            box(g, unit, 2, GROUND - 4.2, 0.5, 1.2, new Color(140, 200, 255));          // a candle
-            if ((pet.time() / 120) % 2 == 0) box(g, unit, 1.9, GROUND - 4.9, 0.7, 0.7, new Color(255, 190, 60)); // its flame
+            box(g, unit, LEFT - 3.5, GROUND - 3, 3.5, 3, cake);
+            box(g, unit, LEFT - 3.5, GROUND - 3, 3.5, 0.8, icing);
+            box(g, unit, LEFT - 2, GROUND - 4.2, 0.5, 1.2, new Color(140, 200, 255));          // a candle
+            if ((pet.time() / 120) % 2 == 0) box(g, unit, LEFT - 2.1, GROUND - 4.9, 0.7, 0.7, new Color(255, 190, 60)); // its flame
         }
         double blow = pet.blower();
         if (mood == Pet.Mood.BIRTHDAY) {
@@ -277,7 +253,7 @@ public final class Sprite {
         if (mood == Pet.Mood.UNPACK) {
             long t = pet.moodTime();
             for (int b = 0; b < 2; b++) {
-                double bx = b == 0 ? -0.5 : 17;
+                double bx = b == 0 ? LEFT - 4.5 : LEFT + 13;
                 box(g, unit, bx, GROUND - 4, 4.5, 4, Box.CARDBOARD);
                 box(g, unit, bx + 1.6, GROUND - 4, 1.2, 4, Box.TAPE);
                 if (t > 400 + b * 700) {
@@ -390,6 +366,139 @@ public final class Sprite {
                 g.fillRect((int) Math.round(x * speck + drift), (int) Math.round(y * speck - rise), Math.max(1, size), Math.max(1, size));
             }
         }
+    }
+
+    /** How long getting his laptop out takes, before he's typing, and how long putting it away takes (ms). */
+    static final long SET_UP = 1150, PUT_AWAY = 600;
+    private static final double SLIDE = 2;                 // he scoots this far left to make room for it
+    private static final double BASE_X = LEFT + 13.5;      // where the laptop sits on the ground (before the scoot)
+    private static final double BASE_W = 4.2, SCREEN = 3.6, THICK = 0.5;
+
+    private enum Pose { FRONT, REACH, LIFT, SWING, SET, SIDE, TYPE, FOLD, BACK }
+
+    private static double ease(double t) {
+        t = Math.max(0, Math.min(1, t));
+        return t * t * (3 - 2 * t);
+    }
+
+    /**
+     * At his laptop, move for move like Clawd's laptop animation in Claude Code. Getting it out: he reaches round for
+     * it (one eye squeezed shut), lifts it up over his head and flips it open, swings it down beside him, turns side-on
+     * and crouches to type, tapping away on loop. Putting it away (PACK): he stands, folds it shut as he picks it up,
+     * and turns back round.
+     */
+    private static void drawAtLaptop(Graphics2D g, Pet pet, int unit, Pet.Mood mood) {
+        long t = pet.moodTime();
+        Pose pose;
+        double slide;
+        if (mood == Pet.Mood.WORK) {
+            pose = t < 100 ? Pose.FRONT : t < 560 ? Pose.REACH : t < 760 ? Pose.LIFT : t < 900 ? Pose.SWING
+                    : t < 1050 ? Pose.SET : t < SET_UP ? Pose.SIDE : Pose.TYPE;
+            slide = SLIDE * ease((t - 100) / 460.0);
+        } else {
+            pose = t < 100 ? Pose.SIDE : t < 200 ? Pose.FOLD : t < 400 ? Pose.BACK : Pose.FRONT;
+            slide = SLIDE * (1 - ease((t - 200) / 250.0));
+        }
+        Graphics2D s = (Graphics2D) g.create();
+        s.translate(-slide * unit, 0);
+        boolean side = pose == Pose.SIDE || pose == Pose.TYPE;
+        boolean crouch = pose == Pose.TYPE;
+        double top = GROUND - 10 + (crouch ? 0.5 : 0);
+        Color shade = new Color(body.getRed() * 88 / 100, body.getGreen() * 88 / 100, body.getBlue() * 88 / 100);
+
+        // Legs: four stubs, or crouched with his feet out
+        for (int x : new int[] {0, 2, 10, 12}) {
+            if (crouch) {
+                box(s, unit, LEFT + x, GROUND - 1.5, 1, 1.5, body);
+                box(s, unit, LEFT + x - 0.5, GROUND - 0.5, 1.5, 0.5, body);
+            } else {
+                box(s, unit, LEFT + x, GROUND - 2, 1, 2, body);
+            }
+        }
+        // Body (side-on, the near side of him is in shade)
+        box(s, unit, LEFT, top, 13, 8, body);
+        if (side) box(s, unit, LEFT, top, 2, 8, shade);
+
+        // Hands, and the laptop
+        boolean tap = (pet.time() / 130) % 2 == 0;
+        switch (pose) {
+            case FRONT -> {
+                box(s, unit, LEFT - 2, top + 4, 2, 2, body);
+                box(s, unit, LEFT + 13, top + 4, 2, 2, body);
+            }
+            case REACH, BACK -> { // leaning: one hand up, the other reaching down round his back
+                box(s, unit, LEFT - 2, top + 2, 2, 2, body);
+                box(s, unit, LEFT + 13, top + 5, 2, 2, body);
+            }
+            case LIFT -> { // holding it up over his head, flipping it open
+                box(s, unit, LEFT - 2, top + 4, 2, 2, body);
+                box(s, unit, LEFT + 13, top, 2, 2, body);
+                double open = ease((t - 600) / 120.0);
+                laptop(s, unit, BASE_X + BASE_W, top, 180 - open * 90, 0);
+            }
+            case SWING -> { // swinging it down beside him
+                double k = ease((t - 760) / 140.0);
+                box(s, unit, LEFT - 2, top + 4, 2, 2, body);
+                box(s, unit, LEFT + 13, top + k * 4, 2, 2, body);
+                laptop(s, unit, BASE_X + BASE_W + Math.sin(k * Math.PI) * 1.2, top + k * (GROUND - top),
+                        90 - k * 45, -Math.sin(k * Math.PI) * 40);
+            }
+            case SET -> { // set down; a last nudge
+                box(s, unit, LEFT - 2, top + 2, 2, 2, body);
+                box(s, unit, LEFT + 13, top + 3, 2.5, 2, body);
+                laptop(s, unit, BASE_X + BASE_W, GROUND, 45, 0);
+            }
+            case SIDE -> { // side-on, standing, a hand down by the keyboard
+                laptop(s, unit, BASE_X + BASE_W, GROUND, 45, 0);
+                box(s, unit, LEFT + 13, GROUND - 3.5, 2, 2, hand);
+            }
+            case TYPE -> { // crouched over it, tapping away
+                laptop(s, unit, BASE_X + BASE_W, GROUND, 45, 0);
+                box(s, unit, LEFT + 13 + (tap ? 0.5 : 0), GROUND - (tap ? 2.5 : 3.5), 2, 2, hand);
+            }
+            case FOLD -> { // folding it shut as he picks it up
+                double k = ease((t - 100) / 100.0);
+                double hingeY = GROUND - k * 3;
+                box(s, unit, LEFT - 2, top + 3, 2, 2, body);
+                box(s, unit, LEFT + 13, hingeY - 2.5, 2, 2, body);
+                laptop(s, unit, BASE_X + BASE_W, hingeY, 45 + k * 110, 0);
+            }
+        }
+
+        // Eyes: on the laptop while he works; one squeezed shut as he reaches round
+        double eyeY = top + 2 + (crouch ? 0.5 : 0) + (pose == Pose.LIFT ? -0.5 : 0);
+        double[] eyes = side ? new double[] {LEFT + 6, LEFT + 11.5}
+                : pose == Pose.FRONT ? new double[] {LEFT + 3, LEFT + 11} : new double[] {LEFT + 4, LEFT + 11.5};
+        for (int i = 0; i < 2; i++) {
+            if (pet.eyesShut()) box(s, unit, eyes[i], top + 3.5, 1, 0.5, EYE);
+            else if (pose == Pose.REACH && i == 0) box(s, unit, eyes[i] - 0.25, eyeY + 1, 1.5, 0.5, EYE);
+            else box(s, unit, eyes[i], eyeY, 1, 2, EYE);
+        }
+        if (pet.talking()) {
+            double mx = (eyes[0] + eyes[1]) / 2;
+            if (pet.mouthOpen()) box(s, unit, mx, top + 4.5, 1, 1.5, EYE);
+            else box(s, unit, mx - 0.5, top + 5, 2, 0.5, EYE);
+        }
+        Graphics2D hat = (Graphics2D) s.create();
+        hat.translate(((eyes[0] + eyes[1]) / 2 + 0.5 - (LEFT + 6.5)) * unit, 0); // over the middle of his face
+        drawHat(hat, unit, pet.hat(), top);
+        hat.dispose();
+        s.dispose();
+    }
+
+    /**
+     * The laptop, side-on: a flat gray keyboard part ending at the hinge (hingeX; groundY is the bottom of it), and the
+     * screen standing up from the hinge at screenAngle degrees (90 straight up, 45 leaning back, 180 folded shut), all
+     * tipped by tilt degrees. Never drawn below the ground.
+     */
+    private static void laptop(Graphics2D g, int unit, double hingeX, double groundY, double screenAngle, double tilt) {
+        Graphics2D l = (Graphics2D) g.create();
+        l.clipRect(-WIDTH * unit, -HEIGHT * unit, WIDTH * unit * 3, (GROUND + HEIGHT) * unit);
+        l.rotate(Math.toRadians(tilt), hingeX * unit, groundY * unit);
+        box(l, unit, hingeX - BASE_W, groundY - THICK, BASE_W, THICK, LAPTOP);
+        l.rotate(-Math.toRadians(screenAngle), (hingeX - THICK / 2) * unit, (groundY - THICK / 2) * unit);
+        box(l, unit, hingeX - THICK, groundY - THICK, SCREEN, THICK, LAPTOP);
+        l.dispose();
     }
 
     /** A hat from the shop (or the season) on his head, whose top is at top. */
