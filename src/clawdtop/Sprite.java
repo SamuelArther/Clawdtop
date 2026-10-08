@@ -48,10 +48,10 @@ public final class Sprite {
             jolt.dispose();
             return;
         }
-        if (mood == Pet.Mood.DANCE || mood == Pet.Mood.LISTEN || made(pet, Creation.Effect.DISCO) || made(pet, Creation.Effect.MUSIC)) {
-            // dancing: swaying side to side
+        if (mood == Pet.Mood.LISTEN) {
+            // listening to you play: swaying gently
             Graphics2D sway = (Graphics2D) g.create();
-            sway.translate(Math.sin(pet.time() / 180.0) * unit, 0);
+            sway.translate(Math.sin(pet.time() / 300.0) * 0.6 * unit, 0);
             drawBody(sway, pet, unit, mood);
             sway.dispose();
             return;
@@ -212,17 +212,21 @@ public final class Sprite {
         };
         double lift = pet.lift();
         double top = GROUND - 2 - 8 + drop - lift; // his body is 8 tall, on legs 2 tall
+        // His one dance: bobbing his body down and up to the beat, feet planted (dancing, music time, the disco ball)
+        boolean dancing = mood == Pet.Mood.DANCE || mood == Pet.Mood.VIBE || made(pet, Creation.Effect.DISCO) || made(pet, Creation.Effect.MUSIC);
+        double bob = dancing ? (Math.sin(pet.time() / 300.0 * Math.PI) > 0 ? 0.8 : 0) : 0;
+        top += bob;
 
         // Legs: four little stubs (shorter when he sits, tucked away when he lies down, stepping when he walks)
         int legs = 2 - drop;
         if (legs > 0) {
             boolean running = mood == Pet.Mood.FREAKOUT; // running on the spot, legs going like mad
-            boolean walking = mood == Pet.Mood.WALK || mood == Pet.Mood.CARRY;
+            boolean walking = mood == Pet.Mood.WALK || mood == Pet.Mood.CARRY || mood == Pet.Mood.LAP;
             boolean step = (walking && (pet.time() / 150) % 2 == 0) || (running && (pet.time() / 70) % 2 == 0);
             int[] xs = {0, 2, 10, 12};
             for (int i = 0; i < 4; i++) {
                 double up = (walking || running) && (i % 2 == 0) == step ? (running ? 1 : 0.5) : 0;
-                box(g, unit, LEFT + xs[i], GROUND - legs - lift - up, 1, legs, body);
+                box(g, unit, LEFT + xs[i], GROUND - legs - lift - up + bob, 1, legs - bob, body);
             }
         }
         // Body
@@ -268,6 +272,14 @@ public final class Sprite {
             boolean flail = (pet.time() / 70) % 2 == 0;
             box(g, unit, LEFT - 2, top + (flail ? -0.5 : 3), 1.2, 2.5, body);
             box(g, unit, LEFT + 13.8, top + (flail ? 3 : -0.5), 1.2, 2.5, body);
+        } else if (mood == Pet.Mood.LAP) {
+            // running flat out: arms pumping
+            boolean pump = (pet.time() / 60) % 2 == 0;
+            box(g, unit, LEFT - 1.6, top + (pump ? 2.5 : 4.5), 1.6, 1.6, body);
+            box(g, unit, LEFT + 13, top + (pump ? 4.5 : 2.5), 1.6, 1.6, body);
+        } else if (mood == Pet.Mood.PANT) {
+            box(g, unit, LEFT - 2, top + 5, 2, 2, body); // arms hanging, worn out
+            box(g, unit, LEFT + 13, top + 5, 2, 2, body);
         } else if (mood == Pet.Mood.REMIND) {
             // waving both hands: hey! hey!
             boolean up = (pet.time() / 140) % 2 == 0;
@@ -305,6 +317,7 @@ public final class Sprite {
         double ex = pet.lookX() * 0.5;
         double ey = pet.lookY() * 0.5;
         boolean sleepy = mood == Pet.Mood.LIE || mood == Pet.Mood.GOODBYE || mood == Pet.Mood.SAD // half-shut eyes: dozy, or sad
+                || mood == Pet.Mood.PANT || mood == Pet.Mood.VIBE
                 || mood == Pet.Mood.LISTEN || mood == Pet.Mood.FOCUS
                 || (mood == Pet.Mood.STRETCH && pet.moodTime() < 1400)
                 || mood == Pet.Mood.SORRY || made(pet, Creation.Effect.RAIN);
@@ -340,11 +353,31 @@ public final class Sprite {
             }
         }
         if (mood == Pet.Mood.PIANO) drawPiano(g, pet, unit, top); // in front of him
+        if (mood == Pet.Mood.LAP || mood == Pet.Mood.PANT) {
+            // sweat: more and more drops the longer he runs (and still dripping as he pants)
+            int drops = mood == Pet.Mood.PANT ? 4 : (int) Math.min(6, pet.moodTime() / 700);
+            for (int i = 0; i < drops; i++) {
+                double f = (pet.time() / 500.0 + i * 0.37) % 1;
+                double side = i % 2 == 0 ? -1 : 1;
+                box(g, unit, LEFT + 6.5 + side * (5 + f * 3), top - 0.5 + f * 2 + (i / 2) * 0.8, 0.6, 0.9, new Color(140, 200, 255, (int) (230 * (1 - f))));
+            }
+            if (mood == Pet.Mood.PANT && (pet.time() / 250) % 2 == 0) box(g, unit, LEFT + 6, top + 5, 1, 1.2, EYE); // mouth open, panting
+        }
         if (pet.clockMs() >= 0 && (mood == Pet.Mood.IDLE || mood == Pet.Mood.SIT || mood == Pet.Mood.HAPPY || mood == Pet.Mood.LOVED
                 || mood == Pet.Mood.BLUSH || mood == Pet.Mood.BOOPED || mood == Pet.Mood.HICCUP || mood == Pet.Mood.REMIND)) {
             drawClock(g, pet, unit, top);
         }
-        if (mood == Pet.Mood.FOCUS) {
+        if (mood == Pet.Mood.VIBE) {
+            // music notes floating out of his headphones
+            for (int i = 0; i < 3; i++) {
+                double f = (pet.time() / 1300.0 + i / 3.0) % 1;
+                double nx = (i % 2 == 0 ? LEFT - 1.5 - f * 2 : LEFT + 13.5 + f * 2), ny = top + 1 - f * 4;
+                Color note = new Color(255, 214, 102, (int) (255 * (1 - f)));
+                box(g, unit, nx, ny + 1.2, 0.7, 0.6, note);
+                box(g, unit, nx + 0.5, ny, 0.25, 1.6, note);
+            }
+        }
+        if (mood == Pet.Mood.FOCUS || mood == Pet.Mood.VIBE) {
             // tiny headphones: a band over his head and a cup on each side
             Color band = new Color(60, 60, 70), cup = new Color(90, 90, 104);
             box(g, unit, LEFT + 1, top - 1, 11, 0.6, band);
@@ -527,6 +560,14 @@ public final class Sprite {
      * Draws him turned by angle (0 standing, PI upside down, as when he falls head first), shifted down as he turns so
      * his head, not the air above it, meets the ground.
      */
+    /** Draws him turned round his middle by angle, with no shifting (running up walls and across the ceiling). */
+    public static void drawSpun(Graphics2D g, Pet pet, int unit, double angle) {
+        Graphics2D spun = (Graphics2D) g.create();
+        spun.rotate(angle, WIDTH * unit / 2.0, HEIGHT * unit / 2.0);
+        draw(spun, pet, unit);
+        spun.dispose();
+    }
+
     public static void drawTurned(Graphics2D g, Pet pet, int unit, double angle) {
         Graphics2D turned = (Graphics2D) g.create();
         if (angle != 0) {

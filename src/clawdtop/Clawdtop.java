@@ -78,6 +78,7 @@ public final class Clawdtop {
                     g2.translate(0, FAREWELL_ROOM * settings.unit());
                     Sprite.drawCrumbling(g2, pet, settings.unit(), pet.crumbled());
                 } else if (job != null && job.sunk() > 0) Sprite.drawRising(g2, pet, settings.unit(), job.sunk()); // climbing up to ask
+                else if (body.state() == Body.State.LAP) Sprite.drawSpun(g2, pet, settings.unit(), body.angle()); // up the walls
                 else Sprite.drawTurned(g2, pet, settings.unit(), body.angle());
                 g2.dispose();
             }
@@ -533,6 +534,16 @@ public final class Clawdtop {
             piano.addSeparator();
             piano.add(mine);
             menu.add(piano);
+        }
+        if (job == null && body.state() == Body.State.HOME) {
+            JMenuItem lap = new JMenuItem("Run a lap!");
+            lap.addActionListener(e -> {
+                if (pet.lap()) body.runLap();
+            });
+            menu.add(lap);
+            JMenuItem music = new JMenuItem("Music time!");
+            music.addActionListener(e -> pet.vibe());
+            menu.add(music);
         }
         JMenuItem joke = new JMenuItem("Tell me a joke");
         joke.addActionListener(e -> tellJoke());
@@ -1075,6 +1086,7 @@ public final class Clawdtop {
                 if (job.over()) job = null;
             }
             body.setCeiling(screen.y);
+            body.setUnit(unit);
             body.tick(FRAME_MS, mouse.x, mouse.y, homeX, groundY, 12 * unit, screen.x, screen.x + screen.width);
             pet.follow(body.state());
             creations();
@@ -1336,6 +1348,10 @@ public final class Clawdtop {
             });
             case "salute" -> pet.salute();
             case "focus" -> focus(true);
+            case "lap" -> {
+                if (pet.lap()) body.runLap();
+            }
+            case "vibe" -> pet.vibe();
             case "remind" -> answer("remind me in 3 seconds to drink some water");
             case "timer" -> answer("set a timer for 5 minutes");
             case "stopwatch" -> answer("start a stopwatch");

@@ -102,7 +102,13 @@ public final class Pet {
         /** Focus timer: headphones on, sitting quietly, not bothering you. */
         FOCUS,
         /** A reminder you asked for: hopping up and down so you notice. */
-        REMIND
+        REMIND,
+        /** Running a lap round the screen, as fast as he can (sweating more and more). */
+        LAP,
+        /** Done running: puffed out. */
+        PANT,
+        /** Music time: his own headphones on, bobbing to the beat. */
+        VIBE
     }
 
     private boolean canJuggle, canWave;
@@ -265,7 +271,21 @@ public final class Pet {
             case BLUSH -> { if (!hovered && moodFor > nextChange) set(Mood.IDLE, idleTime()); }
             case BOOPED, STRETCH -> { if (moodFor > nextChange) set(Mood.IDLE, idleTime()); }
             case SALUTE -> { if (moodFor > nextChange) set(Mood.IDLE, idleTime()); }
-            case FOCUS -> { }
+            case FOCUS, LAP -> { }
+            case PANT -> {
+                if (moodFor > nextChange) {
+                    line = "...I did it! Personal best!";
+                    wants = Beep.HAPPY;
+                    set(Mood.HAPPY, 900);
+                }
+            }
+            case VIBE -> {
+                if ((moodFor / 600) != ((moodFor - ms) / 600) && random.nextInt(3) == 0) wants = Beep.CLICKED;
+                if (moodFor > nextChange) {
+                    line = "That song slaps.";
+                    set(Mood.IDLE, idleTime());
+                }
+            }
             case REMIND -> {
                 if ((moodFor / 700) != ((moodFor - ms) / 700) && moodFor < 2800) wants = Beep.TIP;
                 if (moodFor > nextChange) set(Mood.IDLE, idleTime());
@@ -431,6 +451,8 @@ public final class Pet {
                     set(Mood.SNEEZE, 1300);
                 } else if (moodFor > 20_000 && prefs.on("piano") && random.nextInt(40_000) == 0) {
                     playPiano(random.nextInt(3) == 0 ? null : Piano.SONGS[random.nextInt(Piano.SONGS.length)]); // a little tune, just because
+                } else if (moodFor > 15_000 && prefs.on("music") && random.nextInt(30_000) == 0) {
+                    vibe(); // feeling the music
                 } else if (moodFor > 10_000 && prefs.on("hiccups") && random.nextInt(30_000) == 0) {
                     line = "hic!";
                     wants = Beep.CLICKED;
@@ -528,6 +550,7 @@ public final class Pet {
         Mood want = switch (body) {
             case HOP_ON, RIDE -> Mood.RIDE;
             case FLY -> Mood.CARPET;
+            case LAP -> Mood.LAP;
             case ROCKET -> Mood.ROCKET;
             case HOP_TO, PERCH -> Mood.IDLE;
             case FALL -> Mood.FALL;
@@ -542,14 +565,20 @@ public final class Pet {
                 return;
             }
             if (mood == Mood.RIDE || mood == Mood.FALL || mood == Mood.DIZZY || mood == Mood.SHAKE || mood == Mood.WALK
-                    || mood == Mood.PEEK || mood == Mood.CARPET) {
+                    || mood == Mood.PEEK || mood == Mood.CARPET || mood == Mood.LAP) {
                 if (guilty != null && body == Body.State.HOME) {
                     line = guilty.after();
                     wants = Beep.AWW;
                     set(Mood.SORRY, 2200);
                 } else {
                     if (mood == Mood.CARPET) line = "That was AWESOME.";
-                    set(Mood.IDLE, idleTime());
+                    if (mood == Mood.LAP) {
+                        line = "*pant* *pant* *pant*";
+                        wants = Beep.OOF;
+                        set(Mood.PANT, 2600);
+                    } else {
+                        set(Mood.IDLE, idleTime());
+                    }
                 }
             }
             return;
@@ -899,7 +928,7 @@ public final class Pet {
     /** Busy with something that shouldn't be cut short: a job, coding, a ride, a fall, moving house... */
     private boolean busy() {
         return switch (mood) {
-            case WORK, PEEK, PACK, CODING, SORRY, MADE, CARPET, LAUNCHPAD, ROCKET, DUCKS, THINK, PIANO, FETCH, FOCUS, RIDE, FALL, DIZZY, SHAKE, WALK, CARRY, UNPACK, BIRTHDAY,
+            case WORK, PEEK, PACK, CODING, SORRY, MADE, CARPET, LAUNCHPAD, ROCKET, DUCKS, THINK, PIANO, FETCH, FOCUS, LAP, PANT, RIDE, FALL, DIZZY, SHAKE, WALK, CARRY, UNPACK, BIRTHDAY,
                     GOODBYE, FREAKOUT -> true;
             default -> false;
         };
@@ -1019,6 +1048,22 @@ public final class Pet {
     public void listened() {
         if (mood != Mood.LISTEN && (busy() || mood == Mood.SLEEP)) return;
         set(Mood.LISTEN, 2500);
+    }
+
+    /** Music time: on go his headphones, and he bobs to the beat for a while. */
+    public void vibe() {
+        if (busy() || mood == Mood.SLEEP) return;
+        String[] lines = {"Music time!", "This one's my jam.", "Headphones on. World off."};
+        line = lines[random.nextInt(lines.length)];
+        set(Mood.VIBE, 9000 + random.nextInt(6000));
+    }
+
+    /** Ready, set... a lap! (The window starts him running.) */
+    public boolean lap() {
+        if (busy() || mood == Mood.SLEEP) return false;
+        line = "Ready... set... GO!";
+        wants = Beep.WHEE;
+        return true;
     }
 
     /** Veterans Day. */
@@ -1216,7 +1261,7 @@ public final class Pet {
         if (mood == Mood.HAPPY) return (float) Math.abs(Math.sin(time / 130.0)) * 3;
         if (mood == Mood.LISTEN || mood == Mood.PIANO) return 0;
         if (mood == Mood.REMIND) return moodFor < 2800 ? (float) Math.abs(Math.sin(moodFor / 110.0)) * 2.5f : 0; // hop hop hop
-        if (mood == Mood.FOCUS) return 0;
+        if (mood == Mood.FOCUS || mood == Mood.LAP) return 0;
         if (mood == Mood.HICCUP) return moodFor % 1000 < 180 && moodFor < 3000 ? 1.5f : 0; // a little jump with each hic
         if (mood == Mood.STRETCH) return (float) Math.sin(Math.min(1, moodFor / 600.0) * Math.PI / 2) * (moodFor < 1400 ? 1.5f : 0);
         if (mood == Mood.FREAKOUT) return (float) Math.abs(Math.sin(time / 60.0)) * (nextChange == Long.MAX_VALUE ? 3 : 1.5f); // jumping about

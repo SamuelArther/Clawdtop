@@ -8,7 +8,7 @@ import java.util.ArrayDeque;
  * screen pixels for the point between his feet. No windows here, so it can be tested on its own.
  */
 public final class Body {
-    public enum State { HOME, HOP_ON, RIDE, FALL, DIZZY, SHAKE, WALK, HOP_TO, PERCH, AWAY, OUT, FLY, ROCKET }
+    public enum State { HOME, HOP_ON, RIDE, FALL, DIZZY, SHAKE, WALK, HOP_TO, PERCH, AWAY, OUT, FLY, ROCKET, LAP }
 
     static final double GRAVITY = 2600;      // px/s², a quick, cartoony fall
     static final double WALK_SPEED = 140;    // px/s
@@ -24,6 +24,18 @@ public final class Body {
     static final double LIFTOFF_SPEED = 1500, CRUISE_SPEED = 260; // px/s: a blast off, then a lot slower
 
     private double ceiling = Double.NaN;
+    static final double LAP_SPEED = 900; // px/s: as fast as he can
+    private double unitPx = 4;            // how big his pixels are on the screen (for running up walls)
+
+    /** How many screen pixels one of his pixels is. */
+    public void setUnit(double unit) {
+        unitPx = unit;
+    }
+
+    /** Runs a lap: along the floor, up the wall, across the ceiling (upside down), down the other wall, and home. */
+    public void runLap() {
+        if (state == State.HOME) set(State.LAP);
+    }
 
     /** The top of the screen (his rocket bounces off it). */
     public void setCeiling(double top) {
@@ -217,6 +229,40 @@ public final class Body {
                     vy = -1200;
                     set(State.FALL);
                 }
+            }
+            case LAP -> {
+                // The path his feet take, round the edge of the screen; he turns at each corner so his feet stay on it
+                double top = Double.isNaN(ceiling) ? groundY - 700 : ceiling;
+                double[] legs = {homeX - left, groundY - top, right - left, groundY - top, right - homeX};
+                double[] turns = {0, Math.PI / 2, Math.PI, Math.PI * 1.5, Math.PI * 2};
+                double d = stateFor / 1000.0 * LAP_SPEED;
+                int leg = 0;
+                while (leg < legs.length && d > legs[leg]) {
+                    d -= legs[leg];
+                    leg++;
+                }
+                if (leg >= legs.length) {
+                    x = homeX;
+                    y = groundY;
+                    angle = 0;
+                    set(State.HOME);
+                    break;
+                }
+                double fx, fy;
+                switch (leg) {
+                    case 0 -> { fx = homeX - d; fy = groundY; }
+                    case 1 -> { fx = left; fy = groundY - d; }
+                    case 2 -> { fx = left + d; fy = top; }
+                    case 3 -> { fx = right; fy = top + d; }
+                    default -> { fx = right - legs[4] + d; fy = groundY; }
+                }
+                double from = leg == 0 ? 0 : turns[leg - 1];
+                double turn = from + (turns[leg] - from) * Math.min(1, d / (8 * unitPx)); // round the corner
+                angle = turn;
+                // where his window goes so his feet are at (fx, fy) while he's turned (he turns round his middle)
+                double r = 6.5 * unitPx;
+                x = fx + r * Math.sin(turn);
+                y = fy + r - r * Math.cos(turn);
             }
             case SHAKE -> {
                 y = groundY;
