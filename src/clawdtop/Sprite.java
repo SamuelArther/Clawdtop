@@ -88,17 +88,7 @@ public final class Sprite {
             return;
         }
         if (mood == Pet.Mood.LAUNCHPAD || mood == Pet.Mood.ROCKET) {
-            // his rocket, and him standing on it
-            long t = pet.moodTime();
-            boolean flying = mood == Pet.Mood.ROCKET;
-            double slideIn = flying ? 0 : (1 - ease(t / 700.0)) * 14;
-            double shake = !flying && t > 5100 ? Math.sin(t / 25.0) * 0.15 : 0;
-            drawRocket(g, unit, slideIn + shake, flying || t > 5600, pet.time());
-            double up = flying || t >= 1100 ? 2 : t < 700 ? 0 : 2 * ease((t - 700) / 400.0) + Math.sin(Math.PI * Math.min(1, (t - 700) / 400.0)) * 1.5;
-            Graphics2D on = (Graphics2D) g.create();
-            on.translate(shake * unit, -up * unit);
-            drawBody(on, pet, unit, mood);
-            on.dispose();
+            drawRocketTrip(g, pet, unit, mood);
             return;
         }
         drawBody(g, pet, unit, mood);
@@ -118,21 +108,84 @@ public final class Sprite {
         }
     }
 
-    /** His rocket, lying on its side under him (nose to the right), shifted right by slide; lit, it has a flame. */
-    private static void drawRocket(Graphics2D g, int unit, double slide, boolean lit, long time) {
-        double x = LEFT - 1 + slide, y = GROUND - 2;
-        Color hull = new Color(232, 234, 240), red = new Color(220, 60, 60), glass = new Color(120, 200, 255);
-        box(g, unit, x, y, 14, 2, hull);
-        box(g, unit, x, y + 1.6, 14, 0.4, new Color(190, 194, 204));
-        box(g, unit, x + 14, y + 0.25, 1, 1.5, red); // nose
-        box(g, unit, x + 15, y + 0.6, 0.8, 0.8, red);
-        box(g, unit, x + 0.3, y - 1, 1.6, 1, red);   // fins
-        box(g, unit, x + 0.3, y + 2, 1.6, 0.8, red);
-        box(g, unit, x + 10.5, y + 0.5, 1, 1, glass); // a window
+    /** When the rocket trip happens (ms into LAUNCHPAD): it lands, the ramp slides out, he walks in, it shuts. */
+    static final long ROCKET_LANDS = 500, RAMP_OUT = 900, WALKED_IN = 2100, SHUT = 2500;
+    private static final double ROCKET_X = LEFT + 13.5; // the rocket's middle, beside him, while it waits
+
+    /**
+     * His rocket trip: a rocket drops in beside him, standing up; a ramp slides out of its door (like the Pikmin ship),
+     * he walks up it and in, the door shuts and there's his face in the round window for the countdown. Flying, it's
+     * just the rocket (the window turns it the way it's going), flame and all.
+     */
+    private static void drawRocketTrip(Graphics2D g, Pet pet, int unit, Pet.Mood mood) {
+        long t = pet.moodTime();
+        boolean flying = mood == Pet.Mood.ROCKET;
+        if (flying) {
+            // off it goes, sliding over to the middle of the window as it lifts
+            double x = feetX() + (ROCKET_X - feetX()) * (1 - ease(t / 500.0));
+            drawRocket(g, unit, x, GROUND - 1.5, 0, true, true, pet, 0);
+            return;
+        }
+        double drop = (1 - ease(t / (double) ROCKET_LANDS)) * -16;
+        double ramp = t < RAMP_OUT ? 0 : t < WALKED_IN ? ease((t - RAMP_OUT) / 300.0) : 1 - ease((t - WALKED_IN) / 300.0);
+        boolean doorOpen = t >= RAMP_OUT - 100 && t < SHUT;
+        boolean inside = t >= WALKED_IN;
+        double shake = t > 6600 ? Math.sin(t / 25.0) * 0.15 : 0;
+        drawRocket(g, unit, ROCKET_X + shake, GROUND + drop, ramp, t > 7000, inside, pet, doorOpen ? 1 : 0);
+        if (!inside) {
+            // him, then walking up the ramp and in through the door (the rocket hides what's gone in)
+            double walk = t < RAMP_OUT + 300 ? 0 : ease((t - RAMP_OUT - 300) / (double) (WALKED_IN - RAMP_OUT - 300));
+            Graphics2D him = (Graphics2D) g.create();
+            double door = ROCKET_X - 3;
+            him.clipRect(-WIDTH * unit, -HEIGHT * unit, (int) Math.round((door + WIDTH) * unit), HEIGHT * unit * 3);
+            boolean step = walk > 0 && walk < 1 && (pet.time() / 150) % 2 == 0;
+            double back = -3 * ease(t / (double) ROCKET_LANDS); // whoa: a step back as it lands
+            him.translate((back + walk * 16) * unit, (-walk * 1.5 - (step ? 0.3 : 0)) * unit);
+            drawBody(him, pet, unit, Pet.Mood.IDLE);
+            him.dispose();
+        }
+    }
+
+    /**
+     * A rocket standing up, its middle at x and its bottom at bottom. ramp (0 to 1) is how far its ramp has slid out of
+     * the door (down to the left); lit, there's a flame; inside, his face is in the round window.
+     */
+    private static void drawRocket(Graphics2D g, int unit, double x, double bottom, double ramp, boolean lit, boolean inside,
+            Pet pet, double doorOpen) {
+        Color hull = new Color(236, 238, 244), shade = new Color(196, 200, 212), red = new Color(220, 60, 60);
+        Color glass = new Color(120, 200, 255), metal = new Color(110, 116, 128);
+        double top = bottom - 13;
         if (lit) {
-            boolean flick = (time / 60) % 2 == 0;
-            box(g, unit, x - (flick ? 2.5 : 2), y + 0.3, flick ? 2.5 : 2, 1.4, new Color(255, 170, 60));
-            box(g, unit, x - 1.2, y + 0.6, 1.2, 0.8, new Color(255, 240, 150));
+            boolean flick = (pet.time() / 60) % 2 == 0;
+            box(g, unit, x - 1.2, bottom - 0.6, 2.4, flick ? 2.2 : 1.7, new Color(255, 170, 60));
+            box(g, unit, x - 0.6, bottom - 0.6, 1.2, flick ? 1.3 : 1, new Color(255, 240, 150));
+        }
+        box(g, unit, x - 1.5, bottom - 1.5, 3, 1, metal);                 // nozzle
+        box(g, unit, x - 3, top + 2, 6, 9.5, hull);                       // hull
+        box(g, unit, x + 1.8, top + 2, 1.2, 9.5, shade);                  // its shady side
+        box(g, unit, x - 2, top + 1, 4, 1, red);                          // nose cone
+        box(g, unit, x - 1, top, 2, 1, red);
+        box(g, unit, x - 4.5, bottom - 5, 1.5, 3.5, red);                 // fins
+        box(g, unit, x + 3, bottom - 5, 1.5, 3.5, red);
+        box(g, unit, x - 3, top + 7.5, 6, 0.5, red);                      // a stripe
+        // the round window, and him in it
+        box(g, unit, x - 2, top + 3, 4, 3.6, metal);
+        box(g, unit, x - 1.6, top + 3.4, 3.2, 2.8, glass);
+        if (inside) {
+            box(g, unit, x - 1.6, top + 4.2, 3.2, 2, body);
+            boolean blink = pet.eyesShut();
+            box(g, unit, x - 1, top + (blink ? 5 : 4.5), 0.6, blink ? 0.3 : 1, EYE);
+            box(g, unit, x + 0.4, top + (blink ? 5 : 4.5), 0.6, blink ? 0.3 : 1, EYE);
+        }
+        box(g, unit, x - 1.2, top + 3.6, 0.6, 0.6, new Color(255, 255, 255, 170)); // glint
+        // the door (low down on the left), and the ramp sliding out of it
+        if (doorOpen > 0) box(g, unit, x - 3, bottom - 5, 2.2, 3.5, new Color(40, 42, 50));
+        else box(g, unit, x - 3, bottom - 5, 0.3, 3.5, shade);
+        if (ramp > 0) {
+            double length = 5 * ramp;
+            for (double d = 0; d < length; d += 0.5) {
+                box(g, unit, x - 3 - d - 0.5, bottom - 1.5 + d * 1.5 / 5, 0.6, 0.5, metal);
+            }
         }
     }
 
@@ -206,7 +259,7 @@ public final class Sprite {
             box(g, unit, LEFT + 8 - (fidget ? 0.3 : 0), top + 6.5, 1.5, 1.5, hand);
             box(g, unit, LEFT + 13.2, top - 0.5 + (pet.time() / 300 % 3) * 0.3, 0.6, 1, new Color(140, 200, 255));
         } else if (mood == Pet.Mood.HAPPY || mood == Pet.Mood.RIDE || mood == Pet.Mood.FALL || mood == Pet.Mood.PARTY
-                || mood == Pet.Mood.CARPET || mood == Pet.Mood.ROCKET || (mood == Pet.Mood.LAUNCHPAD && pet.moodTime() > 1100)) {
+                || mood == Pet.Mood.CARPET) {
             box(g, unit, LEFT - 2, top - 1, 1, 3, body);
             box(g, unit, LEFT - 1, top + 1, 1, 1, body);
             box(g, unit, LEFT + 14, top - 1, 1, 3, body);

@@ -175,11 +175,19 @@ public final class Body {
                 double loopX = (left + right) / 2 + (right - left) * 0.4 * Math.sin(Math.PI * 2 * 1.3 * u) * Math.cos(Math.PI * 2 * 0.4 * u);
                 double loopY = groundY - 330 + 210 * Math.sin(Math.PI * 2 * 2.1 * u + 1.5 * Math.sin(Math.PI * 2 * u));
                 double sputter = u > 0.75 ? Math.sin(time / 35.0) * 8 : 0;
-                x = Math.max(left, Math.min(right, homeX + (loopX - homeX) * w + sputter));
-                y = groundY + (loopY - groundY) * w + sputter * 0.5;
-                angle = 0;
+                double nx = Math.max(left, Math.min(right, homeX + (loopX - homeX) * w + sputter));
+                double ny = groundY + (loopY - groundY) * w + sputter * 0.5;
+                if (Math.hypot(nx - x, ny - y) > 0.5) {
+                    // the rocket points the way it's going (0 is straight up)
+                    double heading = Math.atan2(nx - x, -(ny - y));
+                    double turn = Math.IEEEremainder(heading - angle, Math.PI * 2);
+                    angle += turn * Math.min(1, dt * 8);
+                }
+                x = nx;
+                y = ny;
                 if (u >= 1) {
                     boom = true;
+                    angle = 0;
                     headFirst = true;
                     vx = (x > (left + right) / 2 ? -1 : 1) * 900; // flung back across the screen
                     vy = -1200;
@@ -226,7 +234,9 @@ public final class Body {
 
     /** Off on his rocket (from home). */
     public void rocketRide() {
-        if (state == State.HOME) set(State.ROCKET);
+        if (state != State.HOME) return;
+        angle = 0;
+        set(State.ROCKET);
     }
 
     /** Whether his rocket just blew up (once). */

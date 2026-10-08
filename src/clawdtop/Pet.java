@@ -230,7 +230,7 @@ public final class Pet {
             case LAUNCHPAD -> {
                 // climbs aboard, then counts down: 5... 4... 3... 2... 1...
                 for (int n = 0; n < 5; n++) {
-                    if (moodFor >= 1100 + n * 1000 && countdown == n) {
+                    if (moodFor >= Sprite.SHUT + 100 + n * 1000 && countdown == n) {
                         countdown++;
                         line = (5 - n) + "...";
                         wants = Beep.TIP;
@@ -381,6 +381,10 @@ public final class Pet {
             wantY = (float) Math.max(-1, Math.min(1, (fly[1] - 6) / 4));
         }
         if (mood == Mood.SLEEP || (!prefs.on("eyes") && fly == null)) wantX = wantY = 0;
+        if (mood == Mood.LAUNCHPAD) { // looking at his rocket
+            wantX = 1;
+            wantY = -0.3f;
+        }
         float ease = Math.min(1, ms / 120f);
         lookX += (wantX - lookX) * ease;
         lookY += (wantY - lookY) * ease;
@@ -652,7 +656,7 @@ public final class Pet {
                 guilty = c;                   // (he'll be sorry once he's back)
                 rocket = c;
                 countdown = 0;
-                set(Mood.LAUNCHPAD, 6100);
+                set(Mood.LAUNCHPAD, Sprite.SHUT + 5100);
             }
             case POPUP, NONE -> {
                 // a pop-up says the done line itself (the window shows it); he just says the after line

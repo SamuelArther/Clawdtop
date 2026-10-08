@@ -67,7 +67,7 @@ record Creation(String id, String file, String starting, String done, String aft
                     "mini = clawd.copy(size=\"mini\")\n# what could go wrong\n"),
             new Creation("spin", "spin.py", "Testing something.", "Wheeeee!", "...the room is still spinning.", 0, Effect.SPIN, false,
                     "clawd.rotate(degrees=360)\n"),
-            new Creation("rocket", "rocket.py", "I'm going to space.", "3... 2... 1...", "...needs work.", 0, Effect.ROCKET, true,
+            new Creation("rocket", "rocket.py", "I'm going to space.", "Rocket's ready! All aboard!", "I knew there was a bug in the code...", 0, Effect.ROCKET, true,
                     "rocket = Rocket(fuel=\"a lot\")\nrocket.launch(crew=\"Clawd\")\n# landing: didn't get to that part\n"),
             new Creation("nasa", "hack_nasa.html", "Hacking NASA...", "I'm in.", "...it's just a picture of a cat.", 0, Effect.NONE, false,
                     "<h1>NASA MAINFRAME</h1>\n<img src=\"cat.jpg\">\n"),
