@@ -34,7 +34,8 @@ import java.nio.file.Path;
 public final class Clawdtop {
     private static final int FRAME_MS = 33;
 
-    private final Settings settings = Settings.load();
+    private Settings settings = Settings.load();
+    private long settingsChanged = Settings.changed();
     private final Pet pet = new Pet(System.nanoTime());
     private final Beeps beeps = new Beeps();
     private final Tips tips = new Tips();
@@ -287,6 +288,14 @@ public final class Clawdtop {
                 window.setVisible(!hidden);
             }
         }
+        // Every couple of seconds: settings changed from the clawd command (clawd controlpanel)?
+        if (ticks % 60 == 0 && Settings.changed() != settingsChanged) {
+            settingsChanged = Settings.changed();
+            String oldSize = settings.size();
+            settings = Settings.load();
+            if (!oldSize.equals(settings.size())) resize();
+            else if (body.state() == Body.State.HOME) place();
+        }
         // Every few seconds, back on top (the taskbar likes to come up over everything when it's clicked)
         if (ticks % 90 == 0 && !hidden) {
             window.setAlwaysOnTop(false);
@@ -366,6 +375,19 @@ public final class Clawdtop {
         RandomAccessFile lockFile = new RandomAccessFile(folder.resolve("running.lock").toFile(), "rw");
         FileLock lock = lockFile.getChannel().tryLock();
         if (lock == null) return;
+        // So the clawd command can find him (clawd stop, clawd status)
+        Path pid = folder.resolve("running.pid");
+        Files.writeString(pid, String.valueOf(ProcessHandle.current().pid()));
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            try {
+                Files.deleteIfExists(pid);
+            } catch (IOException ignored) {
+                // next start writes it again
+            }
+        }));
+        Thread command = new Thread(Install::ensureCommand, "Clawdtop command");
+        command.setDaemon(true);
+        command.start();
         SwingUtilities.invokeLater(() -> new Clawdtop().start());
     }
 

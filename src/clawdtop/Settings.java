@@ -24,6 +24,15 @@ public final class Settings {
         return appData != null ? Path.of(appData, "Clawdtop") : Path.of(System.getProperty("user.home"), ".clawdtop");
     }
 
+    /** When the settings file last changed (0 if it isn't there), to notice changes made from the clawd command. */
+    static long changed() {
+        try {
+            return Files.getLastModifiedTime(folder().resolve("settings.properties")).toMillis();
+        } catch (IOException e) {
+            return 0;
+        }
+    }
+
     static Settings load() {
         Settings s = new Settings(folder().resolve("settings.properties"));
         if (Files.exists(s.file)) {

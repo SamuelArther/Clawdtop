@@ -38,6 +38,22 @@ it, you already have Java 25 and don't need anything else.
 
 Turn on **Start with Windows** in his menu and he'll be there every time you sign in.
 
+## The clawd command
+
+Once he's run, any new terminal knows the `clawd` command:
+
+| Command | What it does |
+| --- | --- |
+| `clawd start` | brings Clawd to your taskbar |
+| `clawd stop` | sends him off for now |
+| `clawd restart` | stop, then start |
+| `clawd status` | whether he's running, and his settings |
+| `clawd controlpanel` | a little menu to change his name, spot, size, beeps, tips and starting with Windows |
+| `clawd uninstall` | removes him: stops him, takes out the command and his settings |
+
+It's a `clawd.cmd` in `%LOCALAPPDATA%\Clawdtopin`, put on your own (user) PATH; nothing system-wide changes.
+Changes from the control panel reach him within a couple of seconds.
+
 ## How he works
 
 It's plain Java with no libraries: a see-through window that stays on top, drawn block by block like Clawd in

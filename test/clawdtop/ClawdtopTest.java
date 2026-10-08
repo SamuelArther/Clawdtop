@@ -186,6 +186,25 @@ public class ClawdtopTest {
         check("and remembers you met, for next time", later.met() + " " + later.name() + " " + later.spot(), "true Samuel In the middle");
         check("he chirps along, starting with hello", chirps.get(0), Pet.Beep.HELLO);
 
+        // ---- The clawd command ----
+        check("clawd.cmd runs the command part of Clawdtop with console Java",
+                Install.script(Path.of("C:\\Java\\bin\\javaw.exe"), Path.of("C:\\Clawdtop\\build\\Clawdtop.jar")),
+                "@echo off\r\n\"C:\\Java\\bin\\java.exe\" --enable-native-access=ALL-UNNAMED -cp \"C:\\Clawdtop\\build\\Clawdtop.jar\" clawdtop.Cli %*\r\n");
+        String userPath = "%USERPROFILE%\\bin;C:\\Tools;C:\\Users\\me\\AppData\\Local\\Clawdtop\\bin";
+        check("finds its folder on your PATH (any capitals)", Install.hasEntry(userPath, "c:\\users\\me\\appdata\\local\\clawdtop\\bin")
+                + " " + Install.hasEntry("C:\\Tools", "C:\\Users\\me\\AppData\\Local\\Clawdtop\\bin"), "true false");
+        check("and takes only its own folder back out, leaving %VARIABLES% as they were",
+                Install.withoutEntry(userPath, "C:\\Users\\me\\AppData\\Local\\Clawdtop\\bin"), "%USERPROFILE%\\bin;C:\\Tools");
+        check("clawd help", cli("help").contains("clawd controlpanel"), true);
+        check("clawd status says who he knows", cli("status").contains("Name:        Samuel"), true);
+        check("an unknown command says what he can do", cli("dance").contains("I don't know \"dance\""), true);
+        String panel = cli("controlpanel", "1", "Sam", "4", "5", "2", "3", "3", "0");
+        Settings afterPanel = Settings.load();
+        check("the control panel changes his name, beeps, tips, spot and size", afterPanel.name() + " " + afterPanel.sounds() + " "
+                + afterPanel.tips() + " " + afterPanel.spot() + " " + afterPanel.size(), "Sam true false On the left Big");
+        check("and shows his settings", panel.contains("Clawd's control panel"), true);
+        check("uninstall asks first, and no means no", cli("uninstall", "n").contains("He's staying"), true);
+
         // ---- Cleaning a folder (on a pretend mini PC) ----
         CleanerTest.run();
 
@@ -266,6 +285,15 @@ public class ClawdtopTest {
 
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         System.exit(failures == 0 ? 0 : 1);
+    }
+
+    /** Runs a clawd command with typed answers, and gives back what it printed. */
+    static String cli(String command, String... typed) throws Exception {
+        java.io.ByteArrayOutputStream printed = new java.io.ByteArrayOutputStream();
+        java.io.PrintStream out = new java.io.PrintStream(printed, true, java.nio.charset.StandardCharsets.UTF_8);
+        java.io.BufferedReader in = new java.io.BufferedReader(new java.io.StringReader(String.join("\n", typed) + "\n"));
+        new Cli(out, in).run(command);
+        return printed.toString(java.nio.charset.StandardCharsets.UTF_8);
     }
 
     /** Lays out a Swing panel with no window and saves a picture of it. */
