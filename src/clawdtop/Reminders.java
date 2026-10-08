@@ -38,6 +38,21 @@ final class Reminders {
     private static final Pattern IN_FIRST = Pattern.compile("^in " + NUM + " " + UNIT + ",? remind me (?:to|about) (.+)$");
     private static final Pattern TIMER = Pattern.compile("^(?:set |start )?(?:a |an )?timer (?:for )?" + NUM + " " + UNIT + "$|^" + NUM + " " + UNIT + " timer$");
 
+    /** "start a stopwatch": 1. "stop the stopwatch": -1. Anything else: 0. */
+    static int stopwatch(String said) {
+        String s = said.toLowerCase(Locale.ROOT).strip().replaceAll("[.!?]+$", "");
+        if (s.matches("(start|begin|go|run)( a| the)? stopwatch|stopwatch|stopwatch (start|go)")) return 1;
+        if (s.matches("(stop|end|pause|finish)( the| my)? stopwatch|stopwatch (stop|end)")) return -1;
+        return 0;
+    }
+
+    /** A time as an alarm clock shows it: "4:59", or "1:02:03" past an hour. */
+    static String clock(long ms) {
+        long s = Math.max(0, ms) / 1000;
+        long h = s / 3600, m = s / 60 % 60, sec = s % 60;
+        return h > 0 ? String.format("%d:%02d:%02d", h, m, sec) : String.format("%d:%02d", m, sec);
+    }
+
     /** The reminder in what you typed, or null if it isn't one. */
     static Reminder parse(String said) {
         String s = said.toLowerCase(Locale.ROOT).strip().replaceAll("[.!?]+$", "").replaceAll("\\s+", " ");

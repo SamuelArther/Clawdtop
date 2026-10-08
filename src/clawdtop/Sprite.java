@@ -340,6 +340,10 @@ public final class Sprite {
             }
         }
         if (mood == Pet.Mood.PIANO) drawPiano(g, pet, unit, top); // in front of him
+        if (pet.clockMs() >= 0 && (mood == Pet.Mood.IDLE || mood == Pet.Mood.SIT || mood == Pet.Mood.HAPPY || mood == Pet.Mood.LOVED
+                || mood == Pet.Mood.BLUSH || mood == Pet.Mood.BOOPED || mood == Pet.Mood.HICCUP || mood == Pet.Mood.REMIND)) {
+            drawClock(g, pet, unit, top);
+        }
         if (mood == Pet.Mood.FOCUS) {
             // tiny headphones: a band over his head and a cup on each side
             Color band = new Color(60, 60, 70), cup = new Color(90, 90, 104);
@@ -745,6 +749,72 @@ public final class Sprite {
             box(him, unit, LEFT + 8.5, GROUND - 11, 1, 1, hand);
         }
         him.dispose();
+    }
+
+    /**
+     * A timer or stopwatch: a tiny round clock in one hand, its hands going round, and a little digital display held
+     * in front of him with the time in red alarm-clock digits.
+     */
+    private static void drawClock(Graphics2D g, Pet pet, int unit, double top) {
+        long ms = pet.clockMs();
+        // the round clock, in his left hand
+        double cx = LEFT - 2.2, cy = top + 1.6, r = 2.1;
+        Color rim = new Color(210, 60, 60), face = new Color(252, 250, 244), ink = new Color(40, 40, 46);
+        g.setColor(rim);
+        g.fillOval((int) Math.round((cx - r - 0.35) * unit), (int) Math.round((cy - r - 0.35) * unit), (int) Math.round((r + 0.35) * 2 * unit), (int) Math.round((r + 0.35) * 2 * unit));
+        g.setColor(face);
+        g.fillOval((int) Math.round((cx - r) * unit), (int) Math.round((cy - r) * unit), (int) Math.round(r * 2 * unit), (int) Math.round(r * 2 * unit));
+        box(g, unit, cx - 1.3, cy - r - 1, 0.8, 0.6, rim); // its little bells
+        box(g, unit, cx + 0.5, cy - r - 1, 0.8, 0.6, rim);
+        java.awt.Stroke was = g.getStroke();
+        g.setStroke(new java.awt.BasicStroke(Math.max(1, unit * 0.3f), java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND));
+        g.setColor(ink);
+        double seconds = (ms / 1000.0) % 60, minutes = (ms / 60000.0) % 60;
+        double sa = Math.PI * 2 * seconds / 60 - Math.PI / 2, ma = Math.PI * 2 * minutes / 60 - Math.PI / 2;
+        g.drawLine((int) (cx * unit), (int) (cy * unit), (int) ((cx + Math.cos(ma) * r * 0.55) * unit), (int) ((cy + Math.sin(ma) * r * 0.55) * unit));
+        g.setColor(rim);
+        g.drawLine((int) (cx * unit), (int) (cy * unit), (int) ((cx + Math.cos(sa) * r * 0.85) * unit), (int) ((cy + Math.sin(sa) * r * 0.85) * unit));
+        g.setStroke(was);
+        box(g, unit, LEFT - 2, top + 3.4, 1.4, 1.4, hand); // holding it
+        // the digital display, held in front of him
+        String text = Reminders.clock(ms);
+        double dw = 1.3, dh = 2.1, gap = 0.35, colon = 0.6;
+        double width = 0;
+        for (char c : text.toCharArray()) width += c == ':' ? colon : dw + gap;
+        double bx = LEFT + 6.5 - width / 2 - 0.5, by = top + 4.4;
+        box(g, unit, bx - 0.4, by - 0.4, width + 1.3, dh + 0.8, new Color(30, 30, 34));
+        box(g, unit, bx - 0.4, by - 0.4, width + 1.3, 0.25, new Color(70, 70, 78));
+        Color lit = new Color(255, 50, 40), dim = new Color(70, 22, 22);
+        double x = bx;
+        for (char c : text.toCharArray()) {
+            if (c == ':') {
+                boolean blink = (pet.time() / 500) % 2 == 0;
+                box(g, unit, x + 0.1, by + 0.5, 0.35, 0.35, blink ? lit : dim);
+                box(g, unit, x + 0.1, by + 1.3, 0.35, 0.35, blink ? lit : dim);
+                x += colon;
+            } else {
+                digit(g, unit, x, by, dw, dh, c - '0', lit, dim);
+                x += dw + gap;
+            }
+        }
+        box(g, unit, bx - 1, by + 0.6, 0.9, 1.2, hand);         // his hands on its ends
+        box(g, unit, bx + width + 0.3, by + 0.6, 0.9, 1.2, hand);
+    }
+
+    /** One seven-segment digit ("8" style, like an alarm clock), the unlit segments faintly showing. */
+    private static void digit(Graphics2D g, int unit, double x, double y, double w, double h, int d, Color on, Color off) {
+        // segments: a top, b top right, c bottom right, d bottom, e bottom left, f top left, g middle
+        int[] masks = {0b1111110, 0b0110000, 0b1101101, 0b1111001, 0b0110011, 0b1011011, 0b1011111, 0b1110000, 0b1111111, 0b1111011};
+        int m = d >= 0 && d <= 9 ? masks[d] : 0;
+        double t = Math.max(0.22, w * 0.22), half = h / 2;
+        double[][] seg = {
+                {x + t, y, w - 2 * t, t}, {x + w - t, y + t, t, half - 1.5 * t}, {x + w - t, y + half + t / 2, t, half - 1.5 * t},
+                {x + t, y + h - t, w - 2 * t, t}, {x, y + half + t / 2, t, half - 1.5 * t}, {x, y + t, t, half - 1.5 * t},
+                {x + t, y + half - t / 2, w - 2 * t, t}};
+        for (int i = 0; i < 7; i++) {
+            boolean lit = (m & (1 << (6 - i))) != 0;
+            box(g, unit, seg[i][0], seg[i][1], seg[i][2], seg[i][3], lit ? on : off);
+        }
     }
 
     /** Whether he's showing off something he made with this effect. */

@@ -112,7 +112,11 @@ final class Transfer {
             long until = System.currentTimeMillis() + waitMs;
             while (System.currentTimeMillis() < until) {
                 for (String where : new String[] {"255.255.255.255", "127.0.0.1"}) {
-                    s.send(new DatagramPacket(ask, ask.length, InetAddress.getByName(where), findPort));
+                    try {
+                        s.send(new DatagramPacket(ask, ask.length, InetAddress.getByName(where), findPort));
+                    } catch (IOException notAllowedHere) {
+                        // (some computers won't broadcast; the other way may still work)
+                    }
                 }
                 try {
                     byte[] buffer = new byte[64];

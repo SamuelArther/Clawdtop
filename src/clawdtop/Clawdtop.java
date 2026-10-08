@@ -204,6 +204,31 @@ public final class Clawdtop {
     private boolean inCorner; // sitting in the corner, watching your full-screen game
     private final java.util.List<Object[]> reminders = new java.util.ArrayList<>(); // {due ms, what}
     private long focusUntil;    // the focus timer runs out then (0: off)
+    private long stopwatchFrom; // the stopwatch started then (0: off)
+
+    /** Starts the stopwatch, or stops it and says how long it was. */
+    private void stopwatch(boolean start) {
+        if (start) {
+            stopwatchFrom = System.currentTimeMillis();
+            pet.say("Stopwatch started! Tell me to stop it.");
+        } else if (stopwatchFrom > 0) {
+            long took = System.currentTimeMillis() - stopwatchFrom;
+            stopwatchFrom = 0;
+            pet.say("Stop! That was " + Reminders.clock(took) + (took < 60_000 ? " (seconds)." : "."));
+        } else {
+            pet.say("The stopwatch isn't running. Say \"start a stopwatch\"!");
+        }
+    }
+
+    /** What his little clock shows: a running timer (the soonest), or the stopwatch. */
+    private void updateClock() {
+        long now = System.currentTimeMillis();
+        long soonest = Long.MAX_VALUE;
+        for (Object[] r : reminders) if ("time's up".equals(r[1]) || "time's up!".equals(r[1])) soonest = Math.min(soonest, (Long) r[0]);
+        if (soonest != Long.MAX_VALUE) pet.clock(soonest - now, false);
+        else if (stopwatchFrom > 0) pet.clock(now - stopwatchFrom, true);
+        else pet.clock(-1, false);
+    }
 
     /** Reminders that are due, and the focus timer running out. */
     private void checkReminders() {
@@ -240,6 +265,11 @@ public final class Clawdtop {
 
     /** Answers your question: math goes to Calculator (he doesn't trust himself); the rest, his brain. */
     private void answer(String question) {
+        int watch = Reminders.stopwatch(question);
+        if (watch != 0) {
+            stopwatch(watch > 0);
+            return;
+        }
         Reminders.Reminder reminder = Reminders.parse(question);
         if (reminder != null) {
             reminders.add(new Object[] {System.currentTimeMillis() + reminder.inMs(), reminder.what()});
@@ -510,6 +540,9 @@ public final class Clawdtop {
         JMenuItem focusItem = new JMenuItem(focusUntil > 0 ? "Stop the focus timer (" + Math.max(1, (focusUntil - System.currentTimeMillis()) / 60_000) + " min left)" : "Focus timer (25 min)");
         focusItem.addActionListener(e -> focus(focusUntil == 0));
         menu.add(focusItem);
+        JMenuItem watchItem = new JMenuItem(stopwatchFrom > 0 ? "Stop the stopwatch" : "Start a stopwatch");
+        watchItem.addActionListener(e -> stopwatch(stopwatchFrom == 0));
+        menu.add(watchItem);
         JMenuItem checkup = new JMenuItem("How's my computer?");
         checkup.addActionListener(e -> worker.execute(() -> {
             String report = Useful.checkup();
@@ -1073,6 +1106,7 @@ public final class Clawdtop {
         if (ticks % 300 == 150) checkTimes();
         if (ticks % 900 == 450 && focusUntil == 0) remindMe(nowMs);
         if (ticks % 15 == 7) checkReminders();
+        updateClock();
         if (ticks % 150 == 75) worker.execute(() -> {
             Power.criticalLevel(); // asked once, here in the background
             Power.State b = Power.now();
@@ -1303,6 +1337,8 @@ public final class Clawdtop {
             case "salute" -> pet.salute();
             case "focus" -> focus(true);
             case "remind" -> answer("remind me in 3 seconds to drink some water");
+            case "timer" -> answer("set a timer for 5 minutes");
+            case "stopwatch" -> answer("start a stopwatch");
             case "clean" -> startCleaning();
             case "checkup" -> pet.say(Useful.checkup());
             case "pet" -> pet.petted();

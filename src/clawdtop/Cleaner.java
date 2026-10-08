@@ -60,7 +60,8 @@ public final class Cleaner {
             String low = o.toLowerCase(Locale.ROOT);
             if (path.equals(low) || path.startsWith(low + "\\")) return "That's where Windows and your programs live. I'll leave it alone.";
         }
-        if (!Platform.WINDOWS) {
+        boolean yours = f.startsWith(home) || f.startsWith(Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath().normalize());
+        if (!Platform.WINDOWS && !yours) {
             for (String o : List.of("/bin", "/boot", "/dev", "/etc", "/lib", "/opt", "/proc", "/sbin", "/sys", "/usr", "/var", "/System",
                     "/Library", "/Applications", "/private")) {
                 if (f.toString().equals(o) || f.toString().startsWith(o + "/")) return "That's where your computer's system lives. I'll leave it alone.";

@@ -272,7 +272,8 @@ final class CleanJob {
 
     /** "12 temporary files, 3 empty folders, ..." for the list he found. */
     static String summary(List<Cleaner.Item> items) {
-        java.util.Map<String, Integer> kinds = new java.util.LinkedHashMap<>();
+        java.util.Map<String, Integer> kinds = new java.util.TreeMap<>(java.util.Comparator.comparingInt(k -> java.util.List.of(
+                "temporary files", "unfinished downloads", "empty folders", "Mac leftovers", "picture-preview caches", "Office leftovers").indexOf(k)));
         for (Cleaner.Item item : items) {
             String kind = switch (item.why()) {
                 case "a temporary file" -> "temporary files";

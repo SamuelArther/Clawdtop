@@ -72,7 +72,7 @@ public class CleanerTest {
         check("the maybe-junk he'll ask about one at a time", risky, List.of("photo (1).jpg: an exact copy of photo.jpg",
                 "setup_game.exe: an installer from 3 months ago", "tool.msi: an installer from 40 days ago"));
         check("summary of the plain junk", CleanJob.summary(plan.safe()),
-                "2 Mac leftovers, 1 unfinished downloads, 2 empty folders, 2 temporary files, 1 picture-preview caches, 1 Office leftovers");
+                "2 temporary files, 1 unfinished downloads, 2 empty folders, 2 Mac leftovers, 1 picture-preview caches, 1 Office leftovers");
         check("sizes in friendly words", Cleaner.size(512) + ", " + Cleaner.size(2048) + ", " + Cleaner.size(5_500_000) + ", " + Cleaner.size(3L << 30),
                 "512 bytes, 2 KB, 5.2 MB, 3.0 GB");
         check("looking changes nothing", Files.exists(downloads.resolve("report.tmp")) && Files.exists(oldSetup), true);

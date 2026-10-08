@@ -483,7 +483,7 @@ public class ClawdtopTest {
         check("he chirps along, starting with hello", chirps.get(0), Pet.Beep.HELLO);
 
         // ---- The clawd command ----
-        check("clawd.cmd runs the command part of Clawdtop with console Java",
+        if (Platform.WINDOWS) check("clawd.cmd runs the command part of Clawdtop with console Java",
                 Install.script(Path.of("C:\\Java\\bin\\javaw.exe"), Path.of("C:\\Clawdtop\\build\\Clawdtop.jar")),
                 "@echo off\r\n\"C:\\Java\\bin\\java.exe\" --enable-native-access=ALL-UNNAMED -cp \"C:\\Clawdtop\\build\\Clawdtop.jar\" clawdtop.Cli %*\r\n");
         String userPath = "%USERPROFILE%\\bin;C:\\Tools;C:\\Users\\me\\AppData\\Local\\Clawdtop\\bin";

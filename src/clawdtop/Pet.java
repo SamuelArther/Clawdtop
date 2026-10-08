@@ -969,6 +969,24 @@ public final class Pet {
         return true;
     }
 
+    private long clockMs = -1;   // what his little clock shows (ms), or -1 when he isn't holding it
+    private boolean clockUp;     // a stopwatch (counting up) or a timer (counting down)
+
+    /** His little clock and digital display: the time to show (ms), counting up or down; -1 puts it away. */
+    public void clock(long ms, boolean countingUp) {
+        clockMs = ms;
+        clockUp = countingUp;
+    }
+
+    /** What his clock shows (ms), or -1 if he isn't holding one. */
+    public long clockMs() {
+        return clockMs;
+    }
+
+    public boolean clockUp() {
+        return clockUp;
+    }
+
     private Piano.Song fetched;
 
     /** Ooh, a file being dragged over him (it might be music!). */
