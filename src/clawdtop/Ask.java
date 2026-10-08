@@ -64,6 +64,11 @@ final class Ask {
         label.setForeground(INK);
         label.setAlignmentX(Component.LEFT_ALIGNMENT);
         panel.add(label);
+        JLabel hint = new JLabel("Try: \"what's 12 times 7\", \"remind me in 10 minutes to stretch\", \"start a stopwatch\"");
+        hint.setFont(Bubble.FONT.deriveFont(11f));
+        hint.setForeground(new Color(130, 120, 110));
+        hint.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(hint);
         panel.add(Box.createVerticalStrut(8));
         field.setText("");
         field.setFont(Bubble.FONT.deriveFont(14f));
