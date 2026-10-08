@@ -87,7 +87,53 @@ public final class Sprite {
             wobble.dispose();
             return;
         }
+        if (mood == Pet.Mood.LAUNCHPAD || mood == Pet.Mood.ROCKET) {
+            // his rocket, and him standing on it
+            long t = pet.moodTime();
+            boolean flying = mood == Pet.Mood.ROCKET;
+            double slideIn = flying ? 0 : (1 - ease(t / 700.0)) * 14;
+            double shake = !flying && t > 5100 ? Math.sin(t / 25.0) * 0.15 : 0;
+            drawRocket(g, unit, slideIn + shake, flying || t > 5600, pet.time());
+            double up = flying || t >= 1100 ? 2 : t < 700 ? 0 : 2 * ease((t - 700) / 400.0) + Math.sin(Math.PI * Math.min(1, (t - 700) / 400.0)) * 1.5;
+            Graphics2D on = (Graphics2D) g.create();
+            on.translate(shake * unit, -up * unit);
+            drawBody(on, pet, unit, mood);
+            on.dispose();
+            return;
+        }
         drawBody(g, pet, unit, mood);
+        long boom = pet.boomAge();
+        if (boom < 900) {
+            // KABOOM: a burst of fire and smoke round him
+            Color[] fire = {new Color(255, 240, 150), new Color(255, 170, 60), new Color(230, 80, 50), new Color(120, 120, 128)};
+            double f = boom / 900.0;
+            for (int i = 0; i < 14; i++) {
+                double a = i * Math.PI * 2 / 14 + i;
+                double r = 1 + f * (4 + i % 3 * 1.5);
+                Color c = fire[Math.min(3, (int) (f * 3 + i % 2))];
+                double size = 2.2 * (1 - f) + 0.6;
+                box(g, unit, feetX() + Math.cos(a) * r * 1.3 - size / 2, GROUND - 5 + Math.sin(a) * r - size / 2, size, size,
+                        new Color(c.getRed(), c.getGreen(), c.getBlue(), (int) (255 * (1 - f * 0.8))));
+            }
+        }
+    }
+
+    /** His rocket, lying on its side under him (nose to the right), shifted right by slide; lit, it has a flame. */
+    private static void drawRocket(Graphics2D g, int unit, double slide, boolean lit, long time) {
+        double x = LEFT - 1 + slide, y = GROUND - 2;
+        Color hull = new Color(232, 234, 240), red = new Color(220, 60, 60), glass = new Color(120, 200, 255);
+        box(g, unit, x, y, 14, 2, hull);
+        box(g, unit, x, y + 1.6, 14, 0.4, new Color(190, 194, 204));
+        box(g, unit, x + 14, y + 0.25, 1, 1.5, red); // nose
+        box(g, unit, x + 15, y + 0.6, 0.8, 0.8, red);
+        box(g, unit, x + 0.3, y - 1, 1.6, 1, red);   // fins
+        box(g, unit, x + 0.3, y + 2, 1.6, 0.8, red);
+        box(g, unit, x + 10.5, y + 0.5, 1, 1, glass); // a window
+        if (lit) {
+            boolean flick = (time / 60) % 2 == 0;
+            box(g, unit, x - (flick ? 2.5 : 2), y + 0.3, flick ? 2.5 : 2, 1.4, new Color(255, 170, 60));
+            box(g, unit, x - 1.2, y + 0.6, 1.2, 0.8, new Color(255, 240, 150));
+        }
     }
 
     private static void drawBody(Graphics2D g, Pet pet, int unit, Pet.Mood mood) {
@@ -160,7 +206,7 @@ public final class Sprite {
             box(g, unit, LEFT + 8 - (fidget ? 0.3 : 0), top + 6.5, 1.5, 1.5, hand);
             box(g, unit, LEFT + 13.2, top - 0.5 + (pet.time() / 300 % 3) * 0.3, 0.6, 1, new Color(140, 200, 255));
         } else if (mood == Pet.Mood.HAPPY || mood == Pet.Mood.RIDE || mood == Pet.Mood.FALL || mood == Pet.Mood.PARTY
-                || mood == Pet.Mood.CARPET) {
+                || mood == Pet.Mood.CARPET || mood == Pet.Mood.ROCKET || (mood == Pet.Mood.LAUNCHPAD && pet.moodTime() > 1100)) {
             box(g, unit, LEFT - 2, top - 1, 1, 3, body);
             box(g, unit, LEFT - 1, top + 1, 1, 1, body);
             box(g, unit, LEFT + 14, top - 1, 1, 3, body);
@@ -628,8 +674,27 @@ public final class Sprite {
                 box(s, unit, LEFT + 13, GROUND - 3.5, 2, 2, hand);
             }
             case TYPE -> { // crouched over it, tapping away
-                laptop(s, unit, BASE_X + BASE_W, GROUND, 45, 0);
-                box(s, unit, LEFT + 13 + (tap ? 0.5 : 0), GROUND - (tap ? 2.5 : 3.5), 2, 2, hand);
+                double slam = pet.slam();
+                if (slam < 0) {
+                    laptop(s, unit, BASE_X + BASE_W, GROUND, 45, 0);
+                    box(s, unit, LEFT + 13 + (tap ? 0.5 : 0), GROUND - (tap ? 2.5 : 3.5), 2, 2, hand);
+                } else if (slam < Pet.SLAM_HIT) {
+                    // the big finish: hand up, high as it goes...
+                    double up = ease(slam / (Pet.SLAM_HIT * 0.6));
+                    laptop(s, unit, BASE_X + BASE_W, GROUND, 45, 0);
+                    box(s, unit, LEFT + 13 + up * 0.5, GROUND - 3.5 - up * 5, 2, 2, hand);
+                } else {
+                    // ...SLAM. The laptop jumps, and little lines fly off it
+                    double after = (slam - Pet.SLAM_HIT) / (1 - Pet.SLAM_HIT);
+                    laptop(s, unit, BASE_X + BASE_W, GROUND, 45 + Math.sin(after * Math.PI * 3) * 10 * (1 - after), 0);
+                    box(s, unit, LEFT + 13.5, GROUND - 2.4, 2, 2, hand);
+                    Color pow = new Color(255, 230, 150, (int) (255 * (1 - after)));
+                    double r = 1.2 + after * 1.5;
+                    for (int k = 0; k < 5; k++) {
+                        double a = Math.PI * (1.05 + k * 0.225);
+                        box(s, unit, LEFT + 14.5 + Math.cos(a) * r * 1.4, GROUND - 2 + Math.sin(a) * r, 0.5, 0.5, pow);
+                    }
+                }
             }
             case FOLD -> { // folding it shut as he picks it up
                 double k = ease((t - 100) / 100.0);

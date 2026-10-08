@@ -74,7 +74,11 @@ public final class Pet {
         /** Caught: something he made went wrong. Eyes down, hands together. */
         SORRY,
         /** Showing off something he coded (a disco ball, a rain cloud, a pizza...: see Creation). */
-        MADE
+        MADE,
+        /** A rocket he coded: it pulls up beside him, he climbs on, and counts down from 5. */
+        LAUNCHPAD,
+        /** Riding his rocket all over the screen (until it crashes). */
+        ROCKET
     }
 
     private boolean canJuggle, canWave;
@@ -214,9 +218,31 @@ public final class Pet {
             case RIDE, FALL, DIZZY, SHAKE, WALK, WORK, PEEK -> { } // his body or his job decides these (see follow and job)
             case PACK -> { if (moodFor > nextChange) doneCoding(); }
             case CODING -> {
-                if (moodFor > nextChange) set(Mood.PACK, Sprite.PUT_AWAY);
+                // the big finish: hand way up... and SLAM the button. That's when it happens.
+                if (slam() >= SLAM_HIT && slamBefore < SLAM_HIT) wants = Beep.CLAP;
+                slamBefore = slam();
+                if (moodFor > nextChange) {
+                    slamBefore = -1;
+                    doneCoding();
+                }
             }
-            case CARPET -> { }
+            case CARPET, ROCKET -> { }
+            case LAUNCHPAD -> {
+                // climbs aboard, then counts down: 5... 4... 3... 2... 1...
+                for (int n = 0; n < 5; n++) {
+                    if (moodFor >= 1100 + n * 1000 && countdown == n) {
+                        countdown++;
+                        line = (5 - n) + "...";
+                        wants = Beep.TIP;
+                    }
+                }
+                if (moodFor > nextChange) {
+                    made = rocket; // the window launches it (and then he's riding it: see follow)
+                    line = "LIFTOFF!!";
+                    wants = Beep.WHEE;
+                    nextChange = Long.MAX_VALUE;
+                }
+            }
             case SORRY -> {
                 if (moodFor > nextChange) deleteIt();
             }
@@ -381,6 +407,7 @@ public final class Pet {
         Mood want = switch (body) {
             case HOP_ON, RIDE -> Mood.RIDE;
             case FLY -> Mood.CARPET;
+            case ROCKET -> Mood.ROCKET;
             case HOP_TO, PERCH -> Mood.IDLE;
             case FALL -> Mood.FALL;
             case DIZZY -> Mood.DIZZY;
@@ -543,6 +570,17 @@ public final class Pet {
         return 0;
     }
 
+    /** The last bit of coding: his hand goes way up (ms), then comes down on the button at SLAM_HIT of the way. */
+    static final long SLAM_TIME = 800;
+    static final double SLAM_HIT = 0.7;
+    private double slamBefore = -1;
+
+    /** How far through the button slam at the end of coding he is (0 to 1), or -1 if he isn't slamming it. */
+    public double slam() {
+        if (mood != Mood.CODING || nextChange - moodFor > SLAM_TIME) return -1;
+        return Math.min(1, 1 - (nextChange - moodFor) / (double) SLAM_TIME);
+    }
+
     /** How long he codes before it's done (ms): a while, and he won't say what he's doing. */
     static final long CODING_TIME = 18_000;
 
@@ -609,7 +647,13 @@ public final class Pet {
         line = c.done();
         switch (c.effect()) {
             case CARPET -> wants = Beep.WHEE; // the window starts the ride
-            case ROCKET -> guilty = c;        // the window launches him; he'll be sorry once he's back
+            case ROCKET -> {
+                made = null;                  // not yet: first it pulls up and he climbs on
+                guilty = c;                   // (he'll be sorry once he's back)
+                rocket = c;
+                countdown = 0;
+                set(Mood.LAUNCHPAD, 6100);
+            }
             case POPUP, NONE -> {
                 // a pop-up says the done line itself (the window shows it); he just says the after line
                 line = c.effect() == Creation.Effect.POPUP ? c.after() : c.done() + "\n" + c.after();
@@ -641,6 +685,22 @@ public final class Pet {
         Creation d = deleted;
         deleted = null;
         return d;
+    }
+
+    private Creation rocket;
+    private int countdown;
+    private long boomAt = Long.MIN_VALUE;
+
+    /** His rocket blew up: BOOM (and off he flies). */
+    public void boom() {
+        boomAt = time;
+        line = "BOOM!";
+        wants = Beep.OOF;
+    }
+
+    /** ms since his rocket blew up (for the explosion), or a big number. */
+    public long boomAge() {
+        return boomAt == Long.MIN_VALUE ? Long.MAX_VALUE : time - boomAt;
     }
 
     /** You clicked his carpet away mid-flight: down he goes, and he'll be sorry once he's home. */
@@ -690,7 +750,7 @@ public final class Pet {
     /** Busy with something that shouldn't be cut short: a job, coding, a ride, a fall, moving house... */
     private boolean busy() {
         return switch (mood) {
-            case WORK, PEEK, PACK, CODING, SORRY, MADE, CARPET, RIDE, FALL, DIZZY, SHAKE, WALK, CARRY, UNPACK, BIRTHDAY,
+            case WORK, PEEK, PACK, CODING, SORRY, MADE, CARPET, LAUNCHPAD, ROCKET, RIDE, FALL, DIZZY, SHAKE, WALK, CARRY, UNPACK, BIRTHDAY,
                     GOODBYE, FREAKOUT -> true;
             default -> false;
         };

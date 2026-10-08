@@ -8,7 +8,7 @@ import java.util.ArrayDeque;
  * screen pixels for the point between his feet. No windows here, so it can be tested on its own.
  */
 public final class Body {
-    public enum State { HOME, HOP_ON, RIDE, FALL, DIZZY, SHAKE, WALK, HOP_TO, PERCH, AWAY, OUT, FLY }
+    public enum State { HOME, HOP_ON, RIDE, FALL, DIZZY, SHAKE, WALK, HOP_TO, PERCH, AWAY, OUT, FLY, ROCKET }
 
     static final double GRAVITY = 2600;      // px/s², a quick, cartoony fall
     static final double WALK_SPEED = 140;    // px/s
@@ -20,6 +20,7 @@ public final class Body {
     static final int SHAKE_TURNS = 4;        // direction changes within half a second that count as shaking
     static final double SHAKE_SPEED = 1400;  // and how fast (px/s on average) the cursor has to be going
     static final long FLY_TIME = 12_000;     // a ride on his flying carpet
+    static final long ROCKET_TIME = 6500;    // his rocket's flight, before it crashes
 
     private boolean rides = true, shakeOff = true;
     private long hoverToHop = HOVER_TO_HOP;
@@ -166,6 +167,25 @@ public final class Body {
                 y = groundY + (loopY - groundY) * w;
                 angle = 0;
             }
+            case ROCKET -> {
+                // Off the taskbar and all over the screen, wilder and wilder, sputtering at the end... then BOOM
+                double u = stateFor / (double) ROCKET_TIME;
+                double in = Math.min(1, u / 0.1);
+                double w = in * in * (3 - 2 * in);
+                double loopX = (left + right) / 2 + (right - left) * 0.4 * Math.sin(Math.PI * 2 * 1.3 * u) * Math.cos(Math.PI * 2 * 0.4 * u);
+                double loopY = groundY - 330 + 210 * Math.sin(Math.PI * 2 * 2.1 * u + 1.5 * Math.sin(Math.PI * 2 * u));
+                double sputter = u > 0.75 ? Math.sin(time / 35.0) * 8 : 0;
+                x = Math.max(left, Math.min(right, homeX + (loopX - homeX) * w + sputter));
+                y = groundY + (loopY - groundY) * w + sputter * 0.5;
+                angle = 0;
+                if (u >= 1) {
+                    boom = true;
+                    headFirst = true;
+                    vx = (x > (left + right) / 2 ? -1 : 1) * 900; // flung back across the screen
+                    vy = -1200;
+                    set(State.FALL);
+                }
+            }
             case SHAKE -> {
                 y = groundY;
                 angle = 0;
@@ -200,6 +220,20 @@ public final class Body {
     /** Off on a ride on his flying carpet (from home). */
     public void flyCarpet() {
         if (state == State.HOME) set(State.FLY);
+    }
+
+    private boolean boom;
+
+    /** Off on his rocket (from home). */
+    public void rocketRide() {
+        if (state == State.HOME) set(State.ROCKET);
+    }
+
+    /** Whether his rocket just blew up (once). */
+    public boolean takeBoom() {
+        boolean b = boom;
+        boom = false;
+        return b;
     }
 
     /** His carpet's gone out from under him: he falls, head first. */

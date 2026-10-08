@@ -193,7 +193,7 @@ public final class Clawdtop {
                     riding = made;
                     body.flyCarpet();
                 }
-                case ROCKET -> body.launch(0);
+                case ROCKET -> body.rocketRide();
                 case POPUP -> Useful.popup(made.file(), made.done());
                 default -> { }
             }
@@ -684,6 +684,7 @@ public final class Clawdtop {
             body.tick(FRAME_MS, mouse.x, mouse.y, homeX, groundY, 12 * unit, screen.x, screen.x + screen.width);
             pet.follow(body.state());
             creations();
+            if (body.takeBoom()) pet.boom();
             if (body.state() != Body.State.HOME || window.getX() != (int) Math.round(homeX - Sprite.feetX() * unit)) {
                 window.setLocation((int) Math.round(body.x() - Sprite.feetX() * unit),
                         (int) Math.round(body.y() - window.getHeight() + unit));
