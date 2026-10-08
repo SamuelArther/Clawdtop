@@ -8,7 +8,7 @@ import java.util.ArrayDeque;
  * screen pixels for the point between his feet. No windows here, so it can be tested on its own.
  */
 public final class Body {
-    public enum State { HOME, HOP_ON, RIDE, FALL, DIZZY, WALK, HOP_TO, PERCH }
+    public enum State { HOME, HOP_ON, RIDE, FALL, DIZZY, SHAKE, WALK, HOP_TO, PERCH }
 
     static final double GRAVITY = 2600;      // px/s², a quick, cartoony fall
     static final double WALK_SPEED = 140;    // px/s
@@ -16,6 +16,7 @@ public final class Body {
     static final long HOP_TIME = 260;
     static final long DIZZY_TIME = 1100;
     static final long FLIP_TIME = 260;       // getting back onto his feet
+    static final long SHAKE_TIME = 800;      // shaking it off once he's up
     static final int SHAKE_TURNS = 4;        // direction changes within half a second that count as shaking
     static final double SHAKE_SPEED = 1400;  // and how fast (px/s on average) the cursor has to be going
 
@@ -115,9 +116,14 @@ public final class Body {
                     angle = Math.PI + Math.min(Math.PI, (stateFor - DIZZY_TIME) / (double) FLIP_TIME * Math.PI);
                     if (stateFor > DIZZY_TIME + FLIP_TIME) {
                         angle = 0;
-                        set(State.WALK);
+                        set(State.SHAKE);
                     }
                 }
+            }
+            case SHAKE -> {
+                y = groundY;
+                angle = 0;
+                if (stateFor > SHAKE_TIME) set(State.WALK);
             }
             case WALK -> {
                 y = groundY;
@@ -131,6 +137,18 @@ public final class Body {
                 }
             }
         }
+    }
+
+    /**
+     * Shoots him straight up out of his box at full speed (a little to one side), so he comes down on his head, gets up,
+     * shakes it off and walks back.
+     */
+    public void launch(double sideways) {
+        onJob = false;
+        headFirst = true;
+        vx = sideways;
+        vy = -1700;
+        set(State.FALL);
     }
 
     /** Hops onto the cursor for a job, and stays on (no hopping off at the taskbar) until told where to go. */

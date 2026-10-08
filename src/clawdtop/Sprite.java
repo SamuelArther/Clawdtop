@@ -31,6 +31,18 @@ public final class Sprite {
     /** Draws him as he is right now, with the top-left of the drawing at (0, 0). */
     public static void draw(Graphics2D g, Pet pet, int unit) {
         Pet.Mood mood = pet.mood();
+        if (mood == Pet.Mood.SHAKE) {
+            // shaking it off: his whole body wobbles side to side, fast
+            Graphics2D wobble = (Graphics2D) g.create();
+            wobble.translate((pet.time() / 50) % 2 == 0 ? -0.7 * unit : 0.7 * unit, 0);
+            drawBody(wobble, pet, unit, mood);
+            wobble.dispose();
+            return;
+        }
+        drawBody(g, pet, unit, mood);
+    }
+
+    private static void drawBody(Graphics2D g, Pet pet, int unit, Pet.Mood mood) {
         if (mood == Pet.Mood.PEEK) {
             // Hiding behind the window's top edge: just his two little hands gripping it
             box(g, unit, LEFT + 2, GROUND - 1, 1, 1, BODY);

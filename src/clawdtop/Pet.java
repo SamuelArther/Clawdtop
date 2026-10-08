@@ -25,6 +25,8 @@ public final class Pet {
         FALL,
         /** Landed on his head: lying there upside down, seeing stars. */
         DIZZY,
+        /** Back on his feet after landing on his head: shaking it off. */
+        SHAKE,
         /** Walking home to his perch. */
         WALK,
         /** On a job, with his laptop out, typing away. */
@@ -78,7 +80,7 @@ public final class Pet {
         }
 
         switch (mood) {
-            case RIDE, FALL, DIZZY, WALK, WORK, PEEK -> { } // his body or his job decides these (see follow and job)
+            case RIDE, FALL, DIZZY, SHAKE, WALK, WORK, PEEK -> { } // his body or his job decides these (see follow and job)
             case IDLE -> { if (moodFor > nextChange) set(Mood.SIT, 30_000 + random.nextInt(60_000)); }
             case SIT -> {
                 if (moodFor > nextChange) set(sinceMouseMoved > 20_000 ? Mood.LIE : Mood.IDLE, sinceMouseMoved > 20_000 ? 60_000 + random.nextInt(120_000) : idleTime());
@@ -131,11 +133,13 @@ public final class Pet {
             case HOP_TO, PERCH -> Mood.IDLE;
             case FALL -> Mood.FALL;
             case DIZZY -> Mood.DIZZY;
+            case SHAKE -> Mood.SHAKE;
             case WALK -> Mood.WALK;
             case HOME -> null;
         };
         if (want == null || want == Mood.IDLE) {
-            if (mood == Mood.RIDE || mood == Mood.FALL || mood == Mood.DIZZY || mood == Mood.WALK || mood == Mood.WORK || mood == Mood.PEEK) {
+            if (mood == Mood.RIDE || mood == Mood.FALL || mood == Mood.DIZZY || mood == Mood.SHAKE || mood == Mood.WALK
+                    || mood == Mood.WORK || mood == Mood.PEEK) {
                 set(Mood.IDLE, idleTime());
             }
             return;
@@ -189,9 +193,9 @@ public final class Pet {
         return mood == Mood.SLEEP || mood == Mood.LIE;
     }
 
-    /** Whether his eyes are shut right now (blinking or asleep). */
+    /** Whether his eyes are shut right now (blinking, asleep, or squeezed shut shaking it off). */
     public boolean eyesShut() {
-        return mood == Mood.SLEEP || blinking > 0;
+        return mood == Mood.SLEEP || mood == Mood.SHAKE || blinking > 0;
     }
 
     /** Whether his eyes are lit up: a dev app is in front, or he's happy. */

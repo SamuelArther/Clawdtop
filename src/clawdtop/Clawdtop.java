@@ -303,6 +303,16 @@ public final class Clawdtop {
         }
 
         int unit = settings.unit();
+        if (boxed) {
+            if (welcome != null && welcome.showing()) welcome.follow(window.getBounds(), screenBounds());
+            return; // nothing to do until he's out
+        }
+        if (greetWhenHome && body.state() == Body.State.HOME) {
+            greetWhenHome = false;
+            pet.poke();
+            bubble.show("Hi" + (settings.name().isEmpty() ? "" : " " + settings.name()) + "!! I'm so happy to be here!",
+                    window.getBounds(), screenBounds());
+        }
         // His body: on his perch, or riding your cursor, flying off, dizzy, walking home
         if (dragFrom == Integer.MIN_VALUE) {
             Rectangle screen = window.getGraphicsConfiguration().getBounds();
@@ -347,6 +357,8 @@ public final class Clawdtop {
     }
 
     private Welcome welcome;
+    private boolean boxed;         // still in his box, the first time
+    private boolean greetWhenHome; // just shot out of his box: say hi once he's back on his spot
 
     private void start() {
         window.setVisible(true);
@@ -356,8 +368,15 @@ public final class Clawdtop {
             welcome = new Welcome(settings, this::place, b -> {
                 if (settings.sounds()) beeps.play(b);
             });
-            pet.poke();
-            pet.takeBeep();
+            boxed = true;
+            window.setVisible(false); // he's in his box, which shows up when you've finished meeting him
+            welcome.onFinished(() -> new Box(settings.unit(), (int) Math.round(homeX), (int) Math.round(groundY), () -> {
+                boxed = false;
+                window.setVisible(true);
+                body.launch((Math.random() < 0.5 ? -1 : 1) * (150 + Math.random() * 250));
+                if (settings.sounds()) beeps.play(Pet.Beep.WHEE);
+                greetWhenHome = true;
+            }).show());
             welcome.start(window.getBounds(), screenBounds());
         } else if (!settings.name().isEmpty()) {
             bubble.show("Hi again, " + settings.name() + "!", window.getBounds(), screenBounds());

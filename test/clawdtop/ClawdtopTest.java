@@ -99,12 +99,27 @@ public class ClawdtopTest {
         rider.follow(body.state());
         check("oof", rider.mood() + " " + rider.takeBeep(), "DIZZY OOF");
         while (body.state() == Body.State.DIZZY) body.tick(33, 0, 0, perch, ground, reach, 0, 1920);
-        check("then gets back on his feet and walks home", body.state() + " " + body.angle(), "WALK 0.0");
+        check("then gets back on his feet and shakes it off", body.state() + " " + body.angle(), "SHAKE 0.0");
+        while (body.state() == Body.State.SHAKE) body.tick(33, 0, 0, perch, ground, reach, 0, 1920);
+        check("and walks home", body.state(), Body.State.WALK);
         int walkTicks = 0;
         while (body.state() == Body.State.WALK && walkTicks++ < 2000) body.tick(33, 0, 0, perch, ground, reach, 0, 1920);
         check("all the way back to his perch", body.state() + " " + body.x(), "HOME 1800.0");
         rider.follow(body.state());
         check("and he's himself again", rider.mood(), Pet.Mood.IDLE);
+        Body boxBody = new Body();
+        boxBody.tick(33, 0, 0, perch, ground, reach, 0, 1920);
+        boxBody.launch(300);
+        String boxSeen = "";
+        double highest = ground;
+        for (int i = 0; i < 2000 && (i == 0 || boxBody.state() != Body.State.HOME); i++) {
+            boxBody.tick(33, 0, 0, perch, ground, reach, 0, 1920);
+            highest = Math.min(highest, boxBody.y());
+            String st = boxBody.state().name();
+            if (!boxSeen.endsWith(st)) boxSeen += (boxSeen.isEmpty() ? "" : ">") + st;
+        }
+        check("out of his box he shoots up high, lands on his head, gets up, shakes it off and walks back",
+                boxSeen + " " + (ground - highest > 400), "FALL>DIZZY>SHAKE>WALK>HOME true");
         Body gentle = new Body();
         for (int i = 0; i < 40; i++) gentle.tick(33, perch - 25, ground, perch, ground, reach, 0, 1920);
         for (int i = 0; i < 40; i++) gentle.tick(33, 1500, ground + 2, perch, ground, reach, 0, 1920);
@@ -244,6 +259,17 @@ public class ClawdtopTest {
         save(moving, frames.resolve("dizzy, head first.png"), Math.PI);
         moving.follow(Body.State.WALK);
         save(moving, frames.resolve("walking home.png"));
+        moving.follow(Body.State.SHAKE);
+        save(moving, frames.resolve("shaking it off.png"));
+        BufferedImage boxPicture = new BufferedImage((Box.WIDTH + 8) * 8, (Box.HEIGHT + 6) * 8 * 2 + 8, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D bxg = boxPicture.createGraphics();
+        bxg.setColor(new java.awt.Color(32, 32, 36));
+        bxg.fillRect(0, 0, boxPicture.getWidth(), boxPicture.getHeight());
+        Box.draw(bxg, 8, 1000, false);
+        bxg.translate(0, (Box.HEIGHT + 6) * 8 + 8);
+        Box.draw(bxg, 8, 1000, true);
+        bxg.dispose();
+        ImageIO.write(boxPicture, "png", frames.resolve("box (shut, then open).png").toFile());
         Pet worker = new Pet(7);
         worker.takeBeep();
         worker.job(Pet.Mood.WORK);

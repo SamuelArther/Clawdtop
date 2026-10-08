@@ -38,6 +38,7 @@ final class Welcome {
     private final JPanel panel;
     private final Runnable moved;     // where he sits changed: put him there
     private final Consumer<Pet.Beep> beep;
+    private Runnable finished = () -> { };
     private Rectangle clawd = new Rectangle();
     private Rectangle screen = new Rectangle();
 
@@ -71,6 +72,11 @@ final class Welcome {
             window.setAlwaysOnTop(true);
             window.setType(java.awt.Window.Type.UTILITY);
         }
+    }
+
+    /** Runs when you've finished meeting him (his box shows up then). */
+    void onFinished(Runnable then) {
+        finished = then;
     }
 
     /** Starts the hello, above Clawd. */
@@ -153,9 +159,10 @@ final class Welcome {
         String who = settings.name().isEmpty() ? "" : " " + settings.name();
         settings.setMet();
         show(new String[] {"All set" + (who.isEmpty() ? "" : ",") + who + "!",
-                "Click me for jobs, right-click me for settings.", "Have fun!"}, null,
-                button("Bye for now", () -> {
+                "I'm in a box down on your taskbar.", "Click it to let me out!"}, null,
+                button("OK!", () -> {
                     if (window != null) window.dispose();
+                    finished.run();
                 }));
         beep.accept(Pet.Beep.HAPPY);
     }
