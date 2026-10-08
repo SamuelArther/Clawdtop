@@ -34,6 +34,28 @@ final class Power {
     private Power() {
     }
 
+    private static volatile int critical = -1;
+
+    /**
+     * The battery level where Windows shuts the laptop down by itself (its "critical battery level", 5% unless
+     * changed). Asked once (powercfg), in the background.
+     */
+    static int criticalLevel() {
+        if (critical >= 0) return critical;
+        int level = 5;
+        try {
+            Process p = new ProcessBuilder("powercfg", "/query", "SCHEME_CURRENT", "SUB_BATTERY", "BATLEVELCRIT").redirectErrorStream(true).start();
+            String out = new String(p.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            p.waitFor();
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("DC Power Setting Index: 0x([0-9a-fA-F]+)").matcher(out);
+            if (m.find()) level = Integer.parseInt(m.group(1), 16);
+        } catch (Exception e) {
+            // keep Windows' usual 5%
+        }
+        critical = level;
+        return level;
+    }
+
     /** The battery, or null if there isn't one (or Windows won't say). */
     static State now() {
         if (GET_SYSTEM_POWER_STATUS == null) return null;

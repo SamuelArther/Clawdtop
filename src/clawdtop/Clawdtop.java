@@ -360,8 +360,9 @@ public final class Clawdtop {
         if (battery != null) {
             if (!now.pluggedIn() && now.percent() <= 15 && battery.percent() > 15) pet.say("My battery's low... and so is yours.");
             if (now.pluggedIn() && !battery.pluggedIn()) pet.say("Ahh. Power.");
-            boolean critical = !now.pluggedIn() && now.percent() <= 2;
-            boolean wasCritical = !battery.pluggedIn() && battery.percent() <= 2;
+            int last = Power.criticalLevel() + 1; // 1% before Windows shuts the laptop off by itself
+            boolean critical = !now.pluggedIn() && now.percent() <= last;
+            boolean wasCritical = !battery.pluggedIn() && battery.percent() <= last;
             if (critical && !wasCritical) pet.batteryPanic(true);   // and then it all goes black, when the laptop shuts off
             if (!critical && wasCritical) pet.batteryPanic(false);
         }
@@ -574,6 +575,7 @@ public final class Clawdtop {
         if (ticks % 30 == 0 && !farewell) {
             String asked = Settings.takeAsk();
             if (asked != null && asked.equals("goodbye")) sayGoodbye();
+            else if (asked != null && asked.equals("moveout")) moveOut();
             else if (asked != null && asked.startsWith("mood ")) pet.ask(asked.substring(5));
         }
         if (farewell) {
@@ -636,11 +638,13 @@ public final class Clawdtop {
         }
         if (ticks % 300 == 150) checkTimes();
         if (ticks % 150 == 75) worker.execute(() -> {
+            Power.criticalLevel(); // asked once, here in the background
             Power.State b = Power.now();
             SwingUtilities.invokeLater(() -> checkBattery(b));
         });
         checkZoom(mouse);
         holdPet();
+        if (movingOut && body.state() == Body.State.OUT) System.exit(0); // gone to the new computer
         if (huffed && body.state() == Body.State.HOME) {
             huffed = false;
             bubble.show("...okay. I'm better now.", window.getBounds(), screenBounds());
@@ -680,6 +684,19 @@ public final class Clawdtop {
     private Welcome welcome;
     private boolean welcomeStarted;
 
+    /** clawd move: he's off to the new computer. He picks up a box and walks off the edge of the screen. */
+    private void moveOut() {
+        if (job != null) job.stop(body, pet);
+        bubble.show("Off to the new place! Bye!", window.getBounds(), screenBounds());
+        pet.moving(true);
+        Rectangle screen = screenBounds();
+        boolean right = homeX > screen.x + screen.width / 2.0;
+        body.walkOff(right ? screen.x + screen.width + 200 : screen.x - 200, Long.MAX_VALUE);
+        movingOut = true;
+    }
+
+    private boolean movingOut;
+
     /** clawd uninstall: he says bye, then crumbles away into dust, and the program ends. */
     private void sayGoodbye() {
         farewell = true;
@@ -718,6 +735,16 @@ public final class Clawdtop {
                 pet.setColor(settings.awtColor());
                 pet.setPersonality(settings.personality());
                 resize();
+                if (welcome.movedIn()) {
+                    // moved in from another computer: he walks in from the side with his boxes, and unpacks
+                    boxed = false;
+                    window.setVisible(true);
+                    Rectangle screen = screenBounds();
+                    boolean fromRight = homeX > screen.x + screen.width / 2.0;
+                    body.walkIn(fromRight ? screen.x + screen.width + 120 : screen.x - 120);
+                    pet.moving(true);
+                    return;
+                }
                 new Box(settings.unit(), (int) Math.round(homeX), (int) Math.round(groundY), () -> {
                 boxed = false;
                 window.setVisible(true);

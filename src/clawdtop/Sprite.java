@@ -97,10 +97,11 @@ public final class Sprite {
         int legs = 2 - drop;
         if (legs > 0) {
             boolean running = mood == Pet.Mood.FREAKOUT; // running on the spot, legs going like mad
-            boolean step = (mood == Pet.Mood.WALK && (pet.time() / 150) % 2 == 0) || (running && (pet.time() / 70) % 2 == 0);
+            boolean walking = mood == Pet.Mood.WALK || mood == Pet.Mood.CARRY;
+            boolean step = (walking && (pet.time() / 150) % 2 == 0) || (running && (pet.time() / 70) % 2 == 0);
             int[] xs = {0, 2, 10, 12};
             for (int i = 0; i < 4; i++) {
-                double up = (mood == Pet.Mood.WALK || running) && (i % 2 == 0) == step ? (running ? 1 : 0.5) : 0;
+                double up = (walking || running) && (i % 2 == 0) == step ? (running ? 1 : 0.5) : 0;
                 box(g, unit, LEFT + xs[i], GROUND - legs - lift - up, 1, legs, body);
             }
         }
@@ -120,6 +121,13 @@ public final class Sprite {
             boolean tilt = (pet.time() / 160) % 2 == 0;
             box(g, unit, LEFT - 2, top + 4, 2, 2, body);
             box(g, unit, LEFT + 14 + (tilt ? 0 : 0.6), top - 1, 1, 2, body);
+        } else if (mood == Pet.Mood.CARRY) {
+            // both hands up, holding a big moving box over his head
+            box(g, unit, LEFT + 1, top - 1, 1, 1, hand);
+            box(g, unit, LEFT + 11, top - 1, 1, 1, hand);
+            box(g, unit, LEFT + 1.5, top - 4, 10, 3, Box.CARDBOARD);
+            box(g, unit, LEFT + 1.5, top - 4, 10, 0.7, Box.CARDBOARD_DARK);
+            box(g, unit, LEFT + 6, top - 4, 1.2, 3, Box.TAPE);
         } else if (mood == Pet.Mood.YELLED) {
             // hands clamped over where his ears would be
             box(g, unit, LEFT - 1, top + 1, 1, 2, body);
@@ -262,6 +270,23 @@ public final class Sprite {
                 double length = 1 + blow * 7;
                 box(g, unit, mouthX, mouthY, length, 0.8, paper);    // unrolled, straight out
                 for (double s = 1; s < length; s += 1.5) box(g, unit, mouthX + s, mouthY, 0.5, 0.8, stripe);
+            }
+        }
+
+        // Unpacking: boxes beside him, flaps open, his things popping out
+        if (mood == Pet.Mood.UNPACK) {
+            long t = pet.moodTime();
+            for (int b = 0; b < 2; b++) {
+                double bx = b == 0 ? -0.5 : 17;
+                box(g, unit, bx, GROUND - 4, 4.5, 4, Box.CARDBOARD);
+                box(g, unit, bx + 1.6, GROUND - 4, 1.2, 4, Box.TAPE);
+                if (t > 400 + b * 700) {
+                    box(g, unit, bx - 1, GROUND - 5, 2, 0.8, Box.CARDBOARD_DARK); // flaps open
+                    box(g, unit, bx + 3.5, GROUND - 5, 2, 0.8, Box.CARDBOARD_DARK);
+                    double pop = Math.min(1, (t - 400 - b * 700) / 500.0);
+                    Color thing = b == 0 ? new Color(255, 214, 102) : new Color(255, 120, 170);
+                    box(g, unit, bx + 1.6, GROUND - 4.5 - pop * 3, 1.2, 1.2, thing);     // a star, a heart...
+                }
             }
         }
 

@@ -45,6 +45,7 @@ public final class Cli {
             case "status" -> status();
             case "controlpanel", "control", "panel", "settings" -> controlPanel();
             case "uninstall" -> uninstall();
+            case "move" -> move();
             case "help", "-h", "--help", "/?" -> help();
             default -> {
                 out.println("I don't know \"" + command + "\". Here's what I can do:");
@@ -69,6 +70,7 @@ public final class Cli {
         out.println("  clawd restart        stop, then start");
         out.println("  clawd status         is he running?");
         out.println("  clawd controlpanel   change his settings");
+        out.println("  clawd move           move Clawd to another computer on your wifi");
         out.println("  clawd uninstall      remove Clawd from this computer");
     }
 
@@ -263,6 +265,55 @@ public final class Cli {
             return Integer.parseInt(text == null ? "" : text.strip());
         } catch (NumberFormatException e) {
             return -1;
+        }
+    }
+
+    /** Moves him to another computer: it's showing a code in its setup; this sends his save token across. */
+    private void move() throws IOException {
+        hello("Moving Clawd to another computer");
+        out.println();
+        out.println("On the new computer, start Clawdtop and pick \"Moving from another computer\". It shows a code.");
+        out.print("Type the code: ");
+        out.flush();
+        String code = in.readLine();
+        if (code == null || !code.strip().matches("\\d{4}")) {
+            out.println("That's not a 4-digit code.");
+            return;
+        }
+        out.println("Looking for it on your wifi...");
+        java.net.InetAddress there = Transfer.find(code.strip(), Transfer.FIND_PORT, 10_000);
+        if (there == null) {
+            out.println("I couldn't find it. Both computers need to be on the same wifi, with the new one showing that code.");
+            return;
+        }
+        if (!Transfer.send(there, Transfer.MOVE_PORT, code.strip(), Settings.load().saveToken())) {
+            out.println("It didn't take him. Check the code and try again.");
+            return;
+        }
+        out.println("Sent! He's moving to the new computer.");
+        Optional<ProcessHandle> clawd = running();
+        if (clawd.isPresent()) {
+            Settings.ask("moveout"); // he picks up a box and walks off the screen
+            try {
+                clawd.get().onExit().get(30, java.util.concurrent.TimeUnit.SECONDS);
+            } catch (Exception slow) {
+                stop(false);
+            }
+        }
+        out.print("Remove him from this computer now? (y/N) ");
+        out.flush();
+        String answer = in.readLine();
+        if (answer != null && answer.strip().toLowerCase(Locale.ROOT).startsWith("y")) {
+            Startup.set(false);
+            Install.removeCommand();
+            Path folder = Settings.folder();
+            if (Files.isDirectory(folder)) {
+                try (var files = Files.list(folder)) {
+                    for (Path f : files.toList()) Files.deleteIfExists(f);
+                }
+                Files.deleteIfExists(folder);
+            }
+            out.println("Done. He lives on the new computer now.");
         }
     }
 

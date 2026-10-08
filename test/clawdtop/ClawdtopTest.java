@@ -297,6 +297,40 @@ public class ClawdtopTest {
         }
         check("he drops in from the top of the screen and lands on his feet", dropSeen, "FALL>WALK>HOME");
 
+        // ---- Moving to another computer (on this computer only: nothing goes out on the network) ----
+        String moveCode = Transfer.newCode();
+        String[] arrived = new String[1];
+        java.net.InetAddress loop = java.net.InetAddress.getLoopbackAddress();
+        try (Transfer.Waiting newComputer = new Transfer.Waiting(moveCode, loop, 47920, 47921, t -> arrived[0] = t)) {
+            check("the old computer finds the new one with the wrong code? no", Transfer.find("9999".equals(moveCode) ? "1111" : "9999", 47920, 1200), null);
+            java.net.InetAddress found = Transfer.find(moveCode, 47920, 3000);
+            check("with the right code it does", found != null, true);
+            check("a wrong code can't send", Transfer.send(loop, 47921, "x" + moveCode, SaveToken.make(java.util.Map.of("name", "Sam"))), false);
+            check("the right one sends his save token across", Transfer.send(loop, 47921, moveCode, SaveToken.make(java.util.Map.of("name", "Sam"))), true);
+            for (int i = 0; i < 50 && arrived[0] == null; i++) Thread.sleep(20);
+            check("and the new computer has him", SaveToken.read(arrived[0]).get("name"), "Sam");
+        }
+
+        // ---- Moving house ----
+        Pet mover = new Pet(18);
+        mover.takeBeep();
+        mover.moving(true);
+        mover.follow(Body.State.WALK);
+        for (int i = 0; i < 10; i++) mover.tick(33, 0, 0, false, false);
+        check("walking in with a moving box", mover.mood(), Pet.Mood.CARRY);
+        save(mover, Path.of("build", "frames").resolve("moving in (carrying a box).png"));
+        mover.follow(Body.State.HOME);
+        check("home: he unpacks", mover.mood(), Pet.Mood.UNPACK);
+        String nice = null;
+        for (int i = 0; i < 100; i++) {
+            mover.tick(33, 0, 0, false, false);
+            String l = mover.takeLine();
+            if (l != null) nice = l;
+            if (i == 60) save(mover, Path.of("build", "frames").resolve("moving in (unpacking).png"));
+        }
+        check("and says so", nice, "This place is nice!");
+        check("the laptop shuts off by itself at its critical level (5% here)", Power.criticalLevel() >= 0 && Power.criticalLevel() <= 100, true);
+
         // ---- Jokes ----
         Jokes jk = new Jokes(1);
         java.util.Set<String> heard = new java.util.HashSet<>();

@@ -39,6 +39,8 @@ final class Welcome {
     private final Runnable moved;     // where he sits changed: put him there
     private final Consumer<Pet.Beep> beep;
     private Runnable finished = () -> { };
+    private boolean movedIn;        // came over from another computer (he arrives with moving boxes, not in a box)
+    private Transfer.Waiting waiting;
     private Rectangle clawd = new Rectangle();
     private Rectangle screen = new Rectangle();
 
@@ -114,8 +116,47 @@ final class Welcome {
         };
         name.addActionListener(e -> next.run());
         show(new String[] {"Hi!! I'm Clawd!", "I'll sit on your taskbar and keep you company.", "What's your name?"},
-                name, button("I have a save token", this::askToken), button("Next", next));
+                name, button("Moving from another computer", this::askMove), button("I have a save token", this::askToken),
+                button("Next", next));
         name.requestFocusInWindow();
+    }
+
+    /** Whether he came over from another computer. */
+    boolean movedIn() {
+        return movedIn;
+    }
+
+    void askMove() {
+        String code = Transfer.newCode();
+        try {
+            waiting = new Transfer.Waiting(code, token -> javax.swing.SwingUtilities.invokeLater(() -> {
+                stopWaiting();
+                if (settings.useToken(token)) {
+                    movedIn = true;
+                    beep.accept(Pet.Beep.HAPPY);
+                    show(new String[] {"Got everything!", "I'm on my way over..."}, null, button("OK!", () -> {
+                        settings.setMet();
+                        if (window != null) window.dispose();
+                        finished.run();
+                    }));
+                }
+            }));
+        } catch (java.io.IOException e) {
+            show(new String[] {"I couldn't open the door for the move.", "(Is another Clawd already waiting?)"}, null,
+                    button("Back", this::askName));
+            return;
+        }
+        show(new String[] {"Moving in! On your old computer, open a terminal and type:", "    clawd move",
+                "Then type this code: " + code, "(Both computers on the same wifi.)"}, null,
+                button("Cancel", () -> {
+                    stopWaiting();
+                    askName();
+                }));
+    }
+
+    private void stopWaiting() {
+        if (waiting != null) waiting.close();
+        waiting = null;
     }
 
     void askToken() {

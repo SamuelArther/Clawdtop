@@ -175,6 +175,13 @@ public final class Body {
         set(State.AWAY);
     }
 
+    /** Walks in from x (off the side of the screen) to home: arriving at a new computer. */
+    public void walkIn(double fromX) {
+        x = fromX;
+        angle = 0;
+        set(State.WALK);
+    }
+
     /** Drops in from above (the top of the screen) at x, landing on his feet, then walks home. */
     public void dropIn(double atX, double fromY) {
         onJob = false;

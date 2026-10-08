@@ -60,7 +60,11 @@ public final class Pet {
         /** A celebration: confetti! */
         PARTY,
         /** Your birthday: party hat, a cake, and a party blower he toots. */
-        BIRTHDAY
+        BIRTHDAY,
+        /** Moving house: carrying a big box over his head. */
+        CARRY,
+        /** Just moved in: unpacking his boxes. */
+        UNPACK
     }
 
     private boolean canJuggle, canWave;
@@ -159,6 +163,15 @@ public final class Pet {
             case RIDE, FALL, DIZZY, SHAKE, WALK, WORK, PEEK -> { } // his body or his job decides these (see follow and job)
             case GOODBYE -> { }
             case SAD, LOVED, JUGGLE, DANCE, WAVE, YELLED, ANNOYED, SPIN, PARTY -> { if (moodFor > nextChange) set(Mood.IDLE, idleTime()); }
+            case CARRY -> { }
+            case UNPACK -> {
+                if (moodFor >= 2600 && !sang) {
+                    sang = true;
+                    line = "This place is nice!";
+                    wants = Beep.HAPPY;
+                }
+                if (moodFor > nextChange) set(Mood.IDLE, idleTime());
+            }
             case BIRTHDAY -> {
                 // three toots on the party blower, then the song line, then he carries on (still in his party hat)
                 for (int k = 0; k < 3; k++) {
@@ -283,10 +296,14 @@ public final class Pet {
             case FALL -> Mood.FALL;
             case DIZZY -> Mood.DIZZY;
             case SHAKE -> Mood.SHAKE;
-            case WALK, AWAY, OUT -> Mood.WALK;
+            case WALK, AWAY, OUT -> mood == Mood.CARRY ? Mood.CARRY : Mood.WALK;
             case HOME -> null;
         };
         if (want == null || want == Mood.IDLE) {
+            if (mood == Mood.CARRY) {
+                moving(false); // home: time to unpack
+                return;
+            }
             if (mood == Mood.RIDE || mood == Mood.FALL || mood == Mood.DIZZY || mood == Mood.SHAKE || mood == Mood.WALK
                     || mood == Mood.WORK || mood == Mood.PEEK) {
                 set(Mood.IDLE, idleTime());
@@ -363,6 +380,16 @@ public final class Pet {
         } else if (mood == Mood.FREAKOUT && nextChange == Long.MAX_VALUE) {
             line = "...phew. That was close.";
             set(Mood.IDLE, idleTime());
+        }
+    }
+
+    /** Moving house: carrying boxes (true), or done and unpacking (false). */
+    public void moving(boolean carrying) {
+        if (carrying) {
+            set(Mood.CARRY, Long.MAX_VALUE);
+        } else {
+            sang = false;
+            set(Mood.UNPACK, 3800);
         }
     }
 
