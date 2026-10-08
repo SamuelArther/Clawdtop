@@ -12,13 +12,14 @@ public final class Sprite {
     public static final int WIDTH = 21;
     public static final int HEIGHT = 15;
 
-    static final Color BODY = new Color(215, 119, 87);
+    static final Color ORANGE = new Color(215, 119, 87); // his own color
+    private static Color body = ORANGE;                  // the color he is right now (drawing is on one thread)
+    private static Color hand = ORANGE.darker();
     static final Color EYE = new Color(20, 20, 20);
     static final Color LIT = new Color(255, 251, 214);
     static final Color GLOW = new Color(255, 214, 102, 150);
     static final Color ZZZ = new Color(200, 210, 230, 220);
     static final Color LAPTOP = new Color(150, 158, 170);
-    static final Color HAND = new Color(178, 92, 64); // a shade darker than his body, so his hands show in front of it
     static final Color LAPTOP_DARK = new Color(96, 104, 116);
     static final Color SCREEN_GLOW = new Color(150, 210, 255, 120);
 
@@ -31,6 +32,17 @@ public final class Sprite {
     /** Draws him as he is right now, with the top-left of the drawing at (0, 0). */
     public static void draw(Graphics2D g, Pet pet, int unit) {
         Pet.Mood mood = pet.mood();
+        body = pet.color();
+        hand = new Color(body.getRed() * 83 / 100, body.getGreen() * 77 / 100, body.getBlue() * 74 / 100); // a shade darker, so his hands show in front of him
+        if (mood == Pet.Mood.FREAKOUT) {
+            // panicking: shaking all over
+            Graphics2D panic = (Graphics2D) g.create();
+            long t = pet.time() / 40;
+            panic.translate((t % 3 - 1) * 0.5 * unit, 0);
+            drawBody(panic, pet, unit, mood);
+            panic.dispose();
+            return;
+        }
         if (mood == Pet.Mood.SHAKE) {
             // shaking it off: his whole body wobbles side to side, fast
             Graphics2D wobble = (Graphics2D) g.create();
@@ -45,12 +57,12 @@ public final class Sprite {
     private static void drawBody(Graphics2D g, Pet pet, int unit, Pet.Mood mood) {
         if (mood == Pet.Mood.PEEK) {
             // Hiding behind the window's top edge: just his two little hands gripping it
-            box(g, unit, LEFT + 2, GROUND - 1, 1, 1, BODY);
-            box(g, unit, LEFT + 10, GROUND - 1, 1, 1, BODY);
+            box(g, unit, LEFT + 2, GROUND - 1, 1, 1, body);
+            box(g, unit, LEFT + 10, GROUND - 1, 1, 1, body);
             return;
         }
         int drop = switch (mood) {    // how far his body sits down from standing
-            case SIT, WORK -> 1;
+            case SIT, WORK, SAD -> 1;
             case LIE, SLEEP -> 2;
             default -> 0;
         };
@@ -60,33 +72,42 @@ public final class Sprite {
         // Legs: four little stubs (shorter when he sits, tucked away when he lies down, stepping when he walks)
         int legs = 2 - drop;
         if (legs > 0) {
-            boolean step = mood == Pet.Mood.WALK && (pet.time() / 150) % 2 == 0;
+            boolean running = mood == Pet.Mood.FREAKOUT; // running on the spot, legs going like mad
+            boolean step = (mood == Pet.Mood.WALK && (pet.time() / 150) % 2 == 0) || (running && (pet.time() / 70) % 2 == 0);
             int[] xs = {0, 2, 10, 12};
             for (int i = 0; i < 4; i++) {
-                double up = mood == Pet.Mood.WALK && (i % 2 == 0) == step ? 0.5 : 0;
-                box(g, unit, LEFT + xs[i], GROUND - legs - lift - up, 1, legs, BODY);
+                double up = (mood == Pet.Mood.WALK || running) && (i % 2 == 0) == step ? (running ? 1 : 0.5) : 0;
+                box(g, unit, LEFT + xs[i], GROUND - legs - lift - up, 1, legs, body);
             }
         }
         // Body
-        box(g, unit, LEFT, top, 13, 8, BODY);
+        box(g, unit, LEFT, top, 13, 8, body);
         // Arms: out to the sides, or up in the air when he's happy
         if (mood == Pet.Mood.WORK) {
             // His side nubs are his hands, and they float free (no arms, like a Mii): while he types they're over at
             // the laptop, drawn with it below
+        } else if (mood == Pet.Mood.FREAKOUT) {
+            // hands flailing up and down
+            boolean flap = (pet.time() / 80) % 2 == 0;
+            box(g, unit, LEFT - 2, top + (flap ? 0 : 3), 1, 2, body);
+            box(g, unit, LEFT + 14, top + (flap ? 3 : 0), 1, 2, body);
+            // a couple of sweat drops
+            box(g, unit, LEFT + 13.5, top - 1.5 + (pet.time() / 90 % 3) * 0.5, 0.6, 1, new Color(140, 200, 255));
+            box(g, unit, LEFT - 1, top - 0.5 + (pet.time() / 110 % 3) * 0.5, 0.6, 1, new Color(140, 200, 255));
         } else if (mood == Pet.Mood.HAPPY || mood == Pet.Mood.RIDE || mood == Pet.Mood.FALL) {
-            box(g, unit, LEFT - 2, top - 1, 1, 3, BODY);
-            box(g, unit, LEFT - 1, top + 1, 1, 1, BODY);
-            box(g, unit, LEFT + 14, top - 1, 1, 3, BODY);
-            box(g, unit, LEFT + 13, top + 1, 1, 1, BODY);
+            box(g, unit, LEFT - 2, top - 1, 1, 3, body);
+            box(g, unit, LEFT - 1, top + 1, 1, 1, body);
+            box(g, unit, LEFT + 14, top - 1, 1, 3, body);
+            box(g, unit, LEFT + 13, top + 1, 1, 1, body);
         } else {
-            box(g, unit, LEFT - 2, top + 4, 2, 2, BODY);
-            box(g, unit, LEFT + 13, top + 4, 2, 2, BODY);
+            box(g, unit, LEFT - 2, top + 4, 2, 2, body);
+            box(g, unit, LEFT + 13, top + 4, 2, 2, body);
         }
 
         // Eyes: they follow the cursor (half a unit each way), shut when he blinks or sleeps, and light up for dev apps
         double ex = pet.lookX() * 0.5;
         double ey = pet.lookY() * 0.5;
-        boolean sleepy = mood == Pet.Mood.LIE;
+        boolean sleepy = mood == Pet.Mood.LIE || mood == Pet.Mood.GOODBYE || mood == Pet.Mood.SAD; // half-shut eyes: dozy, or sad
         for (int x : new int[] {3, 11}) {
             double eyeX = LEFT + x + ex;
             double eyeY = top + 2 + ey;
@@ -95,6 +116,9 @@ public final class Sprite {
             } else if (pet.eyesLit()) {
                 box(g, unit, eyeX - 0.5, eyeY - 0.5, 2, 3, GLOW);
                 box(g, unit, eyeX, eyeY, 1, 2, LIT);
+            } else if (mood == Pet.Mood.FREAKOUT) {
+                box(g, unit, eyeX - 0.5, eyeY - 0.5, 2, 3, EYE); // eyes wide open in shock
+                box(g, unit, eyeX, eyeY + 0.5, 1, 1, LIT);
             } else if (sleepy) {
                 box(g, unit, eyeX, eyeY + 1, 1, 1, EYE);
             } else {
@@ -109,18 +133,18 @@ public final class Sprite {
             clip.clipRect(0, 0, WIDTH * unit, GROUND * unit);
             box(clip, unit, LEFT + 3.5, ly - 0.5, 6, 0.5, SCREEN_GLOW);  // light from the screen over its top
             box(clip, unit, LEFT + 3.5, ly, 6, 3.5, LAPTOP_DARK);         // the screen's back
-            box(clip, unit, LEFT + 6, ly + 1.25, 1, 1, BODY);            // a tiny orange logo
+            box(clip, unit, LEFT + 6, ly + 1.25, 1, 1, body);            // a tiny orange logo
             box(clip, unit, LEFT + 2.5, ly + 3.5, 8, 1, LAPTOP);          // the keyboard part
             clip.dispose();
             // His two floating hands typing on the keyboard where it sticks out past the screen, taking turns,
             // never in front of the screen. Until the laptop's all the way out they're still at his sides.
             boolean tap = (pet.time() / 110) % 2 == 0;
             if (out >= 1) {
-                box(g, unit, LEFT + 2.5, ly + 2.5 + (tap ? 0.75 : 0), 1, 1, HAND);
-                box(g, unit, LEFT + 9.5, ly + 2.5 + (tap ? 0 : 0.75), 1, 1, HAND);
+                box(g, unit, LEFT + 2.5, ly + 2.5 + (tap ? 0.75 : 0), 1, 1, hand);
+                box(g, unit, LEFT + 9.5, ly + 2.5 + (tap ? 0 : 0.75), 1, 1, hand);
             } else {
-                box(g, unit, LEFT - 2, top + 4, 2, 2, BODY);
-                box(g, unit, LEFT + 13, top + 4, 2, 2, BODY);
+                box(g, unit, LEFT - 2, top + 4, 2, 2, body);
+                box(g, unit, LEFT + 13, top + 4, 2, 2, body);
             }
         }
 
@@ -186,6 +210,46 @@ public final class Sprite {
         rising.translate(0, sunk * unit);
         draw(rising, pet, unit);
         rising.dispose();
+    }
+
+    /**
+     * Saying goodbye: he crumbles away into dust that drifts off up and to the right, a bit at a time, the far side of
+     * him first. crumbled goes from 0 (all there) to 1 (gone). Draw into a drawing with room above and to the right.
+     */
+    public static void drawCrumbling(Graphics2D g, Pet pet, int unit, double crumbled) {
+        if (crumbled <= 0) {
+            draw(g, pet, unit);
+            return;
+        }
+        int fine = 4; // look at him in quarter-unit specks
+        java.awt.image.BufferedImage whole = new java.awt.image.BufferedImage(WIDTH * fine, HEIGHT * fine, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        Graphics2D w = whole.createGraphics();
+        draw(w, pet, fine);
+        w.dispose();
+        double speck = unit / (double) fine;
+        java.util.Random random = new java.util.Random(7);
+        for (int y = 0; y < whole.getHeight(); y++) {
+            for (int x = 0; x < whole.getWidth(); x++) {
+                int argb = whole.getRGB(x, y);
+                double luck = random.nextDouble();
+                if ((argb >>> 24) == 0) continue;
+                // when this speck goes: mostly at random, the right side and top a little sooner
+                double when = 0.65 * luck + 0.35 * (1 - x / (double) whole.getWidth()) * 0.6 + 0.35 * (y / (double) whole.getHeight()) * 0.4;
+                double age = (crumbled - when) / 0.35;
+                if (age <= 0) {
+                    g.setColor(new Color(argb, true));
+                    g.fillRect((int) Math.round(x * speck), (int) Math.round(y * speck), (int) Math.ceil(speck), (int) Math.ceil(speck));
+                    continue;
+                }
+                if (age >= 1) continue;
+                double drift = age * (8 + luck * 10) * unit;
+                double rise = age * (4 + luck * 6) * unit + Math.sin(age * 6 + luck * 10) * unit * 0.6;
+                int alpha = (int) ((argb >>> 24) * (1 - age));
+                g.setColor(new Color((argb & 0xFFFFFF) | alpha << 24, true));
+                int size = (int) Math.ceil(speck * (1 - age * 0.5));
+                g.fillRect((int) Math.round(x * speck + drift), (int) Math.round(y * speck - rise), Math.max(1, size), Math.max(1, size));
+            }
+        }
     }
 
     /** A tiny z, 3 x 3 units, fading as it rises. */

@@ -94,6 +94,90 @@ public final class Settings {
         save();
     }
 
+    public Pet.Personality personality() {
+        return Pet.Personality.of(values.getProperty("personality"));
+    }
+
+    public void setPersonality(Pet.Personality p) {
+        values.setProperty("personality", p.name());
+        save();
+    }
+
+    /** His color, as #RRGGBB ("#D77757", his own orange, unless you changed it). */
+    public String color() {
+        String c = values.getProperty("color", "#D77757").strip();
+        return c.matches("#[0-9A-Fa-f]{6}") ? c.toUpperCase(java.util.Locale.ROOT) : "#D77757";
+    }
+
+    public java.awt.Color awtColor() {
+        return java.awt.Color.decode(color());
+    }
+
+    public void setColor(String hex) {
+        values.setProperty("color", hex);
+        save();
+    }
+
+    /** His Clawd Points (earned by spending time together). */
+    public int points() {
+        try {
+            return Math.max(0, Integer.parseInt(values.getProperty("points", "0")));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    public void setPoints(int points) {
+        values.setProperty("points", String.valueOf(Math.max(0, points)));
+        save();
+    }
+
+    /** A save token with who he is to you, for clawd uninstall. */
+    public String saveToken() {
+        java.util.Map<String, String> v = new java.util.HashMap<>();
+        for (String key : SaveToken.KEYS) v.put(key, values.getProperty(key, ""));
+        return SaveToken.make(v);
+    }
+
+    /** Takes a save token's settings (true), or false if it isn't a real token. */
+    public boolean useToken(String token) {
+        java.util.Map<String, String> v = SaveToken.read(token);
+        if (v == null) return false;
+        v.forEach(values::setProperty);
+        values.setProperty("x", "-1");
+        values.setProperty("restored", "true");
+        save();
+        return true;
+    }
+
+    /** Whether he came back from a save token (he half remembers you). */
+    public boolean restored() {
+        return "true".equals(values.getProperty("restored"));
+    }
+
+    /** Asks the running Clawd to do something (from the clawd command): "mood happy", "goodbye"... */
+    static void ask(String what) {
+        try {
+            Files.createDirectories(folder());
+            Files.writeString(folder().resolve("ask.txt"), what, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            // he won't hear it
+        }
+    }
+
+    /** What the clawd command asked (and forgets it), or null. */
+    static String takeAsk() {
+        Path ask = folder().resolve("ask.txt");
+        try {
+            if (!Files.exists(ask)) return null;
+            String what = Files.readString(ask, StandardCharsets.UTF_8).strip();
+            Files.deleteIfExists(ask);
+            return what;
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
     /** "Small", "Normal" or "Big". */
     public String size() {
         String size = values.getProperty("size", "Normal");

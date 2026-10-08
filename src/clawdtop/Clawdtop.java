@@ -48,6 +48,7 @@ public final class Clawdtop {
     private String app;
     private boolean devApp;
     private boolean hidden;
+    private java.util.Set<String> devPrograms; // coding apps open last time he looked, to notice one closing
     private int ticks;
     private final Body body = new Body();
     private double homeX, groundY; // his perch: the point between his feet, on the taskbar's top edge
@@ -68,7 +69,10 @@ public final class Clawdtop {
                 g2.setComposite(java.awt.AlphaComposite.Clear); // a see-through window: clear last frame first
                 g2.fillRect(0, 0, getWidth(), getHeight());
                 g2.setComposite(java.awt.AlphaComposite.SrcOver);
-                if (job != null && job.sunk() > 0) Sprite.drawRising(g2, pet, settings.unit(), job.sunk()); // climbing up to ask
+                if (farewell) {
+                    g2.translate(0, FAREWELL_ROOM * settings.unit());
+                    Sprite.drawCrumbling(g2, pet, settings.unit(), pet.crumbled());
+                } else if (job != null && job.sunk() > 0) Sprite.drawRising(g2, pet, settings.unit(), job.sunk()); // climbing up to ask
                 else Sprite.drawTurned(g2, pet, settings.unit(), body.angle());
                 g2.dispose();
             }
@@ -289,12 +293,40 @@ public final class Clawdtop {
             }
         }
         // Every couple of seconds: settings changed from the clawd command (clawd controlpanel)?
-        if (ticks % 60 == 0 && Settings.changed() != settingsChanged) {
+        if (ticks % 60 == 0 && Settings.changed() != settingsChanged && !farewell) {
             settingsChanged = Settings.changed();
             String oldSize = settings.size();
             settings = Settings.load();
+            pet.setPersonality(settings.personality());
+            pet.changeColor(settings.awtColor()); // a few seconds later, suddenly: he'll freak out
             if (!oldSize.equals(settings.size())) resize();
             else if (body.state() == Body.State.HOME) place();
+        }
+        // Every few seconds: did a coding app just close? He's sad for a moment.
+        if (ticks % 90 == 45 && !farewell) {
+            worker.execute(() -> { // looking through every program takes a moment: not on the drawing thread
+                java.util.Set<String> now = Foreground.openDevPrograms();
+                SwingUtilities.invokeLater(() -> {
+                    if (devPrograms != null && !now.containsAll(devPrograms)) pet.sad();
+                    devPrograms = now;
+                });
+            });
+        }
+        // And anything it asked him to do: a mood, or goodbye
+        if (ticks % 30 == 0 && !farewell) {
+            String asked = Settings.takeAsk();
+            if (asked != null && asked.equals("goodbye")) sayGoodbye();
+            else if (asked != null && asked.startsWith("mood ")) pet.ask(asked.substring(5));
+        }
+        if (farewell) {
+            pet.tick(FRAME_MS, 0, 0, false, false);
+            String line = pet.takeLine();
+            if (line != null) bubble.show(line, new Rectangle(window.getX(), window.getY() + FAREWELL_ROOM * settings.unit(),
+                    Sprite.WIDTH * settings.unit(), Sprite.HEIGHT * settings.unit()), screenBounds());
+            if (pet.crumbled() > 0) bubble.hide();
+            if (pet.gone()) System.exit(0);
+            canvas.repaint();
+            return;
         }
         // Every few seconds, back on top (the taskbar likes to come up over everything when it's clicked)
         if (ticks % 90 == 0 && !hidden) {
@@ -310,8 +342,10 @@ public final class Clawdtop {
         if (greetWhenHome && body.state() == Body.State.HOME) {
             greetWhenHome = false;
             pet.poke();
-            bubble.show("Hi" + (settings.name().isEmpty() ? "" : " " + settings.name()) + "!! I'm so happy to be here!",
-                    window.getBounds(), screenBounds());
+            String hi = settings.restored()
+                    ? "Hii.......... I think I remember you...." + (settings.name().isEmpty() ? "" : " " + settings.name() + ", right?")
+                    : "Hi" + (settings.name().isEmpty() ? "" : " " + settings.name()) + "!! I'm so happy to be here!";
+            bubble.show(hi, window.getBounds(), screenBounds());
         }
         // His body: on his perch, or riding your cursor, flying off, dizzy, walking home
         if (dragFrom == Integer.MIN_VALUE) {
@@ -332,6 +366,8 @@ public final class Clawdtop {
         pet.tick(FRAME_MS, mouse.x - eyesX, mouse.y - eyesY, moved, devApp);
         Pet.Beep beep = pet.takeBeep();
         if (beep != null && settings.sounds()) beeps.play(beep);
+        String line = pet.takeLine();
+        if (line != null) bubble.show(line, window.getBounds(), screenBounds());
         bubble.tick();
         if (bubble.showing()) bubble.follow(window.getBounds(), screenBounds());
         if (welcome != null && welcome.showing()) welcome.follow(window.getBounds(), screenBounds());
@@ -348,7 +384,7 @@ public final class Clawdtop {
         lastKind = kind;
         if (kind == null || !settings.tips() || hidden) return;
         long now = System.currentTimeMillis();
-        if (!Tips.urgent(front) && now - lastTipAt < 180_000) return;
+        if (!Tips.urgent(front) && now - lastTipAt < pet.personality().tipGap()) return;
         String tip = tips.tipFor(front);
         if (tip == null) return;
         lastTipAt = now;
@@ -357,11 +393,29 @@ public final class Clawdtop {
     }
 
     private Welcome welcome;
+    private boolean welcomeStarted;
+
+    /** clawd uninstall: he says bye, then crumbles away into dust, and the program ends. */
+    private void sayGoodbye() {
+        farewell = true;
+        if (job != null) job.stop(body, pet);
+        bubble.hide();
+        int unit = settings.unit();
+        // room above and to the right for his dust to drift into
+        window.setBounds(window.getX(), window.getY() - FAREWELL_ROOM * unit, window.getWidth() + FAREWELL_ROOM * unit,
+                window.getHeight() + FAREWELL_ROOM * unit);
+        pet.ask("goodbye");
+    }
     private boolean boxed;         // still in his box, the first time
     private boolean greetWhenHome; // just shot out of his box: say hi once he's back on his spot
+    private boolean farewell;      // being uninstalled: saying bye, then crumbling away
+    private static final int FAREWELL_ROOM = 14; // units of room above and to the right for his dust
 
     private void start() {
+        pet.setColor(settings.awtColor());
+        pet.setPersonality(settings.personality());
         window.setVisible(true);
+        welcomeStarted = !settings.met();
         new Timer(FRAME_MS, e -> tick()).start();
         if (!settings.met()) {
             // The first time: he's all excited to meet you
@@ -370,13 +424,20 @@ public final class Clawdtop {
             });
             boxed = true;
             window.setVisible(false); // he's in his box, which shows up when you've finished meeting him
-            welcome.onFinished(() -> new Box(settings.unit(), (int) Math.round(homeX), (int) Math.round(groundY), () -> {
+            welcome.onFinished(() -> {
+                settings = Settings.load(); // a save token may have brought back his color and the rest
+                settingsChanged = Settings.changed();
+                pet.setColor(settings.awtColor());
+                pet.setPersonality(settings.personality());
+                resize();
+                new Box(settings.unit(), (int) Math.round(homeX), (int) Math.round(groundY), () -> {
                 boxed = false;
                 window.setVisible(true);
                 body.launch((Math.random() < 0.5 ? -1 : 1) * (150 + Math.random() * 250));
                 if (settings.sounds()) beeps.play(Pet.Beep.WHEE);
                 greetWhenHome = true;
-            }).show());
+                }).show();
+            });
             welcome.start(window.getBounds(), screenBounds());
         } else if (!settings.name().isEmpty()) {
             bubble.show("Hi again, " + settings.name() + "!", window.getBounds(), screenBounds());

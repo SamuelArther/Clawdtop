@@ -114,8 +114,44 @@ final class Welcome {
         };
         name.addActionListener(e -> next.run());
         show(new String[] {"Hi!! I'm Clawd!", "I'll sit on your taskbar and keep you company.", "What's your name?"},
-                name, button("Next", next));
+                name, button("I have a save token", this::askToken), button("Next", next));
         name.requestFocusInWindow();
+    }
+
+    void askToken() {
+        askToken(new String[] {"A save token! Paste it in:", "(clawd uninstall gave it to you. It starts with CLAWD-)"});
+    }
+
+    private void askToken(String[] message) {
+        JTextField token = new JTextField(22);
+        token.setFont(Bubble.FONT.deriveFont(13f));
+        Runnable use = () -> {
+            if (settings.useToken(token.getText())) {
+                beep.accept(Pet.Beep.HAPPY);
+                moved.run();
+                askStartup();
+            } else {
+                beep.accept(Pet.Beep.OOF);
+                askToken(new String[] {"Hmm, that doesn't look like my save token.", "Paste it in again? (It starts with CLAWD-)"});
+            }
+        };
+        token.addActionListener(e -> use.run());
+        show(message, token, button("Start fresh", this::askName), button("Bring me back", use));
+        token.requestFocusInWindow();
+    }
+
+    void askPersonality() {
+        JComponent[] buttons = new JComponent[Pet.Personality.values().length];
+        for (int i = 0; i < buttons.length; i++) {
+            Pet.Personality p = Pet.Personality.values()[i];
+            buttons[i] = button(p.shown(), () -> {
+                settings.setPersonality(p);
+                beep.accept(p == Pet.Personality.SLEEPY ? Pet.Beep.YAWN : Pet.Beep.HAPPY);
+                askBeeps();
+            });
+        }
+        show(new String[] {"What am I like?", "Chill: easygoing.  Bouncy: can't sit still.",
+                "Helpful: lots of tips.  Sleepy: loves naps."}, null, buttons);
     }
 
     void askSpot() {
@@ -127,7 +163,7 @@ final class Welcome {
                 settings.setSpot(spot);
                 moved.run();
                 beep.accept(Pet.Beep.CLICKED);
-                askBeeps();
+                askPersonality();
             });
         }
         show(new String[] {"Nice to meet you" + who + "!", "Where should I sit? (You can drag me anywhere later.)"}, null, buttons);

@@ -23,6 +23,10 @@ A tiny desktop buddy: Clawd sits on top of your taskbar, right above the clock, 
   those, his two little hands peek over the top of the window, then he climbs up to ask. **Everything goes to the
   Recycle Bin**, so you can always put it back, and he won't touch Windows, Program Files, your whole user folder or
   a whole drive.
+- **Personality:** Chill, Bouncy, Helpful or Sleepy, picked when you meet him (or in the control panel).
+- **Colors:** change his color in the control panel. He stays orange for a few seconds, then suddenly isn't, and
+  freaks out about it (then decides he kinda likes it).
+- Close a coding app and he looks sad for a moment.
 - Full-screen games and videos? He gets out of the way until you're back.
 
 **Click** him to say hi. **Drag** him along the taskbar to move him. **Right-click** for his menu: beeps and tips on or off,
@@ -48,8 +52,10 @@ Once he's run, any new terminal knows the `clawd` command:
 | `clawd stop` | sends him off for now |
 | `clawd restart` | stop, then start |
 | `clawd status` | whether he's running, and his settings |
-| `clawd controlpanel` | a little menu to change his name, spot, size, beeps, tips and starting with Windows |
-| `clawd uninstall` | removes him: stops him, takes out the command and his settings |
+| `clawd controlpanel` | a little menu: his name, spot, size, personality, color, mood right now, beeps, tips, starting with Windows |
+| `clawd uninstall` | gives you a **save token**, then he says goodbye and crumbles away; the command and his settings go too |
+
+Set him up again later and paste your save token in when he asks: he'll (sort of) remember you.
 
 It's a `clawd.cmd` in `%LOCALAPPDATA%\Clawdtop\bin`, put on your own (user) PATH; nothing system-wide changes.
 Changes from the control panel reach him within a couple of seconds.

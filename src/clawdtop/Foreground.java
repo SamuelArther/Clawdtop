@@ -160,6 +160,22 @@ public final class Foreground {
         }
     }
 
+    /** Coding apps that are whole programs you open and close (not the little helpers terminals start and stop). */
+    static final Set<String> DEV_PROGRAMS = Set.of("code.exe", "code - insiders.exe", "cursor.exe", "windsurf.exe", "zed.exe",
+            "devenv.exe", "idea64.exe", "idea.exe", "pycharm64.exe", "webstorm64.exe", "clion64.exe", "rider64.exe",
+            "goland64.exe", "studio64.exe", "eclipse.exe", "sublime_text.exe", "notepad++.exe", "fleet.exe",
+            "windowsterminal.exe", "githubdesktop.exe");
+
+    /** Which of those are open right now (by program name). */
+    public static Set<String> openDevPrograms() {
+        Set<String> open = new java.util.HashSet<>();
+        ProcessHandle.allProcesses().forEach(p -> p.info().command().ifPresent(c -> {
+            String name = Path.of(c).getFileName().toString().toLowerCase(Locale.ROOT);
+            if (DEV_PROGRAMS.contains(name)) open.add(name);
+        }));
+        return open;
+    }
+
     /** Whether this program is a coding app. */
     public static boolean isDevApp(String app) {
         return app != null && DEV_APPS.contains(app.toLowerCase(Locale.ROOT));

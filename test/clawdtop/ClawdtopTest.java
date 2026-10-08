@@ -125,6 +125,46 @@ public class ClawdtopTest {
         for (int i = 0; i < 40; i++) gentle.tick(33, 1500, ground + 2, perch, ground, reach, 0, 1920);
         check("bring him back down to the taskbar and stop: he hops off and walks home", gentle.state(), Body.State.WALK);
 
+        // ---- Colors, moods, sadness and goodbye ----
+        Pet painted = new Pet(11);
+        painted.takeBeep();
+        painted.changeColor(java.awt.Color.decode("#5B8DEF"));
+        for (int i = 0; i < 90; i++) painted.tick(33, 0, 0, false, false);
+        check("a new color waits a few seconds (still orange)", painted.color().getRGB() == new java.awt.Color(215, 119, 87).getRGB(), true);
+        for (int i = 0; i < 30; i++) painted.tick(33, 0, 0, false, false);
+        check("then he's suddenly blue and freaks out", painted.mood() + " " + painted.takeBeep() + " " + painted.takeLine(),
+                "FREAKOUT PANIC WHAT?! WHAT HAPPENED TO ME?!");
+        Path freakFrames = Path.of("build", "frames");
+        Files.createDirectories(freakFrames);
+        save(painted, freakFrames.resolve("freaking out (new color).png"));
+        for (int i = 0; i < 120; i++) painted.tick(33, 0, 0, false, false);
+        check("and calms down", painted.mood() + " " + painted.takeLine(), "IDLE ...huh. Actually, I kinda like it.");
+        painted.sad();
+        check("a coding app closed: sad for a moment", painted.mood() + " " + painted.takeBeep(), "SAD AWW");
+        save(painted, freakFrames.resolve("sad (coding app closed).png"));
+        for (int i = 0; i < 60; i++) painted.tick(33, 0, 0, false, false);
+        check("then back to normal", painted.mood(), Pet.Mood.IDLE);
+        painted.ask("asleep");
+        check("the control panel can send him to sleep", painted.mood(), Pet.Mood.SLEEP);
+        painted.ask("awake");
+        check("and wake him", painted.mood(), Pet.Mood.IDLE);
+        Pet leaving = new Pet(12);
+        leaving.takeBeep();
+        leaving.ask("goodbye");
+        check("goodbye: \"Well..... bye.....\"", leaving.takeLine(), "Well..... bye.....");
+        for (int i = 0; i < 130; i++) leaving.tick(33, 0, 0, false, false);
+        double half = leaving.crumbled();
+        BufferedImage dust = new BufferedImage((Sprite.WIDTH + 14) * 8, (Sprite.HEIGHT + 14) * 8, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D dg = dust.createGraphics();
+        dg.setColor(new java.awt.Color(32, 32, 36));
+        dg.fillRect(0, 0, dust.getWidth(), dust.getHeight());
+        dg.translate(0, 14 * 8);
+        Sprite.drawCrumbling(dg, leaving, 8, half);
+        dg.dispose();
+        ImageIO.write(dust, "png", freakFrames.resolve("crumbling away.png").toFile());
+        for (int i = 0; i < 200 && !leaving.gone(); i++) leaving.tick(33, 0, 0, false, false);
+        check("then he crumbles away and is gone", (half > 0 && half < 1) + " " + leaving.gone(), "true true");
+
         // ---- His voice ----
         for (Pet.Beep beep : Pet.Beep.values()) {
             byte[] sound = Beeps.make(beep);
@@ -192,11 +232,14 @@ public class ClawdtopTest {
         snapshot(hello.panel(), frames0.resolve("welcome 2 where.png"));
         click(hello.panel(), "In the middle");
         check("and where you want him", fresh.spot() + " " + movedCount[0], "In the middle 1");
-        snapshot(hello.panel(), frames0.resolve("welcome 3 beeps.png"));
+        snapshot(hello.panel(), frames0.resolve("welcome 3 personality.png"));
+        click(hello.panel(), "Sleepy");
+        check("and what he's like", fresh.personality(), Pet.Personality.SLEEPY);
+        snapshot(hello.panel(), frames0.resolve("welcome 4 beeps.png"));
         click(hello.panel(), "Shh, no beeps");
         check("beeps off if you say so", fresh.sounds(), false);
         click(hello.panel(), "Not now");
-        snapshot(hello.panel(), frames0.resolve("welcome 4 done.png"));
+        snapshot(hello.panel(), frames0.resolve("welcome 5 done.png"));
         Settings later = Settings.load();
         check("and remembers you met, for next time", later.met() + " " + later.name() + " " + later.spot(), "true Samuel In the middle");
         check("he chirps along, starting with hello", chirps.get(0), Pet.Beep.HELLO);
@@ -213,10 +256,22 @@ public class ClawdtopTest {
         check("clawd help", cli("help").contains("clawd controlpanel"), true);
         check("clawd status says who he knows", cli("status").contains("Name:        Samuel"), true);
         check("an unknown command says what he can do", cli("dance").contains("I don't know \"dance\""), true);
-        String panel = cli("controlpanel", "1", "Sam", "4", "5", "2", "3", "3", "0");
+        String panel = cli("controlpanel", "1", "Sam", "7", "8", "2", "3", "3", "4", "2", "5", "2", "5", "9", "#33aaff", "0");
         Settings afterPanel = Settings.load();
-        check("the control panel changes his name, beeps, tips, spot and size", afterPanel.name() + " " + afterPanel.sounds() + " "
-                + afterPanel.tips() + " " + afterPanel.spot() + " " + afterPanel.size(), "Sam true false On the left Big");
+        check("the control panel changes his name, beeps, tips, spot, size, personality and color", afterPanel.name() + " "
+                + afterPanel.sounds() + " " + afterPanel.tips() + " " + afterPanel.spot() + " " + afterPanel.size() + " "
+                + afterPanel.personality() + " " + afterPanel.color(), "Sam true false On the left Big BOUNCY #33AAFF");
+
+        // ---- Save tokens ----
+        String token = afterPanel.saveToken();
+        check("a save token starts with CLAWD-", token.startsWith("CLAWD-"), true);
+        check("and holds who he is to you", SaveToken.read(token).toString(), "{name=Sam, color=#33AAFF, personality=BOUNCY, spot=On the left, size=Big}");
+        check("a mistyped token is caught", SaveToken.read(token.substring(0, 10) + "x" + token.substring(11)) + " " + SaveToken.read("hello"), "null null");
+        Files.deleteIfExists(home.resolve("settings.properties"));
+        Settings reborn = Settings.load();
+        check("a fresh Clawd with your token remembers you", reborn.useToken(token) + " " + reborn.name() + " " + reborn.color() + " "
+                + reborn.personality() + " " + reborn.restored(), "true Sam #33AAFF BOUNCY true");
+        check("a wrong token changes nothing", Settings.load().useToken("CLAWD-nope-0000"), false);
         check("and shows his settings", panel.contains("Clawd's control panel"), true);
         check("uninstall asks first, and no means no", cli("uninstall", "n").contains("He's staying"), true);
 

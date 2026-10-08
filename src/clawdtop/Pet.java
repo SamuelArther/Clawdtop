@@ -32,8 +32,55 @@ public final class Pet {
         /** On a job, with his laptop out, typing away. */
         WORK,
         /** Hiding behind the top edge of a window: only his two little hands show. */
-        PEEK
+        PEEK,
+        /** He just found out he's a new color: panicking, eyes wide, running on the spot. */
+        FREAKOUT,
+        /** Being uninstalled: "Well..... bye.....", and then he crumbles away to dust. */
+        GOODBYE,
+        /** A coding app was just closed: sad for a moment. */
+        SAD
     }
+
+    static final long GOODBYE_PAUSE = 2800;  // standing there sadly after saying bye
+    static final long CRUMBLE_TIME = 3200;   // crumbling away
+
+    /** What he's like, picked when you meet him (or in the control panel). */
+    public enum Personality {
+        /** Easygoing: the usual amount of sitting, tips now and then. */
+        CHILL,
+        /** Can't sit still: hops around for joy, sits down less, falls asleep later. */
+        BOUNCY,
+        /** Loves giving tips: they come much more often. */
+        HELPFUL,
+        /** Always ready for a nap: sits, lies down and dozes off sooner. */
+        SLEEPY;
+
+        /** The name shown to you: "Chill", "Bouncy"... */
+        public String shown() {
+            return name().charAt(0) + name().substring(1).toLowerCase(java.util.Locale.ROOT);
+        }
+
+        public static Personality of(String name) {
+            for (Personality p : values()) if (p.name().equalsIgnoreCase(name == null ? "" : name.strip())) return p;
+            return CHILL;
+        }
+
+        /** How long between tips (ms). */
+        public long tipGap() {
+            return switch (this) {
+                case HELPFUL -> 60_000;
+                case BOUNCY -> 120_000;
+                case SLEEPY -> 300_000;
+                default -> 180_000;
+            };
+        }
+    }
+
+    private Personality personality = Personality.CHILL;
+    private java.awt.Color color = new java.awt.Color(215, 119, 87);
+    private java.awt.Color newColor;   // a color he's about to turn (a few seconds from now)
+    private long newColorIn;
+    private String line;               // something he wants to say in his bubble
 
     private final Random random;
     private Mood mood = Mood.IDLE;
@@ -50,7 +97,7 @@ public final class Pet {
     private long talkLength;       // how long this beep's mouth moving lasts
 
     /** A little sound he makes. */
-    public enum Beep { HELLO, HAPPY, CLICKED, YAWN, WAKE, TIP, WHEE, OOF }
+    public enum Beep { HELLO, HAPPY, CLICKED, YAWN, WAKE, TIP, WHEE, OOF, PANIC, AWW }
 
     public Pet(long seed) {
         random = new Random(seed);
@@ -81,12 +128,27 @@ public final class Pet {
 
         switch (mood) {
             case RIDE, FALL, DIZZY, SHAKE, WALK, WORK, PEEK -> { } // his body or his job decides these (see follow and job)
-            case IDLE -> { if (moodFor > nextChange) set(Mood.SIT, 30_000 + random.nextInt(60_000)); }
+            case GOODBYE -> { }
+            case SAD -> { if (moodFor > nextChange) set(Mood.IDLE, idleTime()); }
+            case FREAKOUT -> {
+                if (moodFor > nextChange) {
+                    set(Mood.IDLE, idleTime());
+                    line = "...huh. Actually, I kinda like it.";
+                    wants = Beep.HAPPY;
+                }
+            }
+            case IDLE -> {
+                if (personality == Personality.BOUNCY && moodFor > 4000 && random.nextInt(900) == 0) {
+                    set(Mood.HAPPY, 700); // a little hop, just because
+                } else if (moodFor > nextChange) {
+                    set(Mood.SIT, (personality == Personality.SLEEPY ? 15_000 : 30_000) + random.nextInt(60_000));
+                }
+            }
             case SIT -> {
                 if (moodFor > nextChange) set(sinceMouseMoved > 20_000 ? Mood.LIE : Mood.IDLE, sinceMouseMoved > 20_000 ? 60_000 + random.nextInt(120_000) : idleTime());
             }
             case LIE -> {
-                if (sinceMouseMoved > 180_000) {
+                if (sinceMouseMoved > sleepAfter()) {
                     wants = Beep.YAWN;
                     set(Mood.SLEEP, Long.MAX_VALUE);
                 } else if (moodFor > nextChange) {
@@ -98,6 +160,15 @@ public final class Pet {
         }
 
         if (talking > 0) talking -= ms;
+
+        // A new color, a few seconds after it was picked: suddenly, with no warning. He freaks out.
+        if (newColor != null && (newColorIn -= ms) <= 0) {
+            color = newColor;
+            newColor = null;
+            wants = Beep.PANIC;
+            line = "WHAT?! WHAT HAPPENED TO ME?!";
+            set(Mood.FREAKOUT, 3200);
+        }
 
         // Blinking (not while asleep, his eyes are shut anyway)
         if (blinking > 0) {
@@ -157,6 +228,13 @@ public final class Pet {
         job = mood;
     }
 
+    /** A coding app was closed: he's sad for a moment (unless he's busy, asleep, or off somewhere). */
+    public void sad() {
+        if (mood != Mood.IDLE && mood != Mood.SIT && mood != Mood.HAPPY) return;
+        wants = Beep.AWW;
+        set(Mood.SAD, 1600);
+    }
+
     /** You clicked him. Asleep (or dozing), a tap wakes him up with a little startled hop. */
     public void poke() {
         if (mood == Mood.SLEEP || mood == Mood.LIE) {
@@ -181,7 +259,92 @@ public final class Pet {
     }
 
     private long idleTime() {
-        return 20_000 + random.nextInt(40_000);
+        return switch (personality) {
+            case SLEEPY -> 10_000 + random.nextInt(15_000);
+            case BOUNCY -> 30_000 + random.nextInt(50_000);
+            default -> 20_000 + random.nextInt(40_000);
+        };
+    }
+
+    /** How long with no mouse moving before he falls asleep (ms). */
+    private long sleepAfter() {
+        return switch (personality) {
+            case SLEEPY -> 60_000;
+            case BOUNCY -> 300_000;
+            default -> 180_000;
+        };
+    }
+
+    /** While he says goodbye: how far he's crumbled away, 0 (whole) to 1 (gone). */
+    public double crumbled() {
+        if (mood != Mood.GOODBYE) return 0;
+        return Math.max(0, Math.min(1, (moodFor - GOODBYE_PAUSE) / (double) CRUMBLE_TIME));
+    }
+
+    /** Whether he's all gone (a moment after the last of him blows away). */
+    public boolean gone() {
+        return mood == Mood.GOODBYE && moodFor > GOODBYE_PAUSE + CRUMBLE_TIME + 600;
+    }
+
+    public Personality personality() {
+        return personality;
+    }
+
+    public void setPersonality(Personality p) {
+        personality = p;
+    }
+
+    /** His color right now. */
+    public java.awt.Color color() {
+        return color;
+    }
+
+    /** Sets his color straight away (when he starts up). */
+    public void setColor(java.awt.Color c) {
+        color = c;
+        newColor = null;
+    }
+
+    /** Turns him a new color in a few seconds, suddenly, and he freaks out about it. */
+    public void changeColor(java.awt.Color c) {
+        if (c.equals(color)) {
+            newColor = null;
+            return;
+        }
+        newColor = c;
+        newColorIn = 3500;
+    }
+
+    /** Something he wants to say in his bubble now, or null. Each line is only given out once. */
+    public String takeLine() {
+        String l = line;
+        line = null;
+        return l;
+    }
+
+    /** Puts him in a mood, asked from the control panel: "happy", "sleepy" (lies down), "asleep" or "awake". */
+    public void ask(String what) {
+        switch (what.strip().toLowerCase(java.util.Locale.ROOT)) {
+            case "happy" -> {
+                wants = Beep.HAPPY;
+                set(Mood.HAPPY, 2500);
+            }
+            case "sleepy" -> set(Mood.LIE, 60_000);
+            case "asleep" -> {
+                wants = Beep.YAWN;
+                set(Mood.SLEEP, Long.MAX_VALUE);
+            }
+            case "goodbye" -> {
+                line = "Well..... bye.....";
+                set(Mood.GOODBYE, Long.MAX_VALUE);
+            }
+            case "awake" -> {
+                wants = Beep.WAKE;
+                sinceMouseMoved = 0;
+                set(Mood.IDLE, idleTime());
+            }
+            default -> { }
+        }
     }
 
     public Mood mood() {
@@ -195,7 +358,7 @@ public final class Pet {
 
     /** Whether his eyes are shut right now (blinking, asleep, or squeezed shut shaking it off). */
     public boolean eyesShut() {
-        return mood == Mood.SLEEP || mood == Mood.SHAKE || blinking > 0;
+        return mood == Mood.SLEEP || mood == Mood.SHAKE || (blinking > 0 && mood != Mood.GOODBYE);
     }
 
     /** Whether his eyes are lit up: a dev app is in front, or he's happy. */
@@ -214,6 +377,7 @@ public final class Pet {
     /** How high he is off the ground right now, in his own pixels (bouncing when happy, breathing otherwise). */
     public float lift() {
         if (mood == Mood.HAPPY) return (float) Math.abs(Math.sin(time / 130.0)) * 3;
+        if (mood == Mood.FREAKOUT) return (float) Math.abs(Math.sin(time / 60.0)) * 1.5f;
         if (mood == Mood.WALK) return (time / 150) % 2 == 0 ? 0 : 0.5f; // a little bob with each step
         if (mood == Mood.RIDE || mood == Mood.FALL || mood == Mood.DIZZY || mood == Mood.WORK || mood == Mood.PEEK) return 0;
         if (mood == Mood.SLEEP || mood == Mood.LIE) return 0;
