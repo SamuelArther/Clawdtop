@@ -384,6 +384,13 @@ public class ClawdtopTest {
         String second = tips.tipFor(code);
         check("tips come round in turn, not the same twice in a row", !first.equals(second), true);
         check("Run box tips list commands", tips.tipFor(run).contains("%temp%"), true);
+        check("GitHub in a browser gets git and GitHub tips (not just any browser)", Tips.kind(new Foreground.Front("msedge.exe", "Chrome_WidgetWin_1", "SamuelArther/Clawdtop - GitHub - Edge"))
+                + " " + Tips.kind(new Foreground.Front("msedge.exe", "Chrome_WidgetWin_1", "Recipes - Edge")), "github browser");
+        Tips coding = new Tips();
+        StringBuilder terminalTips = new StringBuilder();
+        Foreground.Front term = new Foreground.Front("WindowsTerminal.exe", "CASCADIA_HOSTING_WINDOW_CLASS", "PowerShell");
+        for (int i = 0; i < 6; i++) terminalTips.append(coding.tipFor(term)).append("|");
+        check("terminals get git and error-message tips too", terminalTips.toString().contains("git ") && terminalTips.toString().contains("PATH"), true);
         pet.speak();
         check("he chirps when he has a tip", pet.takeBeep(), Pet.Beep.TIP);
         check("and his mouth moves while he beeps", pet.talking() + " " + pet.mouthOpen(), "true true");
