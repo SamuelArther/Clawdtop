@@ -18,7 +18,7 @@ import java.awt.image.BufferedImage;
 
 /** Clawd's speech bubble: a tip that pops up above him for a few seconds. Click it to close it sooner. */
 final class Bubble {
-    static final Font FONT = new Font("Segoe UI", Font.PLAIN, 13);
+    static final Font FONT = new Font("Comic Sans MS", Font.PLAIN, 13); // falls back to the normal font where it isn't installed
     static final Font FIRST_LINE = FONT.deriveFont(Font.BOLD);
     private static final Color PAPER = new Color(255, 250, 242);
     private static final Color INK = new Color(40, 38, 36);
