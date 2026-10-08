@@ -446,6 +446,11 @@ public class ClawdtopTest {
         check("and calls your computer what you said", fresh.home(), "Samuel's Laptop");
         snapshot(hello.panel(), frames0.resolve("welcome 3d kid-friendly.png"));
         click(hello.panel(), "Normal (recommended)");
+        snapshot(hello.panel(), frames0.resolve("welcome 3e web search.png"));
+        click(hello.panel(), "No, stay offline");
+        check("he only looks things up online if you say so", Settings.load().on("webSearch"), false);
+        check("reading what Wikipedia and DuckDuckGo send back", WebSearch.value("{\"batchcomplete\":\"\",\"query\":{\"search\":[{\"ns\":0,\"title\":\"Rayleigh scattering\"}]}}", "title")
+                + " / " + WebSearch.value("{\"Abstract\":\"x\",\"AbstractText\":\"An octopus has \\\"eight\\\" arms.\"}", "AbstractText"), "Rayleigh scattering / An octopus has \"eight\" arms.");
         check("normal answers (recommended), or kid-friendly for little kids", Settings.load().on("kidFriendly"), false);
 
         // ---- Ask me a question: math goes to Calculator, the rest to his brain ----

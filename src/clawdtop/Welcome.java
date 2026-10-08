@@ -265,10 +265,24 @@ final class Welcome {
                 "Kid-friendly: simple and extra gentle, for little kids.", "I never say bad words either way."}, null,
                 button("Normal (recommended)", () -> {
                     settings.set("kidFriendly", "false");
-                    askBeeps();
+                    askWebSearch();
                 }),
                 button("Kid-friendly", () -> {
                     settings.set("kidFriendly", "true");
+                    askWebSearch();
+                }));
+    }
+
+    /** Whether he may look things up online when you ask him something (off unless you say yes). */
+    void askWebSearch() {
+        show(new String[] {"Can I look things up online when you ask me something?", "Then my answers are more right and up to date.",
+                "(Your question goes to Wikipedia and DuckDuckGo. Nothing else does.)"}, null,
+                button("Yes, look things up", () -> {
+                    settings.set("webSearch", "true");
+                    askBeeps();
+                }),
+                button("No, stay offline", () -> {
+                    settings.set("webSearch", "false");
                     askBeeps();
                 }));
     }

@@ -287,14 +287,19 @@ public final class Clawdtop {
         String model = Brain.model(settings.choice("brain"));
         pet.think(true);
         pet.say("Hmm, let me think...");
+        boolean web = settings.on("webSearch");
         Thread t = new Thread(() -> {
+            WebSearch.Found found = web ? WebSearch.lookUp(question) : null;
             String problem = !brain.running() ? "no ollama" : !brain.has(model) ? "no brain" : null;
             String reply = problem == null
-                    ? brain.ask(question, model, settings.personality(), settings.on("kidFriendly"), settings.name()) : null;
+                    ? brain.ask(question, model, settings.personality(), settings.on("kidFriendly"), settings.name(), found) : null;
             SwingUtilities.invokeLater(() -> {
                 thinking = false;
                 pet.think(false);
-                if ("no ollama".equals(problem)) {
+                if (problem != null && found != null) {
+                    // no brain yet, but he looked it up
+                    pet.say(Brain.wrap("I looked it up! " + Brain.clean(found.text()) + " (from " + found.source() + ")", 46));
+                } else if ("no ollama".equals(problem)) {
                     bubble.ask("I need my brain first! It's a free app called Ollama.\nWant me to open its download page?",
                             new String[] {"Open it", "Not now"}, c -> {
                                 if (c == 0) Useful.browse(Brain.DOWNLOAD_PAGE);

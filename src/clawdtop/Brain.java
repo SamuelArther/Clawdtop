@@ -73,6 +73,14 @@ final class Brain {
 
     /** Asks him something. His answer (cleaned up), or null if his brain didn't answer. */
     String ask(String question, String model, Pet.Personality personality, boolean kidFriendly, String name) {
+        return ask(question, model, personality, kidFriendly, name, null);
+    }
+
+    /** The same, with something he looked up online to help (or null). */
+    String ask(String question, String model, Pet.Personality personality, boolean kidFriendly, String name, WebSearch.Found found) {
+        if (found != null) {
+            question = question + "\n\n(Something I found online that might help, from " + found.source() + ": " + found.text() + ")";
+        }
         String body = "{\"model\":" + json(model) + ",\"stream\":false,\"keep_alive\":\"1m\","
                 + "\"options\":{\"num_ctx\":2048,\"num_predict\":180,\"temperature\":0.7},"
                 + "\"messages\":[{\"role\":\"system\",\"content\":" + json(systemPrompt(personality, kidFriendly, name)) + "},"
@@ -112,6 +120,7 @@ final class Brain {
                         ? "Your user is a little kid: use simple words, keep everything gentle, kind and suitable for little kids. If a "
                                 + "question is about something not okay for little kids, kindly say it's a question for a grown-up they trust."
                         : "Give the most accurate, correct and complete answer you can, straight to the point (still friendly and clean).")
+                + " If you're given something found online, use it to get the facts right, but answer in your own words."
                 + " Don't use emoji or markdown.";
     }
 

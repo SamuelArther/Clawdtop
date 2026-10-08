@@ -87,6 +87,7 @@ final class Options {
             Option.on("Brain", "askMe", "\"Ask me a question\" in his menu", true),
             Option.on("Brain", "kidFriendly", "Kid-friendly answers, for little kids (normal is more accurate; no bad words either way)", false),
             Option.pick("Brain", "brain", "Brain size (all under 2 GB of memory)", "Normal", "Tiny", "Normal", "Smart"),
+            Option.on("Brain", "webSearch", "Look things up online when you ask him something (Wikipedia, DuckDuckGo)", false),
             // Being useful
             Option.on("Useful", "water", "Reminds you to drink water (every hour)", false),
             Option.on("Useful", "stretch", "Reminds you to stretch (every 2 hours)", false),
