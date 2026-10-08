@@ -160,6 +160,8 @@ public final class Clawdtop {
                     settings.setX(window.getX());
                 } else if (pet.sleepy()) {
                     pet.poke(); // just wakes him up
+                } else if (pet.duckSpam()) {
+                    pet.stopDucks(); // you clicked his laptop: it shuts. No more ducks
                 } else if (pet.secretlyCoding()) {
                     pet.say("Nothing...."); // what are you doing? nothing.
                 } else if (!clickedTooMuch()) {
@@ -195,10 +197,20 @@ public final class Clawdtop {
                 }
                 case ROCKET -> body.rocketRide();
                 case POPUP -> Useful.popup(made.file(), made.done());
+                case DUCKS -> dropDuck(); // the first one, from the middle of the screen
                 default -> { }
             }
         }
+        if (pet.duckSpam() && ticks % 7 == 0) dropDuck();
+        if (ducks.active()) {
+            Rectangle screen = screenBounds();
+            ducks.tick(FRAME_MS, groundY, screen.x, screen.x + screen.width);
+            if (duckWindow != null) duckWindow.repaint();
+        } else if (duckWindow != null && duckWindow.isVisible()) {
+            duckWindow.setVisible(false);
+        }
         Creation gone = pet.takeDeleted();
+        if (gone != null && gone.effect() == Creation.Effect.DUCKS) ducks.poof();
         if (gone != null) worker.execute(() -> {
             try {
                 java.nio.file.Files.deleteIfExists(Settings.creations().resolve(gone.savedAs()));
@@ -206,6 +218,38 @@ public final class Clawdtop {
                 // still there; no harm
             }
         });
+    }
+
+    private final DuckRain ducks = new DuckRain();
+    private javax.swing.JWindow duckWindow; // see-through, over the bottom half of the screen, just for the ducks
+
+    /** One more duck, from the middle of the screen. */
+    private void dropDuck() {
+        Rectangle screen = screenBounds();
+        if (duckWindow == null) {
+            duckWindow = new javax.swing.JWindow();
+            duckWindow.setBackground(new java.awt.Color(0, 0, 0, 0));
+            javax.swing.JPanel panel = new javax.swing.JPanel() {
+                @Override
+                protected void paintComponent(java.awt.Graphics g) {
+                    java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
+                    g2.setComposite(java.awt.AlphaComposite.Clear);
+                    g2.fillRect(0, 0, getWidth(), getHeight());
+                    g2.setComposite(java.awt.AlphaComposite.SrcOver);
+                    ducks.paint(g2, duckWindow.getX(), duckWindow.getY(), Math.max(2, settings.unit() * 2 / 3));
+                    g2.dispose();
+                }
+            };
+            panel.setOpaque(false);
+            duckWindow.setContentPane(panel);
+            duckWindow.setAlwaysOnTop(true);
+            duckWindow.setFocusableWindowState(false);
+            duckWindow.setType(java.awt.Window.Type.UTILITY);
+        }
+        int top = screen.y + screen.height / 2 - 40;
+        duckWindow.setBounds(screen.x, top, screen.width, (int) Math.round(groundY) - top + 2);
+        if (!duckWindow.isVisible()) duckWindow.setVisible(true);
+        ducks.spawn(screen.x + screen.width / 2.0, screen.y + screen.height / 2.0);
     }
 
     /** Writes as much of a creation's file as he's typed so far (progress 0 to 1). */

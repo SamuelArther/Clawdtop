@@ -33,7 +33,8 @@ record Creation(String id, String file, String starting, String done, String aft
         DUCK,      // a rubber duck beside him (to help him debug)
         CLONE,     // a mini Clawd beside him, copying him
         SPIN,      // he spins round
-        ITEM       // a little pixel-art thing beside him (see Pixels)
+        ITEM,      // a little pixel-art thing beside him (see Pixels)
+        DUCKS      // a rubber duck falls from the middle of the screen; he makes more, and more (see DuckRain)
     }
 
     static final List<Creation> BUILT_IN = List.of(
@@ -61,7 +62,7 @@ record Creation(String id, String file, String starting, String done, String aft
                     "clawd.wear(Sunglasses(cool=100))\n"),
             new Creation("music", "music.py", "Writing a song.", "My first song!", "Thank you, thank you. I'll be here all week.", 6000, Effect.MUSIC, false,
                     "notes = [\"beep\", \"boop\", \"beep\", \"BEEP\"]\nfor note in notes * 4:\n    play(note)\n"),
-            new Creation("duck", "duck.py", "I need help debugging.", "This is Duck. Duck helps me debug.", "Duck had to go. Bye, Duck.", 7000, Effect.DUCK, false,
+            new Creation("duck", "duck.py", "I need help debugging.", "A duck!!", "...sorry. That's a lot of ducks.", 0, Effect.DUCKS, true,
                     "duck = RubberDuck()\nduck.listen(to=\"all my problems\")\n"),
             new Creation("clone", "clone.py", "Two of me would get twice as much done.", "Meet Mini Clawd!", "...that's too many Clawds. Deleting him.", 5000, Effect.CLONE, true,
                     "mini = clawd.copy(size=\"mini\")\n# what could go wrong\n"),

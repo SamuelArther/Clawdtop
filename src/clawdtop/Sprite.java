@@ -190,7 +190,7 @@ public final class Sprite {
     }
 
     private static void drawBody(Graphics2D g, Pet pet, int unit, Pet.Mood mood) {
-        if (mood == Pet.Mood.WORK || mood == Pet.Mood.PACK || mood == Pet.Mood.CODING) {
+        if (mood == Pet.Mood.WORK || mood == Pet.Mood.PACK || mood == Pet.Mood.CODING || (mood == Pet.Mood.DUCKS && pet.duckSpam())) {
             drawAtLaptop(g, pet, unit, mood);
             return;
         }
@@ -259,7 +259,7 @@ public final class Sprite {
             box(g, unit, LEFT + 8 - (fidget ? 0.3 : 0), top + 6.5, 1.5, 1.5, hand);
             box(g, unit, LEFT + 13.2, top - 0.5 + (pet.time() / 300 % 3) * 0.3, 0.6, 1, new Color(140, 200, 255));
         } else if (mood == Pet.Mood.HAPPY || mood == Pet.Mood.RIDE || mood == Pet.Mood.FALL || mood == Pet.Mood.PARTY
-                || mood == Pet.Mood.CARPET) {
+                || mood == Pet.Mood.CARPET || (mood == Pet.Mood.DUCKS && pet.moodTime() >= Pet.DUCK_SURPRISE + 400)) {
             box(g, unit, LEFT - 2, top - 1, 1, 3, body);
             box(g, unit, LEFT - 1, top + 1, 1, 1, body);
             box(g, unit, LEFT + 14, top - 1, 1, 3, body);
@@ -286,7 +286,8 @@ public final class Sprite {
                 box(g, unit, eyeX, eyeY + 1, 1, 1, EYE);                              // narrowed eyes
                 box(g, unit, eyeX + (x == 3 ? -0.5 : 0), eyeY - 0.5 + (x == 3 ? 0 : 0), 1.5, 0.5, EYE); // grumpy eyebrows
                 box(g, unit, eyeX + (x == 3 ? 0.5 : -0.5), eyeY, 1, 0.5, EYE);
-            } else if (mood == Pet.Mood.YELLED || mood == Pet.Mood.FREAKOUT) {
+            } else if (mood == Pet.Mood.YELLED || mood == Pet.Mood.FREAKOUT
+                    || (mood == Pet.Mood.DUCKS && pet.moodTime() >= Pet.DUCK_SURPRISE && pet.moodTime() < Pet.DUCK_SURPRISE + 400)) {
                 box(g, unit, eyeX - 0.5, eyeY - 0.5, 2, 3, EYE); // eyes wide open in shock
                 box(g, unit, eyeX, eyeY + 0.5, 1, 1, LIT);
             } else if (sleepy) {
@@ -694,7 +695,7 @@ public final class Sprite {
         if (side) box(s, unit, LEFT, top, 2, 8, shade);
 
         // Hands, and the laptop
-        boolean tap = (pet.time() / 130) % 2 == 0;
+        boolean tap = (pet.time() / (mood == Pet.Mood.DUCKS ? 55 : 130)) % 2 == 0; // ducks: clicking like mad
         switch (pose) {
             case FRONT -> {
                 box(s, unit, LEFT - 2, top + 4, 2, 2, body);

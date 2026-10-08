@@ -78,7 +78,9 @@ public final class Pet {
         /** A rocket he coded: it pulls up beside him, he climbs on, and counts down from 5. */
         LAUNCHPAD,
         /** Riding his rocket all over the screen (until it crashes). */
-        ROCKET
+        ROCKET,
+        /** duck.py: a duck fell from the sky! He loves it. He makes MORE. And more. (Click him to stop it.) */
+        DUCKS
     }
 
     private boolean canJuggle, canWave;
@@ -216,7 +218,18 @@ public final class Pet {
 
         switch (mood) {
             case RIDE, FALL, DIZZY, SHAKE, WALK, WORK, PEEK -> { } // his body or his job decides these (see follow and job)
-            case PACK -> { if (moodFor > nextChange) doneCoding(); }
+            case PACK -> {
+                if (moodFor > nextChange) {
+                    if (sorryAfterPack) { // the laptop's shut: now he realizes what he's done
+                        sorryAfterPack = false;
+                        line = guilty.after();
+                        wants = Beep.AWW;
+                        set(Mood.SORRY, 2600);
+                    } else {
+                        doneCoding();
+                    }
+                }
+            }
             case CODING -> {
                 // the big finish: hand way up... and SLAM the button. That's when it happens.
                 if (slam() >= SLAM_HIT && slamBefore < SLAM_HIT) wants = Beep.CLAP;
@@ -227,6 +240,23 @@ public final class Pet {
                 }
             }
             case CARPET, ROCKET -> { }
+            case DUCKS -> {
+                if (moodFor >= DUCK_SURPRISE + 400 && !sang) {
+                    sang = true;
+                    line = "A duck!!";
+                    wants = Beep.HAPPY;
+                }
+                if (moodFor >= DUCK_SPAM && countdown == 0) {
+                    countdown = 1;
+                    line = "MORE DUCKS!";
+                    wants = Beep.WHEE;
+                }
+                if (moodFor >= DUCK_SPAM && (moodFor / 300) != ((moodFor - ms) / 300)) wants = Beep.CLICKED; // click click click
+                if (moodFor > DUCK_SPAM + 16_000) { // nobody stopped him. He stops himself, eventually
+                    line = "...okay. That's enough ducks.";
+                    stopDucks();
+                }
+            }
             case LAUNCHPAD -> {
                 // climbs aboard, then counts down: 5... 4... 3... 2... 1...
                 for (int n = 0; n < 5; n++) {
@@ -381,6 +411,10 @@ public final class Pet {
             wantY = (float) Math.max(-1, Math.min(1, (fly[1] - 6) / 4));
         }
         if (mood == Mood.SLEEP || (!prefs.on("eyes") && fly == null)) wantX = wantY = 0;
+        if (mood == Mood.DUCKS && moodFor < DUCK_SPAM) { // looking round at the duck behind him, up in the middle
+            wantX = -1;
+            wantY = -0.8f;
+        }
         if (mood == Mood.LAUNCHPAD) { // looking at his rocket
             wantX = 1;
             wantY = -0.3f;
@@ -651,6 +685,13 @@ public final class Pet {
         line = c.done();
         switch (c.effect()) {
             case CARPET -> wants = Beep.WHEE; // the window starts the ride
+            case DUCKS -> {
+                line = null;  // he hasn't seen it yet: it's falling behind him
+                guilty = c;
+                sang = false;
+                countdown = 0;
+                set(Mood.DUCKS, Long.MAX_VALUE);
+            }
             case ROCKET -> {
                 made = null;                  // not yet: first it pulls up and he climbs on
                 guilty = c;                   // (he'll be sorry once he's back)
@@ -689,6 +730,22 @@ public final class Pet {
         Creation d = deleted;
         deleted = null;
         return d;
+    }
+
+    /** The duck flood: when he spots the first one, and when he starts making more. */
+    static final long DUCK_SURPRISE = 1300, DUCK_SPAM = 2700;
+    private boolean sorryAfterPack;
+
+    /** Whether he's making ducks as fast as he can click (the window drops one in now and then). */
+    public boolean duckSpam() {
+        return mood == Mood.DUCKS && moodFor >= DUCK_SPAM;
+    }
+
+    /** That's enough ducks: his laptop shuts, and then he's sorry. */
+    public void stopDucks() {
+        if (mood != Mood.DUCKS) return;
+        sorryAfterPack = true;
+        set(Mood.PACK, Sprite.PUT_AWAY);
     }
 
     private Creation rocket;
@@ -754,7 +811,7 @@ public final class Pet {
     /** Busy with something that shouldn't be cut short: a job, coding, a ride, a fall, moving house... */
     private boolean busy() {
         return switch (mood) {
-            case WORK, PEEK, PACK, CODING, SORRY, MADE, CARPET, LAUNCHPAD, ROCKET, RIDE, FALL, DIZZY, SHAKE, WALK, CARRY, UNPACK, BIRTHDAY,
+            case WORK, PEEK, PACK, CODING, SORRY, MADE, CARPET, LAUNCHPAD, ROCKET, DUCKS, RIDE, FALL, DIZZY, SHAKE, WALK, CARRY, UNPACK, BIRTHDAY,
                     GOODBYE, FREAKOUT -> true;
             default -> false;
         };
