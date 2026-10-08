@@ -540,7 +540,7 @@ public final class Clawdtop {
 
     /** Puts on his hat and hut, and lets him use the tricks he's learned. */
     private void useItems() {
-        pet.setItems(settings.owns("juggling"), settings.owns("waving"), settings.wearing("hat"));
+        pet.setItems(settings.owns("juggling") && !settings.serious(), settings.owns("waving") && !settings.serious(), settings.wearing("hat"));
         int unit = settings.unit();
         hut.show(settings.wearing("hut"), unit, (int) Math.round(homeX - Sprite.feetX() * unit + 2 * unit), (int) Math.round(groundY),
                 !boxed && !hidden && !farewell);

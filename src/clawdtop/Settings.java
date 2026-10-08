@@ -77,7 +77,17 @@ public final class Settings {
     /** A switch from Options (on or off). */
     public boolean on(String key) {
         Options.Option o = Options.find(key);
+        if (TOMFOOLERY.contains(key) && serious()) return false;
         return Boolean.parseBoolean(values.getProperty("opt." + key, o.start()));
+    }
+
+    /** What "No tomfoolery" turns off: the silly stuff. The useful things (tips, cleaning, reminders) stay. */
+    static final java.util.Set<String> TOMFOOLERY = java.util.Set.of("sneezes", "flies", "spins", "creates", "capsLock", "grumpy",
+            "stompOff", "batteryPanic", "freakout", "friday", "friendship", "rides", "shakeOff", "seasonalHats", "monday");
+
+    /** No tomfoolery: serious mode. */
+    public boolean serious() {
+        return Boolean.parseBoolean(values.getProperty("opt.serious", "false"));
     }
 
     /** A choice from Options (one of its choices). */
@@ -106,6 +116,7 @@ public final class Settings {
 
     /** How often he tells jokes: "Off", "Rare", "Sometimes" or "Lots". */
     public String jokes() {
+        if (serious()) return "Off";
         String j = values.getProperty("jokes", "Sometimes");
         return java.util.List.of("Off", "Rare", "Sometimes", "Lots").contains(j) ? j : "Sometimes";
     }

@@ -344,7 +344,7 @@ public class ClawdtopTest {
         check("and change (numbers stay in range)", knobs.on("sneezes") + " " + knobs.choice("voice") + " " + knobs.number("volume"), "false Robot 10");
         check("a robot voice sounds different", java.util.Arrays.equals(Beeps.voiced(Beeps.make(Pet.Beep.HELLO), "Robot", 5), Beeps.make(Pet.Beep.HELLO)), false);
         check("a squeaky voice is shorter (higher)", Beeps.voiced(Beeps.make(Pet.Beep.HELLO), "Squeaky", 5).length < Beeps.make(Pet.Beep.HELLO).length, true);
-        String opts = cli("controlpanel", "13", "1", "0", "0");
+        String opts = cli("controlpanel", "13", "2", "0", "0"); // (1 is No tomfoolery, 2 is sneezes)
         check("the control panel lists them all, in groups", opts.contains("Antics") && opts.contains("Riding") && opts.contains("Useful"), true);
         check("and flips one", Settings.load().on("sneezes"), true);
 
@@ -491,6 +491,34 @@ public class ClawdtopTest {
 
         // ---- Cleaning a folder (on a pretend mini PC) ----
         CleanerTest.run();
+
+        // ---- No tomfoolery ----
+        Settings calm = Settings.load();
+        calm.set("serious", "true");
+        check("no tomfoolery turns off the silly stuff", calm.on("creates") + " " + calm.on("sneezes") + " " + calm.on("rides") + " " + calm.jokes(), "false false false Off");
+        check("but he's still useful", calm.on("diskSpace") + " " + calm.on("missedYou"), "true true");
+        check("and the control panel has the switch", cli("controlpanel", "15", "0").contains("No tomfoolery") + " " + Settings.load().serious(), "true false");
+        calm = Settings.load();
+        Pet calmPet = new Pet(3);
+        Settings calmSettings = calm;
+        calm.set("serious", "true");
+        calmPet.setPrefs(new Pet.Prefs() {
+            public boolean on(String key) {
+                return calmSettings.on(key);
+            }
+
+            public int number(String key) {
+                return calmSettings.number(key);
+            }
+
+            public String choice(String key) {
+                return calmSettings.choice(key);
+            }
+        });
+        calmPet.changeColor(new java.awt.Color(80, 140, 240));
+        for (int i = 0; i < 150; i++) calmPet.tick(33, 0, 0, false, false);
+        check("a new color, no freakout", calmPet.mood() != Pet.Mood.FREAKOUT && calmPet.color().getBlue() == 240, true);
+        calm.set("serious", "false");
 
         // ---- Things he codes ----
         check("he knows how to make lots of things", Creation.ALL.size() >= 26, true);

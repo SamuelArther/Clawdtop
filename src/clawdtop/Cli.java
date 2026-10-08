@@ -160,6 +160,7 @@ public final class Cli {
             out.println("  12  Your birthday       " + (s.birthday().isEmpty() ? DIM + "(not set)" + RESET : s.birthday().replace('-', '/')));
             out.println("  13  All the options     " + DIM + "(" + Options.ALL.size() + " of them!)" + RESET);
             out.println("  14  His home's name     " + (s.homeNamed() ? s.home() : DIM + "(none)" + RESET));
+            out.println("  15  No tomfoolery       " + onOff(s.serious()) + DIM + "  (serious mode: no silly stuff)" + RESET);
             out.println("   9  Start with Windows  " + onOff(Startup.on()));
             out.println("  10  " + (on ? "Stop him" : "Start him"));
             out.println("   0  Done");
@@ -220,6 +221,7 @@ public final class Cli {
                 case "8" -> s.setTips(!s.tips());
                 case "9" -> Startup.set(!Startup.on());
                 case "13" -> allOptions();
+                case "15" -> s.set("serious", String.valueOf(!s.serious()));
                 case "14" -> {
                     out.print("What should he call this computer? (like " + s.suggestedHome() + ") ");
                     out.flush();

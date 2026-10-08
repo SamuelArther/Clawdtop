@@ -881,6 +881,11 @@ public final class Pet {
             newColor = null;
             return;
         }
+        if (!prefs.on("freakout")) { // no fuss: he's just a new color
+            color = c;
+            newColor = null;
+            return;
+        }
         newColor = c;
         newColorIn = 3500;
     }

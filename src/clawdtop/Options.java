@@ -25,6 +25,8 @@ final class Options {
     }
 
     static final List<Option> ALL = List.of(
+            // One switch for serious people: no tomfoolery
+            Option.on("Serious", "serious", "No tomfoolery (just a calm, helpful Clawd)", false),
             // What he does by himself
             Option.on("Antics", "sneezes", "Sneezes", true),
             Option.on("Antics", "flies", "Flies buzzing round him", true),
@@ -44,6 +46,7 @@ final class Options {
             Option.on("Reactions", "stompOff", "Stomps off when clicked way too much", true),
             Option.on("Reactions", "battery", "Talks about the battery", true),
             Option.on("Reactions", "batteryPanic", "Panics when the battery's about to die", true),
+            Option.on("Reactions", "freakout", "Freaks out about a new color", true),
             Option.on("Reactions", "lateNight", "\"It's late... maybe bed soon?\"", true),
             Option.on("Reactions", "monday", "\"Ugh. Monday.\"", true),
             Option.on("Reactions", "friday", "Friday afternoon confetti", true),
