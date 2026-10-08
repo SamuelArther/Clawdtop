@@ -72,6 +72,24 @@ public class ClawdtopTest {
         check("coding apps", Foreground.isDevApp("Code.exe") + " " + Foreground.isDevApp("WindowsTerminal.exe") + " "
                 + Foreground.isDevApp("idea64.exe") + " " + Foreground.isDevApp("chrome.exe") + " " + Foreground.isDevApp(null), "true true true false false");
 
+        // ---- Tips ----
+        Foreground.Front run = new Foreground.Front("explorer.exe", "#32770", "Run");
+        Foreground.Front folder = new Foreground.Front("explorer.exe", "CabinetWClass", "Downloads");
+        Foreground.Front code = new Foreground.Front("Code.exe", "Chrome_WidgetWin_1", "Clawd.java - Visual Studio Code");
+        Foreground.Front game = new Foreground.Front("javaw.exe", "SDL_app", "Minecraft 26.3");
+        check("the Run box, File Explorer and VS Code each have their tips; a game doesn't",
+                Tips.kind(run) + " " + Tips.kind(folder) + " " + Tips.kind(code) + " " + Tips.kind(game), "run explorer vscode null");
+        check("the Run box in Spanish counts too", Tips.kind(new Foreground.Front("explorer.exe", "#32770", "Ejecutar")), "run");
+        check("other explorer dialogs aren't the Run box", Tips.kind(new Foreground.Front("explorer.exe", "#32770", "Copying 3 items")), "null");
+        check("the Run box's tips show straight away, others wait their turn", Tips.urgent(run) + " " + Tips.urgent(code), "true false");
+        Tips tips = new Tips();
+        String first = tips.tipFor(code);
+        String second = tips.tipFor(code);
+        check("tips come round in turn, not the same twice in a row", !first.equals(second), true);
+        check("Run box tips list commands", tips.tipFor(run).contains("%temp%"), true);
+        pet.speak();
+        check("he chirps when he has a tip", pet.takeBeep(), Pet.Beep.TIP);
+
         // ---- Settings and starting with Windows ----
         Settings s = Settings.load();
         check("settings start as beeps on, normal size, above the clock", s.sounds() + " " + s.size() + " " + s.x() + " " + s.unit(), "true Normal -1 3");
@@ -106,7 +124,16 @@ public class ClawdtopTest {
         for (int i = 0; i < 20 * 60 * 30 && sleepy.mood() != Pet.Mood.SLEEP; i++) sleepy.tick(33, 0, 0, false, false);
         for (int i = 0; i < 40; i++) sleepy.tick(33, 0, 0, false, false);
         save(sleepy, frames.resolve("asleep.png"));
-        check("pictures of every mood are in build/frames", Files.list(frames).count() >= 6, true);
+        String[] bubbleLines = new Tips().tipFor(run).split("\n");
+        java.awt.Dimension bubbleSize = Bubble.size(bubbleLines);
+        BufferedImage bubble = new BufferedImage(bubbleSize.width, bubbleSize.height, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D bg = bubble.createGraphics();
+        bg.setColor(new java.awt.Color(32, 32, 36));
+        bg.fillRect(0, 0, bubble.getWidth(), bubble.getHeight());
+        Bubble.paint(bg, bubbleLines, bubble.getWidth(), bubble.getHeight());
+        bg.dispose();
+        ImageIO.write(bubble, "png", frames.resolve("tip bubble.png").toFile());
+        check("pictures of every mood (and a tip) are in build/frames", Files.list(frames).count() >= 7, true);
 
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         System.exit(failures == 0 ? 0 : 1);

@@ -39,6 +39,7 @@ public final class Beeps {
             case CLICKED -> new double[][] {{1980, 45}, {0, 25}, {1980, 45}};
             case YAWN -> new double[][] {{990, 120}, {880, 120}, {740, 200}};
             case WAKE -> new double[][] {{1170, 60}, {0, 30}, {1480, 90}};
+            case TIP -> new double[][] {{1760, 40}, {0, 25}, {1320, 50}, {0, 25}, {1760, 60}};
         };
         int total = 0;
         for (double[] n : notes) total += (int) (RATE * n[1] / 1000);

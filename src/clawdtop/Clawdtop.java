@@ -37,6 +37,10 @@ public final class Clawdtop {
     private final Settings settings = Settings.load();
     private final Pet pet = new Pet(System.nanoTime());
     private final Beeps beeps = new Beeps();
+    private final Tips tips = new Tips();
+    private final Bubble bubble = new Bubble();
+    private String lastKind;
+    private long lastTipAt = System.currentTimeMillis() - 60_000; // the first tip can come a minute in
     private final JWindow window = new JWindow();
     private final JPanel canvas;
     private Point lastMouse = new Point();
@@ -92,6 +96,7 @@ public final class Clawdtop {
         MouseAdapter mouse = new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
+                bubble.hide();
                 if (SwingUtilities.isLeftMouseButton(e)) {
                     dragFrom = e.getXOnScreen();
                     windowXAtDrag = window.getX();
@@ -129,6 +134,12 @@ public final class Clawdtop {
         JCheckBoxMenuItem sounds = new JCheckBoxMenuItem("Beeps", settings.sounds());
         sounds.addActionListener(e -> settings.setSounds(sounds.isSelected()));
         menu.add(sounds);
+        JCheckBoxMenuItem tipsItem = new JCheckBoxMenuItem("Tips", settings.tips());
+        tipsItem.addActionListener(e -> {
+            settings.setTips(tipsItem.isSelected());
+            if (!tipsItem.isSelected()) bubble.hide();
+        });
+        menu.add(tipsItem);
         JCheckBoxMenuItem startup = new JCheckBoxMenuItem("Start with Windows", Startup.on());
         startup.addActionListener(e -> Startup.set(startup.isSelected()));
         menu.add(startup);
@@ -163,8 +174,10 @@ public final class Clawdtop {
 
         // Twice a second: what's in front (a coding app makes him happy; a full-screen game or video hides him)
         if (ticks % 15 == 0) {
-            app = Foreground.app();
+            Foreground.Front front = Foreground.front();
+            app = front.app();
             devApp = Foreground.isDevApp(app);
+            maybeTip(front);
             DisplayMode mode = window.getGraphicsConfiguration().getDevice().getDisplayMode();
             boolean fullScreen = !devApp && Foreground.fullScreen(mode.getWidth(), mode.getHeight());
             if (fullScreen != hidden) {
@@ -184,7 +197,26 @@ public final class Clawdtop {
         pet.tick(FRAME_MS, mouse.x - eyesX, mouse.y - eyesY, moved, devApp);
         Pet.Beep beep = pet.takeBeep();
         if (beep != null && settings.sounds()) beeps.play(beep);
+        bubble.tick();
         canvas.repaint();
+    }
+
+    /**
+     * A tip when something new comes to the front: straight away for the Run box (you opened it to type something),
+     * otherwise at most one every three minutes, so he's helpful without nagging.
+     */
+    private void maybeTip(Foreground.Front front) {
+        String kind = Tips.kind(front);
+        if (java.util.Objects.equals(kind, lastKind)) return;
+        lastKind = kind;
+        if (kind == null || !settings.tips() || hidden) return;
+        long now = System.currentTimeMillis();
+        if (!Tips.urgent(front) && now - lastTipAt < 180_000) return;
+        String tip = tips.tipFor(front);
+        if (tip == null) return;
+        lastTipAt = now;
+        bubble.show(tip, window.getBounds(), window.getGraphicsConfiguration().getBounds());
+        pet.speak();
     }
 
     private void start() {

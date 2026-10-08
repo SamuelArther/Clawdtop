@@ -34,7 +34,7 @@ public final class Pet {
     private Beep wants;            // a sound he wants to make (the window plays it)
 
     /** A little sound he makes. */
-    public enum Beep { HELLO, HAPPY, CLICKED, YAWN, WAKE }
+    public enum Beep { HELLO, HAPPY, CLICKED, YAWN, WAKE, TIP }
 
     public Pet(long seed) {
         random = new Random(seed);
@@ -95,6 +95,12 @@ public final class Pet {
         float ease = Math.min(1, ms / 120f);
         lookX += (wantX - lookX) * ease;
         lookY += (wantY - lookY) * ease;
+    }
+
+    /** He has a tip to tell you (a little chirp, and he perks up if he was lying down). */
+    public void speak() {
+        wants = Beep.TIP;
+        if (mood == Mood.LIE || mood == Mood.SIT) set(Mood.IDLE, idleTime());
     }
 
     /** You clicked him. */

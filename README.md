@@ -9,10 +9,13 @@ A tiny desktop buddy: Clawd sits on top of your taskbar, right above the clock, 
 - Leave him alone for a while and he **sits down**, then **lies down**, then **falls asleep** (with little z's).
   Move your mouse near him and he wakes up.
 - Open **VS Code, a terminal, IntelliJ** or another coding app and **his eyes light up** and he bounces, happy.
-- He talks in **little quiet beeps**.
+- He talks in **little quiet beeps**, and now and then he has a **tip** for what you're doing, in a little speech
+  bubble (all built in, nothing from the internet). Open the **Run box (Win + R)** and he shows handy commands
+  (`%temp%`, `appwiz.cpl`, `msinfo32`...). VS Code, terminals, IntelliJ, File Explorer, Task Manager and browsers have
+  their own shortcuts. Click the bubble to close it, or turn tips off in his menu.
 - Full-screen games and videos? He gets out of the way until you're back.
 
-**Click** him to say hi. **Drag** him along the taskbar to move him. **Right-click** for his menu: beeps on or off,
+**Click** him to say hi. **Drag** him along the taskbar to move him. **Right-click** for his menu: beeps and tips on or off,
 start with Windows, small / normal / big, back above the clock, and "Bye, Clawd" to close him.
 
 ## Running him

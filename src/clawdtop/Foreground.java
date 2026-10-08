@@ -28,12 +28,14 @@ public final class Foreground {
     private static final MethodHandle GET_WINDOW_THREAD_PROCESS_ID;
     private static final MethodHandle GET_WINDOW_RECT;
     private static final MethodHandle GET_CLASS_NAME;
+    private static final MethodHandle GET_WINDOW_TEXT;
 
     static {
         MethodHandle window = null;
         MethodHandle process = null;
         MethodHandle rect = null;
         MethodHandle className = null;
+        MethodHandle text = null;
         try {
             if (System.getProperty("os.name", "").toLowerCase(Locale.ROOT).startsWith("windows")) {
                 Linker linker = Linker.nativeLinker();
@@ -46,6 +48,8 @@ public final class Foreground {
                         FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS));
                 className = linker.downcallHandle(user32.find("GetClassNameW").orElseThrow(),
                         FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
+                text = linker.downcallHandle(user32.find("GetWindowTextW").orElseThrow(),
+                        FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
             }
         } catch (Throwable notAvailable) {
             window = null;
@@ -55,9 +59,33 @@ public final class Foreground {
         GET_WINDOW_THREAD_PROCESS_ID = process;
         GET_WINDOW_RECT = window == null ? null : rect;
         GET_CLASS_NAME = window == null ? null : className;
+        GET_WINDOW_TEXT = window == null ? null : text;
     }
 
     private Foreground() {
+    }
+
+    /** The window in front: its program file (like "Code.exe"), its kind of window, and its title. Parts can be "". */
+    public record Front(String app, String windowClass, String title) {
+        static final Front UNKNOWN = new Front("", "", "");
+    }
+
+    /** What's in front right now (all "" if it can't be told). */
+    public static Front front() {
+        if (GET_WINDOW_TEXT == null) return Front.UNKNOWN;
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment window = (MemorySegment) GET_FOREGROUND_WINDOW.invokeExact();
+            if (window.address() == 0) return Front.UNKNOWN;
+            MemorySegment buffer = arena.allocate(ValueLayout.JAVA_CHAR, 256);
+            int length = (int) GET_CLASS_NAME.invokeExact(window, buffer, 256);
+            String windowClass = length > 0 ? new String(buffer.toArray(ValueLayout.JAVA_CHAR), 0, length) : "";
+            length = (int) GET_WINDOW_TEXT.invokeExact(window, buffer, 256);
+            String title = length > 0 ? new String(buffer.toArray(ValueLayout.JAVA_CHAR), 0, length) : "";
+            String app = app();
+            return new Front(app == null ? "" : app, windowClass, title);
+        } catch (Throwable e) {
+            return Front.UNKNOWN;
+        }
     }
 
     /** The program file of the app in front, like "Code.exe", or null if it can't be told. */

@@ -56,6 +56,15 @@ public final class Settings {
         save();
     }
 
+    public boolean tips() {
+        return !"false".equals(values.getProperty("tips"));
+    }
+
+    public void setTips(boolean on) {
+        values.setProperty("tips", String.valueOf(on));
+        save();
+    }
+
     /** "Small", "Normal" or "Big". */
     public String size() {
         String size = values.getProperty("size", "Normal");
