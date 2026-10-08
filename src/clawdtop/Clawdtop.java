@@ -50,6 +50,12 @@ public final class Clawdtop {
     private int ticks;
     private final Body body = new Body();
     private double homeX, groundY; // his perch: the point between his feet, on the taskbar's top edge
+    private CleanJob job; // a folder he's cleaning, or null
+    private final java.util.concurrent.ExecutorService worker = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "Clawdtop work");
+        t.setDaemon(true);
+        return t;
+    });
     private int dragFrom = Integer.MIN_VALUE;
     private int windowXAtDrag;
 
@@ -61,7 +67,8 @@ public final class Clawdtop {
                 g2.setComposite(java.awt.AlphaComposite.Clear); // a see-through window: clear last frame first
                 g2.fillRect(0, 0, getWidth(), getHeight());
                 g2.setComposite(java.awt.AlphaComposite.SrcOver);
-                Sprite.drawTurned(g2, pet, settings.unit(), body.angle());
+                if (job != null && job.sunk() > 0) Sprite.drawRising(g2, pet, settings.unit(), job.sunk()); // climbing up to ask
+                else Sprite.drawTurned(g2, pet, settings.unit(), body.angle());
                 g2.dispose();
             }
         };
@@ -100,7 +107,7 @@ public final class Clawdtop {
         MouseAdapter mouse = new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                bubble.hide();
+                if (!bubble.asking()) bubble.hide();
                 if (SwingUtilities.isLeftMouseButton(e) && body.state() == Body.State.HOME) {
                     dragFrom = e.getXOnScreen();
                     windowXAtDrag = window.getX();
@@ -119,18 +126,101 @@ public final class Clawdtop {
                     menu().show(canvas, e.getX(), e.getY());
                     return;
                 }
-                if (dragFrom == Integer.MIN_VALUE) return;
+                if (dragFrom == Integer.MIN_VALUE) {
+                    if (job != null && SwingUtilities.isLeftMouseButton(e)) jobs().show(canvas, e.getX(), e.getY());
+                    return;
+                }
                 boolean moved = Math.abs(e.getXOnScreen() - dragFrom) > 3;
                 dragFrom = Integer.MIN_VALUE;
                 if (moved) {
                     settings.setX(window.getX());
                 } else {
                     pet.poke();
+                    jobs().show(canvas, e.getX(), e.getY());
                 }
             }
         };
         canvas.addMouseListener(mouse);
         canvas.addMouseMotionListener(mouse);
+    }
+
+    /** What you can ask him to do (left-click him). */
+    private JPopupMenu jobs() {
+        JPopupMenu menu = new JPopupMenu();
+        if (job == null) {
+            JMenuItem clean = new JMenuItem("Clean a folder...");
+            clean.addActionListener(e -> startCleaning());
+            menu.add(clean);
+        } else {
+            JMenuItem stop = new JMenuItem("Stop cleaning");
+            stop.addActionListener(e -> job.stop(body, pet));
+            menu.add(stop);
+        }
+        return menu;
+    }
+
+    private void startCleaning() {
+        if (!Cleaner.canRecycle()) {
+            bubble.show("I can't reach the Recycle Bin on this computer,\nso I won't clean anything.", window.getBounds(), screenBounds());
+            return;
+        }
+        job = new CleanJob(new CleanJob.Ui() {
+            public Foreground.Front front() {
+                return Foreground.front();
+            }
+
+            public java.nio.file.Path folderOf(long handle) {
+                return Foreground.explorerFolder(handle);
+            }
+
+            public double[] spot(Foreground.Front w) {
+                return spotOn(w);
+            }
+
+            public void say(String text) {
+                bubble.show(text, window.getBounds(), screenBounds());
+                pet.speak();
+            }
+
+            public void ask(String text, String[] buttons, java.util.function.IntConsumer answer) {
+                bubble.ask(text, buttons, answer, window.getBounds(), screenBounds());
+                pet.speak();
+            }
+
+            public void hideBubble() {
+                bubble.hide();
+            }
+
+            public void background(Runnable work, Runnable then) {
+                worker.execute(() -> {
+                    try {
+                        work.run();
+                    } finally {
+                        SwingUtilities.invokeLater(then);
+                    }
+                });
+            }
+
+            public int recycle(java.util.List<Cleaner.Item> items) {
+                return Cleaner.recycle(items);
+            }
+        });
+        job.start(body);
+    }
+
+    /** Where he sits on a window: its top edge, most of the way across (on a maximized window, just inside the top). */
+    private double[] spotOn(Foreground.Front w) {
+        int[] b = w.bounds();
+        if (b[2] - b[0] < 100 || b[0] <= -30000) return null; // minimized, or too small to sit on
+        double scale = window.getGraphicsConfiguration().getDefaultTransform().getScaleX(); // Windows' pixels to Java's
+        Rectangle screen = screenBounds();
+        double left = b[0] / scale, right = b[2] / scale, top = b[1] / scale;
+        if (top < screen.y + 4) top = screen.y + 34;
+        return new double[] {left + (right - left) * 0.72, top + 1};
+    }
+
+    private Rectangle screenBounds() {
+        return window.getGraphicsConfiguration().getBounds();
     }
 
     private JPopupMenu menu() {
@@ -181,9 +271,9 @@ public final class Clawdtop {
             Foreground.Front front = Foreground.front();
             app = front.app();
             devApp = Foreground.isDevApp(app);
-            maybeTip(front);
+            if (job == null) maybeTip(front);
             DisplayMode mode = window.getGraphicsConfiguration().getDevice().getDisplayMode();
-            boolean fullScreen = !devApp && Foreground.fullScreen(mode.getWidth(), mode.getHeight());
+            boolean fullScreen = job == null && !devApp && Foreground.fullScreen(mode.getWidth(), mode.getHeight());
             if (fullScreen != hidden) {
                 hidden = fullScreen;
                 window.setVisible(!hidden);
@@ -199,6 +289,10 @@ public final class Clawdtop {
         // His body: on his perch, or riding your cursor, flying off, dizzy, walking home
         if (dragFrom == Integer.MIN_VALUE) {
             Rectangle screen = window.getGraphicsConfiguration().getBounds();
+            if (job != null) {
+                job.tick(FRAME_MS, body, pet);
+                if (job.over()) job = null;
+            }
             body.tick(FRAME_MS, mouse.x, mouse.y, homeX, groundY, 12 * unit, screen.x, screen.x + screen.width);
             pet.follow(body.state());
             if (body.state() != Body.State.HOME || window.getX() != (int) Math.round(homeX - Sprite.feetX() * unit)) {
@@ -212,6 +306,7 @@ public final class Clawdtop {
         Pet.Beep beep = pet.takeBeep();
         if (beep != null && settings.sounds()) beeps.play(beep);
         bubble.tick();
+        if (bubble.showing()) bubble.follow(window.getBounds(), screenBounds());
         canvas.repaint();
     }
 

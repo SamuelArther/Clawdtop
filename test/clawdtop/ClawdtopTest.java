@@ -152,6 +152,9 @@ public class ClawdtopTest {
         check("the Windows startup script runs Java with no window", Startup.script("C:\\Java\\bin\\javaw.exe", "C:\\Clawdtop\\Clawdtop.jar"),
                 "Set shell = CreateObject(\"WScript.Shell\")\r\nshell.Run \"\"\"C:\\Java\\bin\\javaw.exe\"\" --enable-native-access=ALL-UNNAMED -jar \"\"C:\\Clawdtop\\Clawdtop.jar\"\"\", 0, False\r\n");
 
+        // ---- Cleaning a folder (on a pretend mini PC) ----
+        CleanerTest.run();
+
         // ---- Pictures of every mood, to look at ----
         Path frames = Path.of("build", "frames");
         Files.createDirectories(frames);
@@ -188,6 +191,34 @@ public class ClawdtopTest {
         save(moving, frames.resolve("dizzy, head first.png"), Math.PI);
         moving.follow(Body.State.WALK);
         save(moving, frames.resolve("walking home.png"));
+        Pet worker = new Pet(7);
+        worker.takeBeep();
+        worker.job(Pet.Mood.WORK);
+        worker.follow(Body.State.PERCH);
+        for (int i = 0; i < 20; i++) worker.tick(33, 0, 0, false, false);
+        save(worker, frames.resolve("working on his laptop.png"));
+        worker.job(Pet.Mood.PEEK);
+        worker.follow(Body.State.PERCH);
+        save(worker, frames.resolve("peeking hands.png"));
+        worker.job(null);
+        worker.follow(Body.State.PERCH);
+        BufferedImage climb = new BufferedImage(Sprite.WIDTH * 8, Sprite.HEIGHT * 8, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D cg = climb.createGraphics();
+        cg.setColor(new java.awt.Color(32, 32, 36));
+        cg.fillRect(0, 0, climb.getWidth(), climb.getHeight());
+        Sprite.drawRising(cg, worker, 8, 5);
+        cg.dispose();
+        ImageIO.write(climb, "png", frames.resolve("climbing up to ask.png").toFile());
+        String[] question = {"Is it OK to delete setup_game.exe?", "It's an installer from 3 months ago (34.0 MB)."};
+        String[] answers = {"Yes", "No", "Stop"};
+        java.awt.Dimension qs = Bubble.size(question, answers);
+        BufferedImage ask = new BufferedImage(qs.width, qs.height, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D ag = ask.createGraphics();
+        ag.setColor(new java.awt.Color(32, 32, 36));
+        ag.fillRect(0, 0, ask.getWidth(), ask.getHeight());
+        Bubble.paint(ag, question, answers, qs.width, qs.height);
+        ag.dispose();
+        ImageIO.write(ask, "png", frames.resolve("asking.png").toFile());
         String[] bubbleLines = new Tips().tipFor(run).split("\n");
         java.awt.Dimension bubbleSize = Bubble.size(bubbleLines);
         BufferedImage bubble = new BufferedImage(bubbleSize.width, bubbleSize.height, BufferedImage.TYPE_INT_ARGB);

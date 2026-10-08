@@ -16,6 +16,13 @@ A tiny desktop buddy: Clawd sits on top of your taskbar, right above the clock, 
 - **Give him a ride:** hold your cursor on the taskbar's top edge right next to him and he hops on and rides along
   wherever you go. Bring him back down to the taskbar and stop, and he hops off and walks home. **Shake** the cursor
   and he flies off, lands head first, lies there seeing stars, flips back up and walks home to his perch.
+- **He cleans folders.** Click him and pick **Clean a folder...**: he hops onto your cursor, you open the folder in
+  File Explorer, and he hops onto that window, pulls out his laptop and looks through it. Then he asks before anything
+  goes: once for plain junk (temp files, Windows' thumbnail caches, unfinished downloads, Mac leftovers, empty
+  folders), and one at a time for things that might matter (installers over a month old, exact "(1)" copies). For
+  those, his two little hands peek over the top of the window, then he climbs up to ask. **Everything goes to the
+  Recycle Bin**, so you can always put it back, and he won't touch Windows, Program Files, your whole user folder or
+  a whole drive.
 - Full-screen games and videos? He gets out of the way until you're back.
 
 **Click** him to say hi. **Drag** him along the taskbar to move him. **Right-click** for his menu: beeps and tips on or off,

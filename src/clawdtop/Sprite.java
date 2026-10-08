@@ -17,6 +17,9 @@ public final class Sprite {
     static final Color LIT = new Color(255, 251, 214);
     static final Color GLOW = new Color(255, 214, 102, 150);
     static final Color ZZZ = new Color(200, 210, 230, 220);
+    static final Color LAPTOP = new Color(150, 158, 170);
+    static final Color LAPTOP_DARK = new Color(96, 104, 116);
+    static final Color SCREEN_GLOW = new Color(150, 210, 255, 120);
 
     private static final int GROUND = 14; // the row his feet stand on (the bottom of the drawing)
     private static final int LEFT = 4;    // where his body starts
@@ -27,8 +30,14 @@ public final class Sprite {
     /** Draws him as he is right now, with the top-left of the drawing at (0, 0). */
     public static void draw(Graphics2D g, Pet pet, int unit) {
         Pet.Mood mood = pet.mood();
+        if (mood == Pet.Mood.PEEK) {
+            // Hiding behind the window's top edge: just his two little hands gripping it
+            box(g, unit, LEFT + 2, GROUND - 1, 1, 1, BODY);
+            box(g, unit, LEFT + 10, GROUND - 1, 1, 1, BODY);
+            return;
+        }
         int drop = switch (mood) {    // how far his body sits down from standing
-            case SIT -> 1;
+            case SIT, WORK -> 1;
             case LIE, SLEEP -> 2;
             default -> 0;
         };
@@ -48,7 +57,12 @@ public final class Sprite {
         // Body
         box(g, unit, LEFT, top, 13, 8, BODY);
         // Arms: out to the sides, or up in the air when he's happy
-        if (mood == Pet.Mood.HAPPY || mood == Pet.Mood.RIDE || mood == Pet.Mood.FALL) {
+        if (mood == Pet.Mood.WORK) {
+            // Typing: arms reach in front, taking turns
+            boolean tap = (pet.time() / 120) % 2 == 0;
+            box(g, unit, LEFT - 1, top + 5 + (tap ? 0.5 : 0), 2, 1, BODY);
+            box(g, unit, LEFT + 12, top + 5 + (tap ? 0 : 0.5), 2, 1, BODY);
+        } else if (mood == Pet.Mood.HAPPY || mood == Pet.Mood.RIDE || mood == Pet.Mood.FALL) {
             box(g, unit, LEFT - 2, top - 1, 1, 3, BODY);
             box(g, unit, LEFT - 1, top + 1, 1, 1, BODY);
             box(g, unit, LEFT + 14, top - 1, 1, 3, BODY);
@@ -76,6 +90,19 @@ public final class Sprite {
                 box(g, unit, eyeX, eyeY, 1, 2, EYE);
             }
         }
+        // His laptop, out in front of him (it rises up as he pulls it out), seen from the back of its screen
+        if (mood == Pet.Mood.WORK) {
+            double out = Math.min(1, pet.moodTime() / 450.0);
+            double ly = GROUND - out * 4.5; // low enough that his eyes peek over it
+            Graphics2D clip = (Graphics2D) g.create();
+            clip.clipRect(0, 0, WIDTH * unit, GROUND * unit);
+            box(clip, unit, LEFT + 3.5, ly - 0.5, 6, 0.5, SCREEN_GLOW);  // light from the screen over its top
+            box(clip, unit, LEFT + 3.5, ly, 6, 3.5, LAPTOP_DARK);         // the screen's back
+            box(clip, unit, LEFT + 6, ly + 1.25, 1, 1, BODY);            // a tiny orange logo
+            box(clip, unit, LEFT + 2.5, ly + 3.5, 8, 1, LAPTOP);          // the keyboard part
+            clip.dispose();
+        }
+
         // Mouth: only while he beeps, flapping open and shut between his eyes
         if (pet.talking()) {
             if (pet.mouthOpen()) {
@@ -126,6 +153,18 @@ public final class Sprite {
         }
         draw(turned, pet, unit);
         turned.dispose();
+    }
+
+    /**
+     * Draws him climbing up from behind an edge (the ground line): sunk units of him are still below it and hidden,
+     * so he seems to come up from behind the window's top.
+     */
+    public static void drawRising(Graphics2D g, Pet pet, int unit, double sunk) {
+        Graphics2D rising = (Graphics2D) g.create();
+        rising.clipRect(0, 0, WIDTH * unit, GROUND * unit);
+        rising.translate(0, sunk * unit);
+        draw(rising, pet, unit);
+        rising.dispose();
     }
 
     /** A tiny z, 3 x 3 units, fading as it rises. */

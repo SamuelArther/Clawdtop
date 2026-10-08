@@ -8,7 +8,7 @@ import java.util.ArrayDeque;
  * screen pixels for the point between his feet. No windows here, so it can be tested on its own.
  */
 public final class Body {
-    public enum State { HOME, HOP_ON, RIDE, FALL, DIZZY, WALK }
+    public enum State { HOME, HOP_ON, RIDE, FALL, DIZZY, WALK, HOP_TO, PERCH }
 
     static final double GRAVITY = 2600;      // px/s², a quick, cartoony fall
     static final double WALK_SPEED = 140;    // px/s
@@ -29,6 +29,9 @@ public final class Body {
     private final ArrayDeque<double[]> trail = new ArrayDeque<>(); // recent cursor spots: {time ms, x, y}
     private long time;
     private long stillFor;        // ms the cursor hasn't moved while he rides
+    private boolean onJob;        // riding to a job: he stays on until he's told where to go
+    private boolean headFirst = true; // a fall from being shaken off; hopping down from a window he lands on his feet
+    private double targetX, targetY;  // a spot he's going to, or sitting on (like the top edge of a window)
 
     /**
      * Moves time on by ms. cursor is where the mouse is; homeX/groundY is his perch (the taskbar's top edge);
@@ -56,6 +59,13 @@ public final class Body {
                     set(State.HOP_ON);
                 }
             }
+            case HOP_TO, PERCH -> {
+                double t = state == State.PERCH ? 1 : Math.min(1, stateFor / (double) HOP_TIME);
+                x = hopFromX + (targetX - hopFromX) * t;
+                y = hopFromY + (targetY - hopFromY) * t - Math.sin(Math.PI * t) * 50;
+                angle = 0;
+                if (state == State.HOP_TO && t >= 1) set(State.PERCH);
+            }
             case HOP_ON -> {
                 double t = Math.min(1, stateFor / (double) HOP_TIME);
                 x = hopFromX + (cursorX - hopFromX) * t;
@@ -71,10 +81,12 @@ public final class Body {
                 y = cursorY;
                 stillFor = Math.hypot(speed[0], speed[1]) < 30 ? stillFor + ms : 0;
                 if (shaking()) {
+                    onJob = false;
+                    headFirst = true;
                     vx = Math.max(-900, Math.min(900, speed[0] * 0.6));
                     vy = Math.min(-250, speed[1] * 0.3 - 250); // flung up and out
                     set(State.FALL);
-                } else if (Math.abs(cursorY - groundY) <= 6 && stillFor > 700 && stateFor > 1000) {
+                } else if (!onJob && Math.abs(cursorY - groundY) <= 6 && stillFor > 700 && stateFor > 1000) {
                     // You brought him back down to the taskbar and stopped: he hops off and walks home
                     y = groundY;
                     set(State.WALK);
@@ -85,11 +97,15 @@ public final class Body {
                 vx *= Math.pow(0.6, dt);
                 x = Math.max(left, Math.min(right, x + vx * dt));
                 y += vy * dt;
-                angle = Math.min(Math.PI, stateFor / 160.0 * Math.PI); // he flips over, head first
+                angle = headFirst ? Math.min(Math.PI, stateFor / 160.0 * Math.PI) : 0; // shaken off: he flips, head first
                 if (y >= groundY) {
                     y = groundY;
-                    angle = Math.PI;
-                    set(State.DIZZY);
+                    if (headFirst) {
+                        angle = Math.PI;
+                        set(State.DIZZY);
+                    } else {
+                        set(State.WALK);
+                    }
                 }
             }
             case DIZZY -> {
@@ -115,6 +131,46 @@ public final class Body {
                 }
             }
         }
+    }
+
+    /** Hops onto the cursor for a job, and stays on (no hopping off at the taskbar) until told where to go. */
+    public void board() {
+        if (state != State.HOME && state != State.WALK) return;
+        onJob = true;
+        hopFromX = x;
+        hopFromY = y;
+        set(State.HOP_ON);
+    }
+
+    /** Whether he's riding the cursor for a job (not shaken off). */
+    public boolean riding() {
+        return onJob && (state == State.HOP_ON || state == State.RIDE);
+    }
+
+    /** Hops (from wherever he is) to a spot, like the top edge of a window, and sits there. Call again as it moves. */
+    public void perchAt(double spotX, double spotY) {
+        if (state != State.HOP_TO && state != State.PERCH) {
+            hopFromX = x;
+            hopFromY = y;
+            onJob = false;
+            set(State.HOP_TO);
+        }
+        targetX = spotX;
+        targetY = spotY;
+        if (state == State.PERCH) {
+            hopFromX = spotX;
+            hopFromY = spotY;
+        }
+    }
+
+    /** Done with a job: hops down from wherever he's sitting (landing on his feet) and walks home. */
+    public void leave() {
+        onJob = false;
+        if (state == State.HOME) return;
+        headFirst = false;
+        vx = 0;
+        vy = -350;
+        set(State.FALL);
     }
 
     /** The cursor's average speed over the last half second, {x, y} in px/s. */

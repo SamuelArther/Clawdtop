@@ -26,7 +26,11 @@ public final class Pet {
         /** Landed on his head: lying there upside down, seeing stars. */
         DIZZY,
         /** Walking home to his perch. */
-        WALK
+        WALK,
+        /** On a job, with his laptop out, typing away. */
+        WORK,
+        /** Hiding behind the top edge of a window: only his two little hands show. */
+        PEEK
     }
 
     private final Random random;
@@ -74,7 +78,7 @@ public final class Pet {
         }
 
         switch (mood) {
-            case RIDE, FALL, DIZZY, WALK -> { } // his body decides these (see follow)
+            case RIDE, FALL, DIZZY, WALK, WORK, PEEK -> { } // his body or his job decides these (see follow and job)
             case IDLE -> { if (moodFor > nextChange) set(Mood.SIT, 30_000 + random.nextInt(60_000)); }
             case SIT -> {
                 if (moodFor > nextChange) set(sinceMouseMoved > 20_000 ? Mood.LIE : Mood.IDLE, sinceMouseMoved > 20_000 ? 60_000 + random.nextInt(120_000) : idleTime());
@@ -118,21 +122,35 @@ public final class Pet {
 
     /** Keeps his mood in step with what his body is doing: riding, falling, dizzy, walking home, or back home. */
     public void follow(Body.State body) {
+        if (job != null && (body == Body.State.PERCH || body == Body.State.HOP_TO)) {
+            if (mood != job) set(job, Long.MAX_VALUE);
+            return;
+        }
         Mood want = switch (body) {
             case HOP_ON, RIDE -> Mood.RIDE;
+            case HOP_TO, PERCH -> Mood.IDLE;
             case FALL -> Mood.FALL;
             case DIZZY -> Mood.DIZZY;
             case WALK -> Mood.WALK;
             case HOME -> null;
         };
-        if (want == null) {
-            if (mood == Mood.RIDE || mood == Mood.FALL || mood == Mood.DIZZY || mood == Mood.WALK) set(Mood.IDLE, idleTime());
+        if (want == null || want == Mood.IDLE) {
+            if (mood == Mood.RIDE || mood == Mood.FALL || mood == Mood.DIZZY || mood == Mood.WALK || mood == Mood.WORK || mood == Mood.PEEK) {
+                set(Mood.IDLE, idleTime());
+            }
             return;
         }
         if (want == mood) return;
         if (want == Mood.RIDE) wants = Beep.WHEE;
         if (want == Mood.DIZZY) wants = Beep.OOF;
         set(want, Long.MAX_VALUE);
+    }
+
+    private Mood job;
+
+    /** On a job: WORK (laptop out), PEEK (just his hands), or null (just himself) while he sits on a window. */
+    public void job(Mood mood) {
+        job = mood;
     }
 
     /** You clicked him. */
@@ -182,9 +200,14 @@ public final class Pet {
     public float lift() {
         if (mood == Mood.HAPPY) return (float) Math.abs(Math.sin(time / 130.0)) * 3;
         if (mood == Mood.WALK) return (time / 150) % 2 == 0 ? 0 : 0.5f; // a little bob with each step
-        if (mood == Mood.RIDE || mood == Mood.FALL || mood == Mood.DIZZY) return 0;
+        if (mood == Mood.RIDE || mood == Mood.FALL || mood == Mood.DIZZY || mood == Mood.WORK || mood == Mood.PEEK) return 0;
         if (mood == Mood.SLEEP || mood == Mood.LIE) return 0;
         return (time / 900) % 2 == 0 ? 0 : 0.5f; // a slow breath
+    }
+
+    /** ms he's been in his current mood, for animations like pulling out his laptop. */
+    public long moodTime() {
+        return moodFor;
     }
 
     /** ms since he woke up, for little animations like the sleeping z's. */

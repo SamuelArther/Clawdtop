@@ -65,9 +65,16 @@ public final class Foreground {
     private Foreground() {
     }
 
-    /** The window in front: its program file (like "Code.exe"), its kind of window, and its title. Parts can be "". */
-    public record Front(String app, String windowClass, String title) {
-        static final Front UNKNOWN = new Front("", "", "");
+    /**
+     * The window in front: its program file (like "Code.exe"), its kind of window, its title, Windows' number for it,
+     * and where it is on the screen (real pixels: left, top, right, bottom). Parts can be "" or 0.
+     */
+    public record Front(String app, String windowClass, String title, long handle, int[] bounds) {
+        static final Front UNKNOWN = new Front("", "", "", 0, new int[4]);
+
+        public Front(String app, String windowClass, String title) {
+            this(app, windowClass, title, 0, new int[4]);
+        }
     }
 
     /** What's in front right now (all "" if it can't be told). */
@@ -82,7 +89,10 @@ public final class Foreground {
             length = (int) GET_WINDOW_TEXT.invokeExact(window, buffer, 256);
             String title = length > 0 ? new String(buffer.toArray(ValueLayout.JAVA_CHAR), 0, length) : "";
             String app = app();
-            return new Front(app == null ? "" : app, windowClass, title);
+            MemorySegment r = arena.allocate(ValueLayout.JAVA_INT, 4);
+            int[] bounds = new int[4];
+            if ((int) GET_WINDOW_RECT.invokeExact(window, r) != 0) bounds = r.toArray(ValueLayout.JAVA_INT);
+            return new Front(app == null ? "" : app, windowClass, title, window.address(), bounds);
         } catch (Throwable e) {
             return Front.UNKNOWN;
         }
@@ -126,6 +136,27 @@ public final class Foreground {
             return width >= screenWidth && height >= screenHeight;
         } catch (Throwable e) {
             return false;
+        }
+    }
+
+    /**
+     * The folder a File Explorer window is showing, or null. Windows only tells this through its Shell, so a quick
+     * PowerShell asks it (once, when he needs it, not all the time).
+     */
+    public static Path explorerFolder(long handle) {
+        if (handle == 0) return null;
+        try {
+            Process p = new ProcessBuilder("powershell", "-NoProfile", "-NonInteractive", "-Command",
+                    "(New-Object -ComObject Shell.Application).Windows() | Where-Object { $_.HWND -eq " + handle
+                            + " } | ForEach-Object { $_.Document.Folder.Self.Path } | Select-Object -First 1")
+                    .redirectErrorStream(true).start();
+            String out = new String(p.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).strip();
+            p.waitFor();
+            if (out.isEmpty() || out.startsWith("::") || out.contains("\n")) return null; // "This PC" and other non-folders
+            Path folder = Path.of(out);
+            return java.nio.file.Files.isDirectory(folder) ? folder : null;
+        } catch (Exception e) {
+            return null;
         }
     }
 
