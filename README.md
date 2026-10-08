@@ -35,8 +35,8 @@ A tiny desktop buddy: Clawd sits on top of your taskbar, right above the clock, 
   **Make something!**
 - **Ask him a question** (in his menu): a small AI brain that runs on your own computer through
   [Ollama](https://ollama.com) (free), only while he's answering, using under 2 GB of memory. Nothing you ask goes
-  online. He answers in his personality and never says a bad word; kid-friendly mode (asked at setup) keeps answers
-  extra gentle. Math? "I wouldn't trust myself to answer right....." He opens Calculator, tells you the buttons, and
+  online. He answers in his personality and never says a bad word. Setup asks how he should answer: normal (the most
+  accurate answers, recommended) or kid-friendly (simple and gentle, for little kids). Math? "I wouldn't trust myself to answer right....." He opens Calculator, tells you the buttons, and
   watches: "Good job!" or "Not quite entered right...". If you don't have Ollama yet, he offers to open its download
   page, then asks before downloading his brain (about 1 GB, once).
 - **His home:** tell him what to call your computer when you meet. Move him to a new computer and he asks what the

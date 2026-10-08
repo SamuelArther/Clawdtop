@@ -78,7 +78,7 @@ final class Options {
             Option.number("Screen", "nudge", "Nudge up or down (pixels)", 0, -40, 40),
             // His brain (Ask me a question, through Ollama on this PC)
             Option.on("Brain", "askMe", "\"Ask me a question\" in his menu", true),
-            Option.on("Brain", "kidFriendly", "Kid-friendly answers (extra gentle; never any bad words either way)", true),
+            Option.on("Brain", "kidFriendly", "Kid-friendly answers, for little kids (normal is more accurate; no bad words either way)", false),
             Option.pick("Brain", "brain", "Brain size (all under 2 GB of memory)", "Normal", "Tiny", "Normal", "Smart"),
             // Being useful
             Option.on("Useful", "water", "Reminds you to drink water (every hour)", false),

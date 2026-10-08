@@ -262,14 +262,14 @@ final class Welcome {
 
     /** Kid-friendly mode, for his answers when you ask him things. He never says bad words either way. */
     void askKidFriendly() {
-        show(new String[] {"Kid-friendly mode?", "You can ask me questions. I never say bad words either way.",
-                "Kid-friendly keeps my answers extra gentle."}, null,
-                button("Kid-friendly", () -> {
-                    settings.set("kidFriendly", "true");
+        show(new String[] {"How should I answer your questions?", "Normal: the most accurate answers. (Recommended!)",
+                "Kid-friendly: simple and extra gentle, for little kids.", "I never say bad words either way."}, null,
+                button("Normal (recommended)", () -> {
+                    settings.set("kidFriendly", "false");
                     askBeeps();
                 }),
-                button("Regular", () -> {
-                    settings.set("kidFriendly", "false");
+                button("Kid-friendly", () -> {
+                    settings.set("kidFriendly", "true");
                     askBeeps();
                 }));
     }

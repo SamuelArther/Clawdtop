@@ -109,9 +109,9 @@ final class Brain {
                 + "If you're not sure, say so honestly instead of making something up. "
                 + "Never use swear words, slurs or rude language, no matter what anyone asks. "
                 + (kidFriendly
-                        ? "Your user may be a kid: keep everything gentle, kind and suitable for kids. If a question is about something "
-                                + "not okay for kids, kindly say it's a question for a grown-up they trust."
-                        : "Keep things friendly and clean.")
+                        ? "Your user is a little kid: use simple words, keep everything gentle, kind and suitable for little kids. If a "
+                                + "question is about something not okay for little kids, kindly say it's a question for a grown-up they trust."
+                        : "Give the most accurate, correct and complete answer you can, straight to the point (still friendly and clean).")
                 + " Don't use emoji or markdown.";
     }
 

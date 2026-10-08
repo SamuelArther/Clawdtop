@@ -444,8 +444,8 @@ public class ClawdtopTest {
         click(hello.panel(), "Next");
         check("and calls your computer what you said", fresh.home(), "Samuel's Laptop");
         snapshot(hello.panel(), frames0.resolve("welcome 3d kid-friendly.png"));
-        click(hello.panel(), "Regular");
-        check("kid-friendly answers, or regular", Settings.load().on("kidFriendly"), false);
+        click(hello.panel(), "Normal (recommended)");
+        check("normal answers (recommended), or kid-friendly for little kids", Settings.load().on("kidFriendly"), false);
 
         // ---- Ask me a question: math goes to Calculator, the rest to his brain ----
         MathHelp.Problem sum = MathHelp.parse("What's 12 times 7?");
