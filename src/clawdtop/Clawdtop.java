@@ -66,7 +66,7 @@ public final class Clawdtop {
     private int dragFrom = Integer.MIN_VALUE;
     private int windowXAtDrag;
 
-    private Clawdtop() {
+    Clawdtop() {
         canvas = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
@@ -366,7 +366,7 @@ public final class Clawdtop {
                     g2.setComposite(java.awt.AlphaComposite.Clear);
                     g2.fillRect(0, 0, getWidth(), getHeight());
                     g2.setComposite(java.awt.AlphaComposite.SrcOver);
-                    ducks.paint(g2, duckWindow.getX(), duckWindow.getY(), Math.max(2, settings.unit() * 2 / 3));
+                    ducks.paint(g2, duckWindow.getX(), duckWindow.getY(), Math.max(3, settings.unit()));
                     explosion.paint(g2, duckWindow.getX(), duckWindow.getY(), settings.unit() / 4.0);
                     g2.dispose();
                 }
@@ -1069,7 +1069,7 @@ public final class Clawdtop {
         return !quiet;
     }
 
-    private void start() {
+    void start() {
         useOptions();
         pet.setColor(settings.awtColor());
         pet.setPersonality(settings.personality());
@@ -1141,6 +1141,42 @@ public final class Clawdtop {
         command.setDaemon(true);
         command.start();
         SwingUtilities.invokeLater(() -> new Clawdtop().start());
+    }
+
+    /**
+     * For the screen test (test/clawdtop/Smoke.java, run on a real Windows computer by GitHub Actions): makes him do
+     * things on cue. Call on the Swing thread.
+     */
+    void smoke(String action) {
+        Rectangle at = window.getBounds();
+        switch (action) {
+            case "menu" -> jobs().show(canvas, at.width / 2, at.height / 3);
+            case "settings menu" -> menu().show(canvas, at.width / 2, at.height / 3);
+            case "close menus" -> javax.swing.MenuSelectionManager.defaultManager().clearSelectedPath();
+            case "ask" -> askBox.show("Ask me anything!", at, screenBounds(), this::answer);
+            case "type" -> askBox.field().setText("why is the sky blue?");
+            case "close ask" -> askBox.hide();
+            case "tip" -> pet.say("Win+Shift+S takes a screenshot of part of the screen.");
+            case "math" -> answer("what's 12 times 7?");
+            case "checkup" -> pet.say(Useful.checkup());
+            case "pet" -> pet.petted();
+            case "stop ducks" -> pet.stopDucks();
+            case "click carpet" -> {
+                if (body.state() != Body.State.FLY) return;
+                body.knockOff();
+                pet.carpetGone(riding);
+            }
+            default -> {
+                if (action.startsWith("make ")) pet.create(Creation.find(action.substring(5)));
+                else if (action.startsWith("mood ")) pet.ask(action.substring(5));
+                else if (action.startsWith("say ")) pet.say(action.substring(4));
+            }
+        }
+    }
+
+    /** For the screen test: whether he's back to just hanging out at home. */
+    boolean smokeIdle() {
+        return job == null && body.state() == Body.State.HOME && (pet.mood() == Pet.Mood.IDLE || pet.mood() == Pet.Mood.SIT);
     }
 
     /** For tests: the screen area he'd sit in, without a window. */

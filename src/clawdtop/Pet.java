@@ -620,7 +620,8 @@ public final class Pet {
     }
 
     /** How long he codes before it's done (ms): a while, and he won't say what he's doing. */
-    static final long CODING_TIME = 18_000;
+    static final long CODING_TIME = Long.getLong("clawdtop.codingMs", 18_000); // (the screen test codes faster)
+    private static final int CODING_EXTRA = System.getProperty("clawdtop.codingMs") == null ? 10_000 : 1;
 
     /** Gets his laptop out and codes something. Only when he's not busy. Returns whether he started. */
     public boolean create(Creation c) {
@@ -628,7 +629,7 @@ public final class Pet {
         coding = c;
         deleting = false;
         line = c.starting();
-        set(Mood.CODING, CODING_TIME + random.nextInt(10_000));
+        set(Mood.CODING, CODING_TIME + random.nextInt(CODING_EXTRA));
         return true;
     }
 
