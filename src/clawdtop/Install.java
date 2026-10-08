@@ -51,7 +51,11 @@ final class Install {
     static void ensureCommand() {
         Path jar = jar();
         Path folder = commandFolder();
-        if (jar == null || folder == null || !System.getProperty("os.name", "").toLowerCase(Locale.ROOT).startsWith("windows")) return;
+        if (!Platform.WINDOWS) {
+            Platform.ensureCommand();
+            return;
+        }
+        if (jar == null || folder == null) return;
         try {
             Files.createDirectories(folder);
             Path cmd = folder.resolve("clawd.cmd");
@@ -68,6 +72,10 @@ final class Install {
 
     /** Takes the clawd command back out (clawd uninstall). */
     static void removeCommand() {
+        if (!Platform.WINDOWS) {
+            Platform.removeCommand();
+            return;
+        }
         Path folder = commandFolder();
         if (folder == null) return;
         try {

@@ -20,11 +20,16 @@ final class Startup {
     }
 
     static boolean on() {
+        if (!Platform.WINDOWS) return Platform.startsAtLogin();
         Path script = script();
         return script != null && Files.exists(script);
     }
 
     static void set(boolean on) {
+        if (!Platform.WINDOWS) {
+            Platform.setStartsAtLogin(on);
+            return;
+        }
         Path script = script();
         if (script == null) return;
         try {

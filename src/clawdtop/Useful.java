@@ -36,7 +36,7 @@ final class Useful {
 
     /** How long since the computer last started (ms), or -1 if it can't tell. */
     static long uptime() {
-        if (GET_TICK_COUNT_64 == null) return -1;
+        if (GET_TICK_COUNT_64 == null) return Platform.WINDOWS ? -1 : Platform.uptime();
         try {
             return (long) GET_TICK_COUNT_64.invokeExact();
         } catch (Throwable e) {
@@ -129,7 +129,7 @@ final class Useful {
             "Time to stretch! Wiggle your fingers.\nThey do a lot of typing."};
 
     /** Things he can open for you, by name: folders, and handy Windows tools. */
-    static final String[][] OPENABLE = {
+    static final String[][] OPENABLE = !Platform.WINDOWS ? Platform.openable() : new String[][] {
             {"Downloads", "folder:Downloads"}, {"Desktop", "folder:Desktop"}, {"Documents", "folder:Documents"},
             {"Recycle Bin", "shell:RecycleBinFolder"}, {"Task Manager", "taskmgr"}, {"Calculator", "calc"},
             {"Notepad", "notepad"}, {"Settings", "ms-settings:"}, {"Snipping Tool", "ms-screenclip:"}};
@@ -149,6 +149,14 @@ final class Useful {
             if (what.startsWith("folder:")) {
                 Path folder = Path.of(System.getProperty("user.home"), what.substring(7));
                 java.awt.Desktop.getDesktop().open(folder.toFile());
+            } else if (what.startsWith("app:")) {
+                new ProcessBuilder("open", "-a", what.substring(4)).start();
+            } else if (what.startsWith("cmd:")) {
+                new ProcessBuilder(what.substring(4)).start();
+            } else if (what.startsWith("url:")) {
+                new ProcessBuilder(Platform.MAC ? "open" : "xdg-open", what.substring(4)).start();
+            } else if (what.equals("calc") && !Platform.WINDOWS) {
+                Platform.openCalculator();
             } else if (what.startsWith("shell:") || what.contains(":")) {
                 new ProcessBuilder("explorer.exe", what).start();
             } else {

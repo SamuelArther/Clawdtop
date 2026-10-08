@@ -78,7 +78,7 @@ final class Bubble {
                 if (then != null) then.accept(chosen);
             }
         });
-        window.setBackground(new Color(0, 0, 0, 0));
+        Platform.seeThrough(window);
         window.setContentPane(panel);
         window.setAlwaysOnTop(true);
         window.setFocusableWindowState(false);

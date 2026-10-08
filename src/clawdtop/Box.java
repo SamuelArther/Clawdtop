@@ -58,7 +58,7 @@ final class Box {
                 gone.start();
             }
         });
-        window.setBackground(new Color(0, 0, 0, 0));
+        Platform.seeThrough(window);
         window.setContentPane(panel);
         window.setAlwaysOnTop(true);
         window.setFocusableWindowState(false);

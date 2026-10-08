@@ -59,7 +59,10 @@ final class Games {
     /** Steam: every library folder it knows, and the games in each. */
     static void steam(TreeSet<String> into) throws IOException {
         String steamPath = regValue("HKCU\\Software\\Valve\\Steam", "SteamPath");
-        Path steam = Path.of(steamPath != null ? steamPath.replace('/', '\\') : "C:\\Program Files (x86)\\Steam");
+        Path home = Path.of(System.getProperty("user.home"));
+        Path steam = !Platform.WINDOWS
+                ? (Platform.MAC ? home.resolve("Library/Application Support/Steam") : Files.isDirectory(home.resolve(".steam/steam")) ? home.resolve(".steam/steam") : home.resolve(".local/share/Steam"))
+                : Path.of(steamPath != null ? steamPath.replace('/', '\\') : "C:\\Program Files (x86)\\Steam");
         List<Path> libraries = new ArrayList<>(List.of(steam));
         Path folders = steam.resolve("steamapps").resolve("libraryfolders.vdf");
         if (Files.isRegularFile(folders)) {

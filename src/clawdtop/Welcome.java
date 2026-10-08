@@ -68,7 +68,7 @@ final class Welcome {
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBorder(BorderFactory.createEmptyBorder(12, 14, 12, 14));
         if (window != null) {
-            window.setBackground(new Color(0, 0, 0, 0));
+            Platform.seeThrough(window);
             window.setContentPane(panel);
             window.setAlwaysOnTop(true);
             window.setType(java.awt.Window.Type.UTILITY);

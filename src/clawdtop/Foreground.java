@@ -79,6 +79,7 @@ public final class Foreground {
 
     /** What's in front right now (all "" if it can't be told). */
     public static Front front() {
+        if (!Platform.WINDOWS) return new Front(Platform.frontApp(), "", ""); // Mac and Linux: just the app's name
         if (GET_WINDOW_TEXT == null) return Front.UNKNOWN;
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment window = (MemorySegment) GET_FOREGROUND_WINDOW.invokeExact();
@@ -164,7 +165,10 @@ public final class Foreground {
     static final Set<String> DEV_PROGRAMS = Set.of("code.exe", "code - insiders.exe", "cursor.exe", "windsurf.exe", "zed.exe",
             "devenv.exe", "idea64.exe", "idea.exe", "pycharm64.exe", "webstorm64.exe", "clion64.exe", "rider64.exe",
             "goland64.exe", "studio64.exe", "eclipse.exe", "sublime_text.exe", "notepad++.exe", "fleet.exe",
-            "windowsterminal.exe", "githubdesktop.exe");
+            "windowsterminal.exe", "githubdesktop.exe",
+            // on a Mac or Linux, apps go by their names
+            "code", "cursor", "zed", "terminal", "iterm2", "warp", "ghostty", "alacritty", "kitty", "konsole", "gnome-terminal-server",
+            "xcode", "android studio", "intellij idea", "pycharm", "sublime text", "github desktop");
 
     /** Which of those are open right now (by program name). */
     public static Set<String> openDevPrograms() {

@@ -60,6 +60,13 @@ public final class Cleaner {
             String low = o.toLowerCase(Locale.ROOT);
             if (path.equals(low) || path.startsWith(low + "\\")) return "That's where Windows and your programs live. I'll leave it alone.";
         }
+        if (!Platform.WINDOWS) {
+            for (String o : List.of("/bin", "/boot", "/dev", "/etc", "/lib", "/opt", "/proc", "/sbin", "/sys", "/usr", "/var", "/System",
+                    "/Library", "/Applications", "/private")) {
+                if (f.toString().equals(o) || f.toString().startsWith(o + "/")) return "That's where your computer's system lives. I'll leave it alone.";
+            }
+            if (f.equals(home.resolve("Library"))) return "That folder holds too much that matters. Show me one inside it, like Downloads.";
+        }
         if (f.equals(home) || f.equals(home.resolve("AppData")) || f.equals(home.resolve("AppData").resolve("Roaming"))
                 || f.equals(home.resolve("AppData").resolve("Local")) || f.equals(home.resolve("OneDrive"))) {
             return "That folder holds too much that matters. Show me one inside it, like Downloads.";

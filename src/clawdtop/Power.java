@@ -58,7 +58,7 @@ final class Power {
 
     /** The battery, or null if there isn't one (or Windows won't say). */
     static State now() {
-        if (GET_SYSTEM_POWER_STATUS == null) return null;
+        if (GET_SYSTEM_POWER_STATUS == null) return Platform.WINDOWS ? null : Platform.battery();
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment s = arena.allocate(12); // SYSTEM_POWER_STATUS: 4 bytes, then two 4-byte times
             if ((int) GET_SYSTEM_POWER_STATUS.invokeExact(s) == 0) return null;

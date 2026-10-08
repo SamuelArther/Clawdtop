@@ -162,7 +162,7 @@ final class Piano {
                 else if (b >= 0 && c != ' ' && BLACK[b] > 0) press(BLACK[b], played, panel);
             }
         });
-        window.setBackground(new Color(0, 0, 0, 0));
+        Platform.seeThrough(window);
         window.setContentPane(panel);
         window.setAlwaysOnTop(true);
         window.setType(java.awt.Window.Type.UTILITY);

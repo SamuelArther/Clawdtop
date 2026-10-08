@@ -84,7 +84,7 @@ public final class Clawdtop {
         };
         canvas.setOpaque(false);
         canvas.setBackground(new Color(0, 0, 0, 0));
-        window.setBackground(new Color(0, 0, 0, 0));
+        Platform.seeThrough(window);
         window.setContentPane(canvas);
         window.setAlwaysOnTop(true);
         window.setFocusableWindowState(false); // clicking him never takes the keyboard from what you're doing
@@ -307,6 +307,7 @@ public final class Clawdtop {
             pet.say("I wouldn't trust myself to answer right.....\nLet's ask Calculator! Press:\n" + sum.buttons());
             Useful.open("calc");
         }
+        if (!Platform.WINDOWS) return; // (watching Calculator's display only works on Windows)
         Thread t = new Thread(() -> {
             String result = "TIMEOUT";
             try {
@@ -424,7 +425,7 @@ public final class Clawdtop {
         Rectangle screen = screenBounds();
         if (duckWindow == null) {
             duckWindow = new javax.swing.JWindow();
-            duckWindow.setBackground(new java.awt.Color(0, 0, 0, 0));
+            Platform.seeThrough(duckWindow);
             javax.swing.JPanel panel = new javax.swing.JPanel() {
                 @Override
                 protected void paintComponent(java.awt.Graphics g) {
@@ -465,7 +466,8 @@ public final class Clawdtop {
     private JPopupMenu jobs() {
         JPopupMenu menu = new JPopupMenu();
         if (job == null) {
-            JMenuItem clean = new JMenuItem("Clean a folder...");
+            JMenuItem clean = new JMenuItem(Platform.WINDOWS ? "Clean a folder..." : "Clean a folder (Windows only for now)");
+            clean.setEnabled(Platform.WINDOWS);
             clean.addActionListener(e -> startCleaning());
             menu.add(clean);
         } else {

@@ -11,7 +11,7 @@ final class TypingWindow extends JFrame {
     TypingWindow() {
         setUndecorated(true);
         setType(Type.UTILITY);
-        setBackground(new Color(0, 0, 0, 0));
+        Platform.seeThrough(this);
         setAlwaysOnTop(true);
         setFocusableWindowState(true);
         setAutoRequestFocus(true);

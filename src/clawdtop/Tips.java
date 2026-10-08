@@ -170,7 +170,9 @@ public final class Tips {
         if ((browser && title.contains("github")) || app.equals("githubdesktop.exe")) return "github"; // GitHub, in a browser or the app
         if (app.equals("explorer.exe") && (front.windowClass().equals("Progman") || front.windowClass().equals("WorkerW"))) return "windows";
         return switch (app) {
-            case "code.exe", "code - insiders.exe", "cursor.exe", "windsurf.exe" -> "vscode";
+            case "code.exe", "code - insiders.exe", "cursor.exe", "windsurf.exe", "code", "cursor" -> "vscode";
+            case "terminal", "iterm2", "warp", "ghostty", "alacritty", "kitty", "konsole", "gnome-terminal-server" -> "terminal";
+            case "intellij idea", "pycharm", "android studio" -> "intellij";
             case "windowsterminal.exe", "wt.exe", "cmd.exe", "powershell.exe", "pwsh.exe", "conhost.exe", "openconsole.exe" -> "terminal";
             case "idea64.exe", "idea.exe", "pycharm64.exe", "webstorm64.exe", "clion64.exe", "rider64.exe", "goland64.exe", "studio64.exe" -> "intellij";
             case "taskmgr.exe" -> "taskmgr";
