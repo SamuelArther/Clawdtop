@@ -273,7 +273,7 @@ public final class Clawdtop {
         Reminders.Reminder reminder = Reminders.parse(question);
         if (reminder != null) {
             reminders.add(new Object[] {System.currentTimeMillis() + reminder.inMs(), reminder.what()});
-            pet.say("Okay! I'll remind you in " + reminder.when() + ".");
+            pet.say(reminder.what().equals("time's up!") ? "Timer set for " + reminder.when() + "! Tick tock." : "Okay! I'll remind you in " + reminder.when() + ".");
             return;
         }
         MathHelp.Problem sum = MathHelp.parse(question);

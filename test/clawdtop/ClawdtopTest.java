@@ -402,12 +402,12 @@ public class ClawdtopTest {
 
         // ---- Settings and starting with Windows ----
         Settings s = Settings.load();
-        check("settings start as beeps on, normal size, above the clock", s.sounds() + " " + s.size() + " " + s.x() + " " + s.unit(), "true Normal -1 3");
+        check("settings start as beeps on, normal size, above the clock", s.sounds() + " " + s.size() + " " + s.x() + " " + s.unit(), "true Normal -1 4");
         s.setSounds(false);
         s.setSize("Big");
         s.setX(1200);
         Settings again = Settings.load();
-        check("and are kept for next time", again.sounds() + " " + again.size() + " " + again.x() + " " + again.unit(), "false Big 1200 5");
+        check("and are kept for next time", again.sounds() + " " + again.size() + " " + again.x() + " " + again.unit(), "false Big 1200 6");
         Files.writeString(home.resolve("settings.properties"), "size=Huge\nx=nope\n");
         Settings odd = Settings.load();
         check("odd settings fall back to normal", odd.size() + " " + odd.x(), "Normal -1");

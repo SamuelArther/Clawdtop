@@ -429,9 +429,9 @@ public final class Settings {
     /** Screen pixels for each of his own pixels. */
     public int unit() {
         return switch (size()) {
-            case "Small" -> 2;
-            case "Big" -> 5;
-            default -> 3;
+            case "Small" -> 3;
+            case "Big" -> 6;
+            default -> 4; // (big enough to see his little clock and headphones)
         };
     }
 
