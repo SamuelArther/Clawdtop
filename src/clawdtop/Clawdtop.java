@@ -123,6 +123,7 @@ public final class Clawdtop {
             @Override
             public void mousePressed(MouseEvent e) {
                 if (!bubble.asking()) bubble.hide();
+                if (SwingUtilities.isRightMouseButton(e)) rightHeldSince = System.currentTimeMillis();
                 if (SwingUtilities.isLeftMouseButton(e) && body.state() == Body.State.HOME) {
                     dragFrom = e.getXOnScreen();
                     windowXAtDrag = window.getX();
@@ -138,7 +139,9 @@ public final class Clawdtop {
             @Override
             public void mouseReleased(MouseEvent e) {
                 if (e.isPopupTrigger() || SwingUtilities.isRightMouseButton(e)) {
-                    menu().show(canvas, e.getX(), e.getY());
+                    boolean held = rightHeldSince > 0 && System.currentTimeMillis() - rightHeldSince >= HOLD_TO_PET;
+                    rightHeldSince = 0;
+                    if (!held) menu().show(canvas, e.getX(), e.getY()); // a hold was petting him, not asking for the menu
                     return;
                 }
                 if (dragFrom == Integer.MIN_VALUE) {
@@ -151,7 +154,7 @@ public final class Clawdtop {
                     settings.setX(window.getX());
                 } else if (pet.sleepy()) {
                     pet.poke(); // just wakes him up
-                } else {
+                } else if (!clickedTooMuch()) {
                     pet.poke();
                     jobs().show(canvas, e.getX(), e.getY());
                 }
@@ -259,6 +262,57 @@ public final class Clawdtop {
     }
 
     private int lastRubX;
+    private static final long HOLD_TO_PET = 500;
+    private long rightHeldSince;   // the right button is held down on him: petting
+
+    /** Holding the right button on him pets him: hearts while you hold, points once per pet (not for spamming). */
+    private void holdPet() {
+        if (rightHeldSince == 0 || System.currentTimeMillis() - rightHeldSince < HOLD_TO_PET) return;
+        if (pet.mood() != Pet.Mood.LOVED) {
+            pet.petted();
+            long now = System.currentTimeMillis();
+            if (now - lastPet > 4000 && settings.petsToday() < Shop.PETS_A_DAY) {
+                settings.countPet();
+                settings.earn(Shop.HOLD_PET);
+            }
+            lastPet = now;
+        }
+    }
+    private final java.util.ArrayDeque<Long> clicks = new java.util.ArrayDeque<>();
+    private boolean huffed;      // stomped off: say something when he's back
+    private Boolean capsWasOn;
+
+    /** Clicked lots of times in a row: he gets grumpy, and with even more, stomps off for a bit. */
+    private boolean clickedTooMuch() {
+        long now = System.currentTimeMillis();
+        clicks.addLast(now);
+        while (!clicks.isEmpty() && clicks.peekFirst() < now - 5000) clicks.removeFirst();
+        if (clicks.size() >= 15) {
+            clicks.clear();
+            Rectangle screen = screenBounds();
+            pet.annoyed("That's it. I need a minute.");
+            boolean right = homeX > screen.x + screen.width / 2.0;
+            body.walkOff(right ? screen.x + screen.width + 150 : screen.x - 150, 15_000);
+            huffed = true;
+            return true;
+        }
+        if (clicks.size() == 8) {
+            pet.annoyed("Okay, okay! I'm awake!");
+            return true;
+        }
+        return clicks.size() > 8; // no menu while he's grumpy
+    }
+
+    /** Caps Lock on: he covers his ears. Off again: thanks you. */
+    private void checkCapsLock() {
+        try {
+            boolean on = java.awt.Toolkit.getDefaultToolkit().getLockingKeyState(java.awt.event.KeyEvent.VK_CAPS_LOCK);
+            if (capsWasOn != null && on != capsWasOn) pet.capsLock(on);
+            capsWasOn = on;
+        } catch (UnsupportedOperationException notHere) {
+            capsWasOn = false;
+        }
+    }
     private final Jokes jokes = new Jokes(System.nanoTime());
     private long lastJokeAt = System.currentTimeMillis();
     private long jokeJitter = (long) (Math.random() * 120_000);
@@ -481,6 +535,12 @@ public final class Clawdtop {
         }
         earnPoints(mouse, moved);
         if (ticks % 30 == 0) maybeJoke();
+        if (ticks % 10 == 0) checkCapsLock();
+        holdPet();
+        if (huffed && body.state() == Body.State.HOME) {
+            huffed = false;
+            bubble.show("...okay. I'm better now.", window.getBounds(), screenBounds());
+        }
         double eyesX = window.getX() + Sprite.eyesX() * unit;
         double eyesY = window.getY() + Sprite.eyesY() * unit;
         pet.tick(FRAME_MS, mouse.x - eyesX, mouse.y - eyesY, moved, devApp);

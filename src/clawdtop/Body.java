@@ -8,7 +8,7 @@ import java.util.ArrayDeque;
  * screen pixels for the point between his feet. No windows here, so it can be tested on its own.
  */
 public final class Body {
-    public enum State { HOME, HOP_ON, RIDE, FALL, DIZZY, SHAKE, WALK, HOP_TO, PERCH }
+    public enum State { HOME, HOP_ON, RIDE, FALL, DIZZY, SHAKE, WALK, HOP_TO, PERCH, AWAY, OUT }
 
     static final double GRAVITY = 2600;      // px/s², a quick, cartoony fall
     static final double WALK_SPEED = 140;    // px/s
@@ -120,6 +120,20 @@ public final class Body {
                     }
                 }
             }
+            case AWAY -> {
+                y = groundY;
+                angle = 0;
+                double step = WALK_SPEED * 1.6 * dt; // stomping off
+                if (Math.abs(targetX - x) <= step) {
+                    x = targetX;
+                    set(State.OUT);
+                } else {
+                    x += Math.signum(targetX - x) * step;
+                }
+            }
+            case OUT -> {
+                if (stateFor > awayFor) set(State.WALK); // feeling better: back home
+            }
             case SHAKE -> {
                 y = groundY;
                 angle = 0;
@@ -149,6 +163,16 @@ public final class Body {
         vx = sideways;
         vy = -1700;
         set(State.FALL);
+    }
+
+    private long awayFor;
+
+    /** Stomps off to x (off the edge of the screen), stays away for ms, then walks back home. */
+    public void walkOff(double x, long ms) {
+        if (state != State.HOME) return;
+        targetX = x;
+        awayFor = ms;
+        set(State.AWAY);
     }
 
     /** Hops onto the cursor for a job, and stays on (no hopping off at the taskbar) until told where to go. */

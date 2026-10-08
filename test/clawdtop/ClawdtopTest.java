@@ -211,6 +211,27 @@ public class ClawdtopTest {
             ImageIO.write(hutPicture, "png", shopFrames.resolve("hut " + h + ".png").toFile());
         }
 
+        // ---- Being yelled at, and clicked too much ----
+        Pet ears = new Pet(14);
+        ears.takeBeep();
+        ears.capsLock(true);
+        check("Caps Lock on: WHY ARE WE YELLING", ears.mood() + " " + ears.takeLine(), "YELLED WHY ARE WE YELLING?!");
+        save(ears, Path.of("build", "frames").resolve("caps lock.png"));
+        ears.capsLock(false);
+        check("off again: thanks", ears.takeLine(), "...thank you.");
+        ears.annoyed("Okay, okay! I'm awake!");
+        check("clicked too much: grumpy", ears.mood(), Pet.Mood.ANNOYED);
+        save(ears, Path.of("build", "frames").resolve("annoyed.png"));
+        Body huffy = new Body();
+        huffy.tick(33, 0, 0, 1800, 1032, 36, 0, 1920);
+        huffy.walkOff(2070, 15_000);
+        String huffSeen = "";
+        for (int i = 0; i < 3000 && (i == 0 || huffy.state() != Body.State.HOME); i++) {
+            huffy.tick(33, 0, 0, 1800, 1032, 36, 0, 1920);
+            if (!huffSeen.endsWith(huffy.state().name())) huffSeen += (huffSeen.isEmpty() ? "" : ">") + huffy.state().name();
+        }
+        check("way too many clicks: he stomps off the screen, stays away a while, then walks back", huffSeen, "AWAY>OUT>WALK>HOME");
+
         // ---- Jokes ----
         Jokes jk = new Jokes(1);
         java.util.Set<String> heard = new java.util.HashSet<>();

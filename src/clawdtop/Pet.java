@@ -46,7 +46,11 @@ public final class Pet {
         /** A trick he learned: dancing side to side. */
         DANCE,
         /** A trick he learned: waving at you. */
-        WAVE
+        WAVE,
+        /** Caps Lock went on: hands over his ears. */
+        YELLED,
+        /** Clicked too many times: grumpy eyebrows. */
+        ANNOYED
     }
 
     private boolean canJuggle, canWave;
@@ -140,7 +144,7 @@ public final class Pet {
         switch (mood) {
             case RIDE, FALL, DIZZY, SHAKE, WALK, WORK, PEEK -> { } // his body or his job decides these (see follow and job)
             case GOODBYE -> { }
-            case SAD, LOVED, JUGGLE, DANCE, WAVE -> { if (moodFor > nextChange) set(Mood.IDLE, idleTime()); }
+            case SAD, LOVED, JUGGLE, DANCE, WAVE, YELLED, ANNOYED -> { if (moodFor > nextChange) set(Mood.IDLE, idleTime()); }
             case FREAKOUT -> {
                 if (moodFor > nextChange) {
                     set(Mood.IDLE, idleTime());
@@ -221,7 +225,7 @@ public final class Pet {
             case FALL -> Mood.FALL;
             case DIZZY -> Mood.DIZZY;
             case SHAKE -> Mood.SHAKE;
-            case WALK -> Mood.WALK;
+            case WALK, AWAY, OUT -> Mood.WALK;
             case HOME -> null;
         };
         if (want == null || want == Mood.IDLE) {
@@ -256,6 +260,25 @@ public final class Pet {
         if (mood == Mood.SLEEP || mood == Mood.LIE) return;
         if (mood != Mood.LOVED) wants = Beep.HAPPY;
         set(Mood.LOVED, 1800);
+    }
+
+    /** Caps Lock went on (true) or off (false). */
+    public void capsLock(boolean on) {
+        if (mood == Mood.SLEEP || mood == Mood.GOODBYE) return;
+        if (on) {
+            wants = Beep.PANIC;
+            line = "WHY ARE WE YELLING?!";
+            set(Mood.YELLED, 2500);
+        } else {
+            line = "...thank you.";
+        }
+    }
+
+    /** Clicked over and over: grumpy for a bit. */
+    public void annoyed(String says) {
+        wants = Beep.OOF;
+        line = says;
+        set(Mood.ANNOYED, 3000);
     }
 
     /** Dances (a trick from the shop). */

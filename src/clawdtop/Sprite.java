@@ -104,6 +104,10 @@ public final class Sprite {
             boolean tilt = (pet.time() / 160) % 2 == 0;
             box(g, unit, LEFT - 2, top + 4, 2, 2, body);
             box(g, unit, LEFT + 14 + (tilt ? 0 : 0.6), top - 1, 1, 2, body);
+        } else if (mood == Pet.Mood.YELLED) {
+            // hands clamped over where his ears would be
+            box(g, unit, LEFT - 1, top + 1, 1, 2, body);
+            box(g, unit, LEFT + 13, top + 1, 1, 2, body);
         } else if (mood == Pet.Mood.FREAKOUT) {
             // hands flailing up and down
             boolean flap = (pet.time() / 80) % 2 == 0;
@@ -134,7 +138,11 @@ public final class Sprite {
             } else if (pet.eyesLit()) {
                 box(g, unit, eyeX - 0.5, eyeY - 0.5, 2, 3, GLOW);
                 box(g, unit, eyeX, eyeY, 1, 2, LIT);
-            } else if (mood == Pet.Mood.FREAKOUT) {
+            } else if (mood == Pet.Mood.ANNOYED) {
+                box(g, unit, eyeX, eyeY + 1, 1, 1, EYE);                              // narrowed eyes
+                box(g, unit, eyeX + (x == 3 ? -0.5 : 0), eyeY - 0.5 + (x == 3 ? 0 : 0), 1.5, 0.5, EYE); // grumpy eyebrows
+                box(g, unit, eyeX + (x == 3 ? 0.5 : -0.5), eyeY, 1, 0.5, EYE);
+            } else if (mood == Pet.Mood.YELLED || mood == Pet.Mood.FREAKOUT) {
                 box(g, unit, eyeX - 0.5, eyeY - 0.5, 2, 3, EYE); // eyes wide open in shock
                 box(g, unit, eyeX, eyeY + 0.5, 1, 1, LIT);
             } else if (sleepy) {

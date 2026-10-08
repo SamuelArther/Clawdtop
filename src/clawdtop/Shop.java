@@ -25,7 +25,7 @@ final class Shop {
             new Item("waving", "Waving", Kind.TRICK, 10, "he waves at you now and then"));
 
     /** Points for things you do together. */
-    static final int RIDE = 3, PET = 1, JOB = 10, TIP = 1, TIME = 1; // TIME: every 5 minutes you're both around
+    static final int RIDE = 3, PET = 1, HOLD_PET = 2, JOB = 10, TIP = 1, TIME = 1; // TIME: every 5 minutes you're both around
     static final int PETS_A_DAY = 30;
 
     private Shop() {
