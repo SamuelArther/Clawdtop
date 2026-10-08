@@ -154,6 +154,7 @@ public final class Cli {
             out.println("   8  Tips                " + onOff(s.tips()));
             out.println("  11  Jokes               " + s.jokes());
             out.println("  12  Your birthday       " + (s.birthday().isEmpty() ? DIM + "(not set)" + RESET : s.birthday().replace('-', '/')));
+            out.println("  13  All the options     " + DIM + "(" + Options.ALL.size() + " of them!)" + RESET);
             out.println("   9  Start with Windows  " + onOff(Startup.on()));
             out.println("  10  " + (on ? "Stop him" : "Start him"));
             out.println("   0  Done");
@@ -213,6 +214,7 @@ public final class Cli {
                 case "7" -> s.setSounds(!s.sounds());
                 case "8" -> s.setTips(!s.tips());
                 case "9" -> Startup.set(!Startup.on());
+                case "13" -> allOptions();
                 case "12" -> {
                     out.print("  Your birthday, month/day like 10/08 (blank for none): ");
                     out.flush();
@@ -242,6 +244,47 @@ public final class Cli {
                     return;
                 }
                 default -> out.println("That's not one of the numbers.");
+            }
+        }
+    }
+
+    /** Every option, in groups: pick one by number to flip it, pick the next choice, or type a number. */
+    private void allOptions() throws IOException {
+        while (true) {
+            Settings s = Settings.load();
+            out.println();
+            String group = "";
+            for (int i = 0; i < Options.ALL.size(); i++) {
+                Options.Option o = Options.ALL.get(i);
+                if (!o.group().equals(group)) {
+                    group = o.group();
+                    out.println(ORANGE + "  " + group + RESET);
+                }
+                String value = switch (o.kind()) {
+                    case SWITCH -> onOff(s.on(o.key()));
+                    case CHOICE -> s.choice(o.key());
+                    case NUMBER -> String.valueOf(s.number(o.key()));
+                };
+                out.printf("  %3d  %-52s %s%n", i + 1, o.label(), value);
+            }
+            out.print("\nPick a number to change (0 to go back): ");
+            out.flush();
+            int i = number(in.readLine()) - 1;
+            if (i < 0 || i >= Options.ALL.size()) return;
+            Options.Option o = Options.ALL.get(i);
+            switch (o.kind()) {
+                case SWITCH -> s.set(o.key(), String.valueOf(!s.on(o.key())));
+                case CHOICE -> {
+                    int k = choose(o.choices().toArray(String[]::new));
+                    if (k >= 0) s.set(o.key(), o.choices().get(k));
+                }
+                case NUMBER -> {
+                    out.print("  " + o.label() + " (" + o.min() + " to " + o.max() + "): ");
+                    out.flush();
+                    int n = number(in.readLine());
+                    if (n >= o.min() && n <= o.max()) s.set(o.key(), String.valueOf(n));
+                    else out.println("  That's not between " + o.min() + " and " + o.max() + ".");
+                }
             }
         }
     }

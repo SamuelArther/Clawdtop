@@ -20,6 +20,20 @@ public final class Body {
     static final int SHAKE_TURNS = 4;        // direction changes within half a second that count as shaking
     static final double SHAKE_SPEED = 1400;  // and how fast (px/s on average) the cursor has to be going
 
+    private boolean rides = true, shakeOff = true;
+    private long hoverToHop = HOVER_TO_HOP;
+    private double shakeSpeed = SHAKE_SPEED, walkSpeed = WALK_SPEED;
+
+    /** His riding and walking options: whether he rides and can be shaken off, how long before he hops on (ms), how
+     * fast you have to shake, and how fast he walks. */
+    public void setRules(boolean rides, boolean shakeOff, long hoverToHop, double shakeSpeed, double walkSpeed) {
+        this.rides = rides;
+        this.shakeOff = shakeOff;
+        this.hoverToHop = hoverToHop;
+        this.shakeSpeed = shakeSpeed;
+        this.walkSpeed = walkSpeed;
+    }
+
     private State state = State.HOME;
     private long stateFor;
     private double x, y;          // between his feet
@@ -53,8 +67,8 @@ public final class Body {
                 // The cursor waits on the taskbar's top edge right beside him (not on him): he hops on
                 double side = Math.abs(cursorX - x);
                 boolean beside = Math.abs(cursorY - groundY) <= 10 && side > reach * 0.35 && side < reach;
-                hover = beside ? hover + ms : 0;
-                if (hover > HOVER_TO_HOP) {
+                hover = beside && rides ? hover + ms : 0;
+                if (hover > hoverToHop) {
                     hopFromX = x;
                     hopFromY = y;
                     set(State.HOP_ON);
@@ -81,7 +95,7 @@ public final class Body {
                 x = cursorX;
                 y = cursorY;
                 stillFor = Math.hypot(speed[0], speed[1]) < 30 ? stillFor + ms : 0;
-                if (shaking()) {
+                if (shakeOff && shaking()) {
                     onJob = false;
                     headFirst = true;
                     vx = Math.max(-900, Math.min(900, speed[0] * 0.6));
@@ -123,7 +137,7 @@ public final class Body {
             case AWAY -> {
                 y = groundY;
                 angle = 0;
-                double step = WALK_SPEED * 1.6 * dt; // stomping off
+                double step = walkSpeed * 1.6 * dt; // stomping off
                 if (Math.abs(targetX - x) <= step) {
                     x = targetX;
                     set(State.OUT);
@@ -142,7 +156,7 @@ public final class Body {
             case WALK -> {
                 y = groundY;
                 angle = 0;
-                double step = WALK_SPEED * dt;
+                double step = walkSpeed * dt;
                 if (Math.abs(homeX - x) <= step) {
                     x = homeX;
                     set(State.HOME);
@@ -262,7 +276,7 @@ public final class Body {
             previous = p;
         }
         double seconds = Math.max(0.001, (trail.peekLast()[0] - trail.peekFirst()[0]) / 1000.0);
-        return turns >= SHAKE_TURNS && distance / seconds > SHAKE_SPEED;
+        return turns >= SHAKE_TURNS && distance / seconds > shakeSpeed;
     }
 
     private void set(State next) {

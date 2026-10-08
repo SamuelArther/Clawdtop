@@ -22,8 +22,19 @@ import java.util.function.IntConsumer;
  * when clicked); a question has buttons and waits for your answer.
  */
 final class Bubble {
-    static final Font FONT = new Font("Comic Sans MS", Font.PLAIN, 13); // falls back to the normal font where it isn't installed
-    static final Font FIRST_LINE = FONT.deriveFont(Font.BOLD);
+    static Font FONT = new Font("Comic Sans MS", Font.PLAIN, 13); // falls back to the normal font where it isn't installed
+    static Font FIRST_LINE = FONT.deriveFont(Font.BOLD);
+    static double stay = 1; // how long tips stay up: 0.6 short, 1 normal, 1.8 long
+
+    /** The bubble's font: "Comic Sans", "Normal" or "Typewriter". */
+    static void setFont(String which) {
+        FONT = switch (which) {
+            case "Normal" -> new Font("Segoe UI", Font.PLAIN, 13);
+            case "Typewriter" -> new Font("Consolas", Font.PLAIN, 13);
+            default -> new Font("Comic Sans MS", Font.PLAIN, 13);
+        };
+        FIRST_LINE = FONT.deriveFont(Font.BOLD);
+    }
     private static final Color PAPER = new Color(255, 250, 242);
     private static final Color INK = new Color(40, 38, 36);
     private static final Color EDGE = new Color(215, 119, 87);
@@ -77,7 +88,7 @@ final class Bubble {
     /** Shows a tip above Clawd (whose window is at clawd), for long enough to read it. */
     void show(String text, Rectangle clawd, Rectangle screen) {
         ask(text, new String[0], null, clawd, screen);
-        hideAt = System.currentTimeMillis() + 5000 + 1800L * lines.length;
+        hideAt = System.currentTimeMillis() + (long) ((5000 + 1800L * lines.length) * stay);
     }
 
     /** Asks something, with buttons; answer gets the number of the button clicked. Stays up until answered. */

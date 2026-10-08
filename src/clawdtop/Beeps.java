@@ -16,10 +16,21 @@ public final class Beeps {
         return t;
     });
 
+    private String voice = "Normal";
+    private int volume = 5;
+
+    /** His voice ("Normal", "Squeaky", "Deep", "Robot", "Tiny") and volume (1 to 10, 5 normal). */
+    public void setVoice(String voice, int volume) {
+        this.voice = voice;
+        this.volume = volume;
+    }
+
     /** Plays a beep in the background. Does nothing if the computer has no sound. */
     public void play(Pet.Beep beep) {
+        String v = voice;
+        int vol = volume;
         player.execute(() -> {
-            byte[] sound = make(beep);
+            byte[] sound = voiced(make(beep), v, vol);
             try (SourceDataLine line = AudioSystem.getSourceDataLine(new AudioFormat(RATE, 16, 1, true, false))) {
                 line.open();
                 line.start();
@@ -29,6 +40,33 @@ public final class Beeps {
                 // no speakers, or they're busy: he just stays quiet
             }
         });
+    }
+
+    /**
+     * The same beep in another voice: squeaky and tiny are higher (and tiny quieter), deep is lower, robot is chopped
+     * up into a buzz. And louder or quieter.
+     */
+    static byte[] voiced(byte[] pcm, String voice, int volume) {
+        int n = pcm.length / 2;
+        short[] in = new short[n];
+        for (int i = 0; i < n; i++) in[i] = (short) ((pcm[i * 2] & 0xFF) | pcm[i * 2 + 1] << 8);
+        double rate = switch (voice) {
+            case "Squeaky" -> 1.5;
+            case "Tiny" -> 1.9;
+            case "Deep" -> 0.65;
+            default -> 1;
+        };
+        int outN = (int) (n / rate);
+        byte[] out = new byte[outN * 2];
+        double gain = volume / 5.0 * (voice.equals("Tiny") ? 0.6 : 1);
+        for (int i = 0; i < outN; i++) {
+            double v = in[Math.min(n - 1, (int) (i * rate))] * gain;
+            if (voice.equals("Robot") && (i / 90) % 2 == 0) v *= 0.15; // chopped into a buzz
+            int s = (int) Math.max(-32768, Math.min(32767, v));
+            out[i * 2] = (byte) s;
+            out[i * 2 + 1] = (byte) (s >> 8);
+        }
+        return out;
     }
 
     /** A party blower's toot: a buzzy sawtooth that slides up as it unrolls, then drops as it rolls back. */

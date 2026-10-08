@@ -109,6 +109,31 @@ public final class Pet {
         }
     }
 
+    /** Clawd's options, as Pet needs them (the window passes in the real settings; tests can leave the defaults). */
+    public interface Prefs {
+        boolean on(String key);
+        int number(String key);
+        String choice(String key);
+    }
+
+    private Prefs prefs = new Prefs() {
+        public boolean on(String key) {
+            return Boolean.parseBoolean(Options.find(key).start());
+        }
+
+        public int number(String key) {
+            return Integer.parseInt(Options.find(key).start());
+        }
+
+        public String choice(String key) {
+            return Options.find(key).start();
+        }
+    };
+
+    public void setPrefs(Prefs p) {
+        prefs = p;
+    }
+
     private Personality personality = Personality.CHILL;
     private java.awt.Color color = new java.awt.Color(215, 119, 87);
     private java.awt.Color newColor;   // a color he's about to turn (a few seconds from now)
@@ -144,6 +169,13 @@ public final class Pet {
      * since last time; devAppInFront whether VS Code, a terminal or another dev app is the window in front.
      */
     public void tick(long ms, double dx, double dy, boolean mouseMoved, boolean devAppInFront) {
+        ms = switch (prefs.choice("speed")) { // how fast everything about him goes
+            case "Slow" -> ms * 2 / 3;
+            case "Fast" -> ms * 3 / 2;
+            case "Zoomies" -> ms * 3;
+            default -> ms;
+        };
+        if (!prefs.on("codingHappy")) devAppInFront = false;
         time += ms;
         moodFor += ms;
         sinceMouseMoved = mouseMoved ? 0 : sinceMouseMoved + ms;
@@ -212,11 +244,11 @@ public final class Pet {
                 }
             }
             case IDLE -> {
-                if (moodFor > 8000 && random.nextInt(6000) == 0) {
+                if (moodFor > 8000 && prefs.on("sneezes") && random.nextInt(6000) == 0) {
                     sneezed = false;
                     line = "Ah... ah...";
                     set(Mood.SNEEZE, 1300);
-                } else if (moodFor > 8000 && random.nextInt(9000) == 0) {
+                } else if (moodFor > 8000 && prefs.on("flies") && random.nextInt(9000) == 0) {
                     clapped = false;
                     set(Mood.FLY, 5200); // a fly!
                 } else if (canJuggle && moodFor > 8000 && random.nextInt(2700) == 0) {
@@ -226,7 +258,7 @@ public final class Pet {
                     set(Mood.WAVE, 1400); // hi!
                 } else if (personality == Personality.BOUNCY && moodFor > 4000 && random.nextInt(900) == 0) {
                     set(Mood.HAPPY, 700); // a little hop, just because
-                } else if (moodFor > nextChange) {
+                } else if (moodFor > nextChange && prefs.on("naps")) {
                     set(Mood.SIT, (personality == Personality.SLEEPY ? 15_000 : 30_000) + random.nextInt(60_000));
                 }
             }
@@ -259,7 +291,7 @@ public final class Pet {
         // Blinking (not while asleep, his eyes are shut anyway)
         if (blinking > 0) {
             blinking -= ms;
-        } else if ((blinkIn -= ms) <= 0) {
+        } else if ((blinkIn -= ms) <= 0 && prefs.on("blinks")) {
             blinking = 140;
             blinkIn = 2500 + random.nextInt(4500);
         }
@@ -272,7 +304,7 @@ public final class Pet {
             wantX = (float) Math.max(-1, Math.min(1, (fly[0] - 10.5) / 5));
             wantY = (float) Math.max(-1, Math.min(1, (fly[1] - 6) / 4));
         }
-        if (mood == Mood.SLEEP) wantX = wantY = 0;
+        if (mood == Mood.SLEEP || (!prefs.on("eyes") && fly == null)) wantX = wantY = 0;
         float ease = Math.min(1, ms / 120f);
         lookX += (wantX - lookX) * ease;
         lookY += (wantY - lookY) * ease;
@@ -325,21 +357,21 @@ public final class Pet {
 
     /** A coding app was closed: he's sad for a moment (unless he's busy, asleep, or off somewhere). */
     public void sad() {
-        if (mood != Mood.IDLE && mood != Mood.SIT && mood != Mood.HAPPY) return;
+        if ((mood != Mood.IDLE && mood != Mood.SIT && mood != Mood.HAPPY) || !prefs.on("codingSad")) return;
         wants = Beep.AWW;
         set(Mood.SAD, 1600);
     }
 
     /** Rubbed with the mouse: little hearts float up. */
     public void petted() {
-        if (mood == Mood.SLEEP || mood == Mood.LIE) return;
+        if (mood == Mood.SLEEP || mood == Mood.LIE || !prefs.on("petHearts")) return;
         if (mood != Mood.LOVED) wants = Beep.HAPPY;
         set(Mood.LOVED, 1800);
     }
 
     /** Caps Lock went on (true) or off (false). */
     public void capsLock(boolean on) {
-        if (mood == Mood.SLEEP || mood == Mood.GOODBYE) return;
+        if (mood == Mood.SLEEP || mood == Mood.GOODBYE || !prefs.on("capsLock")) return;
         if (on) {
             wants = Beep.PANIC;
             line = "WHY ARE WE YELLING?!";
@@ -358,7 +390,7 @@ public final class Pet {
 
     /** The cursor zoomed right past him: he spins round. */
     public void spin() {
-        if (mood != Mood.IDLE && mood != Mood.SIT) return;
+        if ((mood != Mood.IDLE && mood != Mood.SIT) || !prefs.on("spins")) return;
         line = "Whoa!";
         wants = Beep.WHEE;
         set(Mood.SPIN, 900);
@@ -452,6 +484,7 @@ public final class Pet {
     public String hat() {
         if (birthdayToday) return "birthday";
         if (!hat.isEmpty()) return hat;
+        if (!prefs.on("seasonalHats")) return "";
         java.time.LocalDate d = java.time.LocalDate.now();
         if (d.getMonthValue() == 12 && d.getDayOfMonth() >= 20 && d.getDayOfMonth() <= 26) return "santa";
         if (d.getMonthValue() == 10 && d.getDayOfMonth() == 31) return "pumpkin";
@@ -491,10 +524,11 @@ public final class Pet {
 
     /** How long with no mouse moving before he falls asleep (ms). */
     private long sleepAfter() {
+        long chosen = prefs.number("sleepAfter") * 60_000L;
         return switch (personality) {
-            case SLEEPY -> 60_000;
-            case BOUNCY -> 300_000;
-            default -> 180_000;
+            case SLEEPY -> Math.max(60_000, chosen / 3);
+            case BOUNCY -> chosen * 5 / 3;
+            default -> chosen;
         };
     }
 
@@ -610,6 +644,7 @@ public final class Pet {
         if (mood == Mood.WALK) return (time / 150) % 2 == 0 ? 0 : 0.5f; // a little bob with each step
         if (mood == Mood.RIDE || mood == Mood.FALL || mood == Mood.DIZZY || mood == Mood.WORK || mood == Mood.PEEK) return 0;
         if (mood == Mood.SLEEP || mood == Mood.LIE) return 0;
+        if (!prefs.on("breathing")) return 0;
         return (time / 900) % 2 == 0 ? 0 : 0.5f; // a slow breath
     }
 
@@ -633,7 +668,7 @@ public final class Pet {
 
     /** Whether he's beeping right now, so his mouth shows. */
     public boolean talking() {
-        return talking > 0;
+        return talking > 0 && prefs.on("mouth");
     }
 
     /** While talking: whether his mouth is open (it flaps open and shut with the beeps; a yawn is one big open). */

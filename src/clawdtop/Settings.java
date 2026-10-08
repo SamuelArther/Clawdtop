@@ -74,6 +74,36 @@ public final class Settings {
         save();
     }
 
+    /** A switch from Options (on or off). */
+    public boolean on(String key) {
+        Options.Option o = Options.find(key);
+        return Boolean.parseBoolean(values.getProperty("opt." + key, o.start()));
+    }
+
+    /** A choice from Options (one of its choices). */
+    public String choice(String key) {
+        Options.Option o = Options.find(key);
+        String v = values.getProperty("opt." + key, o.start());
+        return o.choices().contains(v) ? v : o.start();
+    }
+
+    /** A number from Options (kept inside its range). */
+    public int number(String key) {
+        Options.Option o = Options.find(key);
+        try {
+            return Math.max(o.min(), Math.min(o.max(), Integer.parseInt(values.getProperty("opt." + key, o.start()).strip())));
+        } catch (NumberFormatException e) {
+            return Integer.parseInt(o.start());
+        }
+    }
+
+    /** Changes an option. */
+    public void set(String key, String value) {
+        Options.find(key);
+        values.setProperty("opt." + key, value);
+        save();
+    }
+
     /** How often he tells jokes: "Off", "Rare", "Sometimes" or "Lots". */
     public String jokes() {
         String j = values.getProperty("jokes", "Sometimes");

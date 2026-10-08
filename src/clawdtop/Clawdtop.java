@@ -112,6 +112,7 @@ public final class Clawdtop {
             default -> screen.x + screen.width - 64 - w / 2; // above the clock, in the corner
         };
         x = Math.max(screen.x, Math.min(screen.x + screen.width - w, x));
+        bottom -= settings.number("nudge"); // nudged up (or down) if you like
         window.setLocation(x, bottom - h + settings.unit()); // his feet just touch the taskbar
         homeX = x + Sprite.feetX() * settings.unit();
         groundY = bottom;
@@ -229,6 +230,7 @@ public final class Clawdtop {
 
     /** Clawd Points for time together, rides, jobs done, and petting (rubbing the mouse back and forth over him). */
     private void earnPoints(Point mouse, boolean moved) {
+        if (!settings.on("earnPoints")) return;
         if (moved) activeFor += FRAME_MS;
         if (activeFor >= 5 * 60_000) {
             activeFor = 0;
@@ -293,12 +295,12 @@ public final class Clawdtop {
      */
     private void cameBack(long awayFor) {
         long gap = System.currentTimeMillis() - settings.lastSeen();
-        if (settings.lastSeen() > 0 && gap >= 2 * 86_400_000L) {
+        if (settings.lastSeen() > 0 && gap >= 2 * 86_400_000L && settings.on("missedYou")) {
             pet.say("Hi.... I missed you..... you've been gone for " + Settings.howLong(gap) + "....");
         }
         settings.setLastSeen(System.currentTimeMillis());
         int year = java.time.LocalDate.now().getYear();
-        if (settings.birthdayToday() && settings.once("birthday:" + year)) {
+        if (settings.birthdayToday() && settings.on("birthday") && settings.once("birthday:" + year)) {
             // the surprise: he's nowhere to be seen... for five seconds
             birthdayHiding = true;
             birthdayHideUntil = System.currentTimeMillis() + 5000;
@@ -338,16 +340,16 @@ public final class Clawdtop {
         java.time.LocalDateTime now = java.time.LocalDateTime.now();
         java.time.LocalDate today = now.toLocalDate();
         int hour = now.getHour();
-        if ((hour >= 23 || hour < 4) && settings.once("late:" + (hour < 4 ? today.minusDays(1) : today))) {
+        if ((hour >= 23 || hour < 4) && settings.on("lateNight") && settings.once("late:" + (hour < 4 ? today.minusDays(1) : today))) {
             pet.say("It's late... maybe bed soon?");
-        } else if (now.getDayOfWeek() == java.time.DayOfWeek.MONDAY && hour >= 6 && hour < 12 && settings.once("monday:" + today)) {
+        } else if (now.getDayOfWeek() == java.time.DayOfWeek.MONDAY && hour >= 6 && hour < 12 && settings.on("monday") && settings.once("monday:" + today)) {
             pet.say("Ugh. Monday.");
-        } else if (now.getDayOfWeek() == java.time.DayOfWeek.FRIDAY && hour >= 15 && settings.once("friday:" + today)) {
+        } else if (now.getDayOfWeek() == java.time.DayOfWeek.FRIDAY && hour >= 15 && settings.on("friday") && settings.once("friday:" + today)) {
             pet.party("It's FRIDAY!!");
         }
         long days = java.time.temporal.ChronoUnit.DAYS.between(settings.metDate(), today);
         for (long milestone : new long[] {1, 7, 30, 100, 365, 500, 1000}) {
-            if (days == milestone && settings.once("friends:" + milestone)) {
+            if (days == milestone && settings.on("friendship") && settings.once("friends:" + milestone)) {
                 pet.party("We've been friends for " + milestone + (milestone == 1 ? " day" : " days") + "!");
                 settings.earn((int) Math.min(50, milestone));
             }
@@ -358,12 +360,12 @@ public final class Clawdtop {
     private void checkBattery(Power.State now) {
         if (now == null) return;
         if (battery != null) {
-            if (!now.pluggedIn() && now.percent() <= 15 && battery.percent() > 15) pet.say("My battery's low... and so is yours.");
-            if (now.pluggedIn() && !battery.pluggedIn()) pet.say("Ahh. Power.");
+            if (settings.on("battery") && !now.pluggedIn() && now.percent() <= 15 && battery.percent() > 15) pet.say("My battery's low... and so is yours.");
+            if (settings.on("battery") && now.pluggedIn() && !battery.pluggedIn()) pet.say("Ahh. Power.");
             int last = Power.criticalLevel() + 1; // 1% before Windows shuts the laptop off by itself
             boolean critical = !now.pluggedIn() && now.percent() <= last;
             boolean wasCritical = !battery.pluggedIn() && battery.percent() <= last;
-            if (critical && !wasCritical) pet.batteryPanic(true);   // and then it all goes black, when the laptop shuts off
+            if (critical && !wasCritical && settings.on("batteryPanic")) pet.batteryPanic(true);   // and then it all goes black, when the laptop shuts off
             if (!critical && wasCritical) pet.batteryPanic(false);
         }
         battery = now;
@@ -374,7 +376,8 @@ public final class Clawdtop {
         long now = System.currentTimeMillis();
         clicks.addLast(now);
         while (!clicks.isEmpty() && clicks.peekFirst() < now - 5000) clicks.removeFirst();
-        if (clicks.size() >= 15) {
+        if (!settings.on("grumpy")) return false;
+        if (clicks.size() >= 15 && settings.on("stompOff")) {
             clicks.clear();
             Rectangle screen = screenBounds();
             pet.annoyed("That's it. I need a minute.");
@@ -544,7 +547,7 @@ public final class Clawdtop {
             devApp = Foreground.isDevApp(app);
             if (job == null) maybeTip(front);
             DisplayMode mode = window.getGraphicsConfiguration().getDevice().getDisplayMode();
-            boolean fullScreen = job == null && !devApp && Foreground.fullScreen(mode.getWidth(), mode.getHeight());
+            boolean fullScreen = job == null && !devApp && settings.on("hideFullScreen") && Foreground.fullScreen(mode.getWidth(), mode.getHeight());
             if (fullScreen != hidden) {
                 hidden = fullScreen;
                 window.setVisible(!hidden);
@@ -560,6 +563,7 @@ public final class Clawdtop {
             if (!oldSize.equals(settings.size())) resize();
             else if (body.state() == Body.State.HOME) place();
             useItems();
+            useOptions();
         }
         // Every few seconds: did a coding app just close? He's sad for a moment.
         if (ticks % 90 == 45 && !farewell) {
@@ -589,7 +593,7 @@ public final class Clawdtop {
             return;
         }
         // Every few seconds, back on top (the taskbar likes to come up over everything when it's clicked)
-        if (ticks % 90 == 0 && !hidden) {
+        if (ticks % 90 == 0 && !hidden && settings.on("onTop")) {
             window.setAlwaysOnTop(false);
             window.setAlwaysOnTop(true);
         }
@@ -653,7 +657,7 @@ public final class Clawdtop {
         double eyesY = window.getY() + Sprite.eyesY() * unit;
         pet.tick(FRAME_MS, mouse.x - eyesX, mouse.y - eyesY, moved, devApp);
         Pet.Beep beep = pet.takeBeep();
-        if (beep != null && settings.sounds()) beeps.play(beep);
+        if (beep != null && mayBeep()) beeps.play(beep);
         String line = pet.takeLine();
         if (line != null) bubble.show(line, window.getBounds(), screenBounds());
         bubble.tick();
@@ -713,7 +717,55 @@ public final class Clawdtop {
     private boolean farewell;      // being uninstalled: saying bye, then crumbling away
     private static final int FAREWELL_ROOM = 14; // units of room above and to the right for his dust
 
+    /** Passes his options on to the parts that use them. */
+    private void useOptions() {
+        Settings s = settings;
+        pet.setPrefs(new Pet.Prefs() {
+            public boolean on(String key) {
+                return s.on(key);
+            }
+
+            public int number(String key) {
+                return s.number(key);
+            }
+
+            public String choice(String key) {
+                return s.choice(key);
+            }
+        });
+        body.setRules(s.on("rides"), s.on("shakeOff"), s.number("hopWait") * 100L,
+                switch (s.choice("shakeHow")) {
+                    case "Gently" -> 900;
+                    case "Really hard" -> 2400;
+                    default -> Body.SHAKE_SPEED;
+                },
+                switch (s.choice("walk")) {
+                    case "Slow" -> 80;
+                    case "Fast" -> 260;
+                    default -> Body.WALK_SPEED;
+                });
+        beeps.setVoice(s.choice("voice"), s.number("volume"));
+        Bubble.setFont(s.choice("font"));
+        Bubble.stay = switch (s.choice("bubbleTime")) {
+            case "Short" -> 0.6;
+            case "Long" -> 1.8;
+            default -> 1;
+        };
+        window.setAlwaysOnTop(s.on("onTop"));
+        canvas.setToolTipText(s.on("pointsTag") ? s.points() + " Clawd Points" : null);
+    }
+
+    /** Whether he may beep right now (beeps on, and not in quiet hours). */
+    private boolean mayBeep() {
+        if (!settings.sounds()) return false;
+        if (!settings.on("quietHours")) return true;
+        int hour = java.time.LocalTime.now().getHour(), from = settings.number("quietFrom"), to = settings.number("quietTo");
+        boolean quiet = from <= to ? hour >= from && hour < to : hour >= from || hour < to;
+        return !quiet;
+    }
+
     private void start() {
+        useOptions();
         pet.setColor(settings.awtColor());
         pet.setPersonality(settings.personality());
         pet.setBirthdayToday(settings.birthdayToday());

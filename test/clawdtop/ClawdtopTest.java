@@ -331,6 +331,21 @@ public class ClawdtopTest {
         check("and says so", nice, "This place is nice!");
         check("the laptop shuts off by itself at its critical level (5% here)", Power.criticalLevel() >= 0 && Power.criticalLevel() <= 100, true);
 
+        // ---- All the options ----
+        Files.deleteIfExists(home.resolve("settings.properties"));
+        Settings knobs = Settings.load();
+        check("there are a LOT of options", Options.ALL.size() >= 40, true);
+        check("options start at their defaults", knobs.on("sneezes") + " " + knobs.choice("voice") + " " + knobs.number("volume"), "true Normal 5");
+        knobs.set("sneezes", "false");
+        knobs.set("voice", "Robot");
+        knobs.set("volume", "99");
+        check("and change (numbers stay in range)", knobs.on("sneezes") + " " + knobs.choice("voice") + " " + knobs.number("volume"), "false Robot 10");
+        check("a robot voice sounds different", java.util.Arrays.equals(Beeps.voiced(Beeps.make(Pet.Beep.HELLO), "Robot", 5), Beeps.make(Pet.Beep.HELLO)), false);
+        check("a squeaky voice is shorter (higher)", Beeps.voiced(Beeps.make(Pet.Beep.HELLO), "Squeaky", 5).length < Beeps.make(Pet.Beep.HELLO).length, true);
+        String opts = cli("controlpanel", "13", "1", "0", "0");
+        check("the control panel lists them all, in groups", opts.contains("Antics") && opts.contains("Riding") && opts.contains("Useful"), true);
+        check("and flips one", Settings.load().on("sneezes"), true);
+
         // ---- Jokes ----
         Jokes jk = new Jokes(1);
         java.util.Set<String> heard = new java.util.HashSet<>();
