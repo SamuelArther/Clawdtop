@@ -243,8 +243,30 @@ public final class Sprite {
             }
         }
 
+        // Birthday: a cake by his side, and his party blower going out and back from his mouth
+        if (pet.birthdayToday() && mood != Pet.Mood.WORK && mood != Pet.Mood.PEEK) {
+            Color cake = new Color(250, 225, 200), icing = new Color(255, 140, 180);
+            box(g, unit, 0.5, GROUND - 3, 3.5, 3, cake);
+            box(g, unit, 0.5, GROUND - 3, 3.5, 0.8, icing);
+            box(g, unit, 2, GROUND - 4.2, 0.5, 1.2, new Color(140, 200, 255));          // a candle
+            if ((pet.time() / 120) % 2 == 0) box(g, unit, 1.9, GROUND - 4.9, 0.7, 0.7, new Color(255, 190, 60)); // its flame
+        }
+        double blow = pet.blower();
+        if (mood == Pet.Mood.BIRTHDAY) {
+            double mouthX = LEFT + 7, mouthY = top + 5;
+            Color paper = new Color(255, 214, 102), stripe = new Color(255, 100, 150);
+            if (blow < 0.15) {
+                box(g, unit, mouthX, mouthY - 0.5, 1.2, 1.2, paper);  // rolled up in a little curl
+                box(g, unit, mouthX + 0.3, mouthY - 0.2, 0.6, 0.6, stripe);
+            } else {
+                double length = 1 + blow * 7;
+                box(g, unit, mouthX, mouthY, length, 0.8, paper);    // unrolled, straight out
+                for (double s = 1; s < length; s += 1.5) box(g, unit, mouthX + s, mouthY, 0.5, 0.8, stripe);
+            }
+        }
+
         // Confetti!
-        if (mood == Pet.Mood.PARTY) {
+        if (mood == Pet.Mood.PARTY || (mood == Pet.Mood.BIRTHDAY && pet.moodTime() > 3200)) {
             Color[] colors = {new Color(255, 214, 102), new Color(120, 220, 255), new Color(255, 120, 170), new Color(140, 230, 140)};
             for (int i = 0; i < 14; i++) {
                 double t = (pet.moodTime() / 1400.0 + i * 0.13) % 1;
@@ -375,6 +397,15 @@ public final class Sprite {
                 box(g, unit, mid - 2, top - 2, 4, 1, red);
                 box(g, unit, mid - 0.5, top - 3, 2.5, 1, red);
                 box(g, unit, mid + 2, top - 3.5, 1, 1, Color.WHITE);
+            }
+            case "birthday" -> {
+                // a striped party hat with a pom-pom
+                Color blue = new Color(100, 170, 255), yellow = new Color(255, 214, 102);
+                box(g, unit, mid - 2.5, top - 1, 5, 1, blue);
+                box(g, unit, mid - 1.5, top - 2, 3, 1, yellow);
+                box(g, unit, mid - 1, top - 3, 2, 1, blue);
+                box(g, unit, mid - 0.5, top - 4, 1, 1, yellow);
+                box(g, unit, mid - 0.75, top - 5, 1.5, 1, new Color(255, 120, 170));
             }
             case "pumpkin" -> {
                 box(g, unit, mid - 2.5, top - 2.5, 5, 2.5, new Color(240, 140, 30));

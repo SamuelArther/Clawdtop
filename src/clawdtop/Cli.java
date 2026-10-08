@@ -151,6 +151,7 @@ public final class Cli {
             out.println("   7  Beeps               " + onOff(s.sounds()));
             out.println("   8  Tips                " + onOff(s.tips()));
             out.println("  11  Jokes               " + s.jokes());
+            out.println("  12  Your birthday       " + (s.birthday().isEmpty() ? DIM + "(not set)" + RESET : s.birthday().replace('-', '/')));
             out.println("   9  Start with Windows  " + onOff(Startup.on()));
             out.println("  10  " + (on ? "Stop him" : "Start him"));
             out.println("   0  Done");
@@ -210,6 +211,22 @@ public final class Cli {
                 case "7" -> s.setSounds(!s.sounds());
                 case "8" -> s.setTips(!s.tips());
                 case "9" -> Startup.set(!Startup.on());
+                case "12" -> {
+                    out.print("  Your birthday, month/day like 10/08 (blank for none): ");
+                    out.flush();
+                    String typed = in.readLine();
+                    if (typed == null || typed.isBlank()) s.setBirthday("");
+                    else {
+                        String[] parts = typed.strip().replace('-', '/').split("/");
+                        try {
+                            int m = Integer.parseInt(parts[0]), d = Integer.parseInt(parts[1]);
+                            if (m >= 1 && m <= 12 && d >= 1 && d <= 31) s.setBirthday(String.format("%02d-%02d", m, d));
+                            else out.println("  That's not a date.");
+                        } catch (RuntimeException e) {
+                            out.println("  That's not a date like 10/08.");
+                        }
+                    }
+                }
                 case "11" -> {
                     String[] often = {"Off", "Rare", "Sometimes", "Lots"};
                     int i = choose(often);

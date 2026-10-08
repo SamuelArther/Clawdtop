@@ -175,6 +175,17 @@ public final class Body {
         set(State.AWAY);
     }
 
+    /** Drops in from above (the top of the screen) at x, landing on his feet, then walks home. */
+    public void dropIn(double atX, double fromY) {
+        onJob = false;
+        headFirst = false;
+        x = atX;
+        y = fromY;
+        vx = 0;
+        vy = 0;
+        set(State.FALL);
+    }
+
     /** Hops onto the cursor for a job, and stays on (no hopping off at the taskbar) until told where to go. */
     public void board() {
         if (state != State.HOME && state != State.WALK) return;

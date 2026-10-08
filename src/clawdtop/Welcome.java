@@ -147,7 +147,7 @@ final class Welcome {
             buttons[i] = button(p.shown(), () -> {
                 settings.setPersonality(p);
                 beep.accept(p == Pet.Personality.SLEEPY ? Pet.Beep.YAWN : Pet.Beep.HAPPY);
-                askBeeps();
+                askBirthday();
             });
         }
         show(new String[] {"What am I like?", "Chill: easygoing.  Bouncy: can't sit still.",
@@ -167,6 +167,27 @@ final class Welcome {
             });
         }
         show(new String[] {"Nice to meet you" + who + "!", "Where should I sit? (You can drag me anywhere later.)"}, null, buttons);
+    }
+
+    void askBirthday() {
+        JTextField date = new JTextField(settings.birthday().isEmpty() ? "" : settings.birthday().replace('-', '/'), 6);
+        date.setFont(Bubble.FONT.deriveFont(14f));
+        Runnable next = () -> {
+            String typed = date.getText().strip().replace('-', '/').replace('.', '/');
+            String[] parts = typed.split("/");
+            try {
+                int month = Integer.parseInt(parts[0]);
+                int day = Integer.parseInt(parts[1]);
+                if (month >= 1 && month <= 12 && day >= 1 && day <= 31) settings.setBirthday(String.format("%02d-%02d", month, day));
+            } catch (RuntimeException notADate) {
+                // left blank or odd: no birthday surprise, that's all
+            }
+            askBeeps();
+        };
+        date.addActionListener(e -> next.run());
+        show(new String[] {"When's your birthday?", "Just the month and day, like 10/08. (No year!)"}, date,
+                button("Skip", this::askBeeps), button("Next", next));
+        date.requestFocusInWindow();
     }
 
     void askBeeps() {

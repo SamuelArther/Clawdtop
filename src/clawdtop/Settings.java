@@ -103,7 +103,54 @@ public final class Settings {
     public void setMet() {
         values.setProperty("met", "true");
         if (!values.containsKey("metDate")) values.setProperty("metDate", java.time.LocalDate.now().toString());
+        values.setProperty("lastSeen", String.valueOf(System.currentTimeMillis()));
         save();
+    }
+
+    /** Your birthday as "MM-DD" (no year), or "" if you didn't say. */
+    public String birthday() {
+        String b = values.getProperty("birthday", "");
+        return b.matches("\\d\\d-\\d\\d") ? b : "";
+    }
+
+    public void setBirthday(String mmdd) {
+        values.setProperty("birthday", mmdd);
+        save();
+    }
+
+    /** Whether today is your birthday. */
+    public boolean birthdayToday() {
+        String b = birthday();
+        if (b.isEmpty()) return false;
+        java.time.LocalDate d = java.time.LocalDate.now();
+        return b.equals(String.format("%02d-%02d", d.getMonthValue(), d.getDayOfMonth()));
+    }
+
+    /** The last moment you were around (moving the mouse while he ran), in ms, or 0. */
+    public long lastSeen() {
+        try {
+            return Long.parseLong(values.getProperty("lastSeen", "0"));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    public void setLastSeen(long when) {
+        values.setProperty("lastSeen", String.valueOf(when));
+        save();
+    }
+
+    /** "3 days", "2 weeks", "5 months", "1 year": how long a gap was, in friendly words. */
+    static String howLong(long ms) {
+        long days = ms / 86_400_000L;
+        if (days >= 365) return plural(days / 365, "year");
+        if (days >= 60) return plural(days / 30, "month");
+        if (days >= 14) return plural(days / 7, "week");
+        return plural(days, "day");
+    }
+
+    private static String plural(long n, String what) {
+        return n + " " + what + (n == 1 ? "" : "s");
     }
 
     /** The day you met (today if it's not known). */

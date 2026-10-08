@@ -261,6 +261,42 @@ public class ClawdtopTest {
         Settings onceOnly = Settings.load();
         check("once-a-day things only happen once", onceOnly.once("monday:test") + " " + onceOnly.once("monday:test"), "true false");
 
+        // ---- Birthdays and missing you ----
+        check("how long you were gone, in friendly words", Settings.howLong(3 * 86_400_000L) + ", " + Settings.howLong(20 * 86_400_000L)
+                + ", " + Settings.howLong(100 * 86_400_000L) + ", " + Settings.howLong(800 * 86_400_000L) + ", " + Settings.howLong(86_400_000L),
+                "3 days, 2 weeks, 3 months, 2 years, 1 day");
+        Pet partyAnimal = new Pet(17);
+        partyAnimal.takeBeep();
+        partyAnimal.birthday("Samuel");
+        java.util.List<Pet.Beep> toots = new java.util.ArrayList<>();
+        String sung = null;
+        boolean blew = false;
+        for (int i = 0; i < 160; i++) {
+            partyAnimal.tick(33, 0, 0, false, false);
+            Pet.Beep b = partyAnimal.takeBeep();
+            if (b != null) toots.add(b);
+            String l = partyAnimal.takeLine();
+            if (l != null) sung = l;
+            if (partyAnimal.blower() > 0.9 && !blew) {
+                blew = true;
+                save(partyAnimal, Path.of("build", "frames").resolve("birthday (blower out).png"));
+            }
+            if (i == 130) save(partyAnimal, Path.of("build", "frames").resolve("birthday (confetti).png"));
+        }
+        check("on your birthday: three toots on his party blower, then HAPPY BIRTHDAY", toots.stream().filter(b -> b == Pet.Beep.HORN).count()
+                + " " + sung, "3 HAPPY BIRTHDAY, SAMUEL!!");
+        check("his party hat stays on all day", partyAnimal.hat(), "birthday");
+        check("the party blower toot is a real sound", Beeps.make(Pet.Beep.HORN).length > 20000, true);
+        Body dropper = new Body();
+        dropper.tick(33, 0, 0, 1800, 1032, 36, 0, 1920);
+        dropper.dropIn(1800, -60);
+        String dropSeen = "";
+        for (int i = 0; i < 400 && (i == 0 || dropper.state() != Body.State.HOME); i++) {
+            dropper.tick(33, 0, 0, 1800, 1032, 36, 0, 1920);
+            if (!dropSeen.endsWith(dropper.state().name())) dropSeen += (dropSeen.isEmpty() ? "" : ">") + dropper.state().name();
+        }
+        check("he drops in from the top of the screen and lands on his feet", dropSeen, "FALL>WALK>HOME");
+
         // ---- Jokes ----
         Jokes jk = new Jokes(1);
         java.util.Set<String> heard = new java.util.HashSet<>();
@@ -275,7 +311,7 @@ public class ClawdtopTest {
             byte[] sound = Beeps.make(beep);
             int loudest = 0;
             for (int i = 0; i < sound.length; i += 2) loudest = Math.max(loudest, Math.abs((short) ((sound[i] & 0xFF) | sound[i + 1] << 8)));
-            check(beep + " is a short, quiet beep", sound.length > 4000 && sound.length < 44100 && loudest < 32767 * 0.2 && loudest > 1000, true);
+            check(beep + " is a short, quiet beep", sound.length > 4000 && sound.length < 100000 && loudest < 32767 * 0.2 && loudest > 1000, true);
         }
 
         // ---- Coding apps ----
@@ -340,6 +376,10 @@ public class ClawdtopTest {
         snapshot(hello.panel(), frames0.resolve("welcome 3 personality.png"));
         click(hello.panel(), "Sleepy");
         check("and what he's like", fresh.personality(), Pet.Personality.SLEEPY);
+        snapshot(hello.panel(), frames0.resolve("welcome 3b birthday.png"));
+        find(hello.panel(), javax.swing.JTextField.class).setText("10/8");
+        click(hello.panel(), "Next");
+        check("and your birthday (just month and day)", fresh.birthday(), "10-08");
         snapshot(hello.panel(), frames0.resolve("welcome 4 beeps.png"));
         click(hello.panel(), "Shh, no beeps");
         check("beeps off if you say so", fresh.sounds(), false);
@@ -370,7 +410,7 @@ public class ClawdtopTest {
         // ---- Save tokens ----
         String token = afterPanel.saveToken();
         check("a save token starts with CLAWD-", token.startsWith("CLAWD-"), true);
-        check("and holds who he is to you", SaveToken.read(token).toString(), "{name=Sam, color=#33AAFF, personality=BOUNCY, spot=On the left, size=Big}");
+        check("and holds who he is to you", SaveToken.read(token).toString(), "{name=Sam, color=#33AAFF, personality=BOUNCY, spot=On the left, size=Big, birthday=10-08, metDate=" + afterPanel.metDate() + "}");
         check("a mistyped token is caught", SaveToken.read(token.substring(0, 10) + "x" + token.substring(11)) + " " + SaveToken.read("hello"), "null null");
         Files.deleteIfExists(home.resolve("settings.properties"));
         Settings reborn = Settings.load();

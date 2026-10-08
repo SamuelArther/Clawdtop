@@ -31,8 +31,27 @@ public final class Beeps {
         });
     }
 
+    /** A party blower's toot: a buzzy sawtooth that slides up as it unrolls, then drops as it rolls back. */
+    static byte[] horn() {
+        int count = (int) (RATE * 0.55);
+        byte[] out = new byte[count * 2];
+        double phase = 0;
+        for (int i = 0; i < count; i++) {
+            double t = i / (double) count;
+            double pitch = 420 + 260 * Math.sin(Math.min(1, t * 1.6) * Math.PI / 2) - (t > 0.75 ? (t - 0.75) * 600 : 0);
+            phase += pitch / RATE;
+            double saw = 2 * (phase - Math.floor(phase + 0.5));          // buzzy
+            double fade = Math.min(1, Math.min(i, count - i) / (RATE * 0.02));
+            int v = (int) (saw * fade * VOLUME * 0.9 * 32767);
+            out[i * 2] = (byte) v;
+            out[i * 2 + 1] = (byte) (v >> 8);
+        }
+        return out;
+    }
+
     /** The sound for a beep, as 16-bit mono samples. Each is a few tiny notes. */
     static byte[] make(Pet.Beep beep) {
+        if (beep == Pet.Beep.HORN) return horn();
         double[][] notes = switch (beep) {  // {frequency, milliseconds}, 0 Hz is a pause
             case HELLO -> new double[][] {{1320, 60}, {0, 30}, {1760, 70}};
             case HAPPY -> new double[][] {{1480, 50}, {0, 20}, {1760, 50}, {0, 20}, {2220, 80}};
@@ -45,6 +64,7 @@ public final class Beeps {
             case AWW -> new double[][] {{880, 120}, {740, 180}};
             case ACHOO -> new double[][] {{1600, 30}, {2600, 70}, {900, 60}};
             case CLAP -> new double[][] {{3200, 15}, {0, 10}, {2800, 20}};
+            case HORN -> null; // a party blower: made below, a buzzy rising toot
             case PANIC -> new double[][] {{2400, 40}, {1900, 40}, {2400, 40}, {1900, 40}, {2400, 40}, {1900, 40}, {2400, 40}, {1900, 60}};
         };
         int total = 0;

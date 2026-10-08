@@ -282,6 +282,41 @@ public final class Clawdtop {
     private boolean huffed;      // stomped off: say something when he's back
     private Boolean capsWasOn;
     private Power.State battery;
+    private long lastMoved = System.currentTimeMillis(); // the last time the mouse moved
+    private long startedAt = System.currentTimeMillis();
+    private boolean birthdayHiding;   // hiding for the birthday surprise
+    private long birthdayHideUntil;
+
+    /**
+     * You've just come back: the program just started, or the mouse moved after a long while (a new login, or waking
+     * the computer). He might have missed you, and it might be your birthday.
+     */
+    private void cameBack(long awayFor) {
+        long gap = System.currentTimeMillis() - settings.lastSeen();
+        if (settings.lastSeen() > 0 && gap >= 2 * 86_400_000L) {
+            pet.say("Hi.... I missed you..... you've been gone for " + Settings.howLong(gap) + "....");
+        }
+        settings.setLastSeen(System.currentTimeMillis());
+        int year = java.time.LocalDate.now().getYear();
+        if (settings.birthdayToday() && settings.once("birthday:" + year)) {
+            // the surprise: he's nowhere to be seen... for five seconds
+            birthdayHiding = true;
+            birthdayHideUntil = System.currentTimeMillis() + 5000;
+            window.setVisible(false);
+        }
+    }
+
+    /** After hiding for five seconds: he drops in from the top of the screen with his party hat, cake and blower. */
+    private void birthdaySurprise() {
+        birthdayHiding = false;
+        Rectangle screen = screenBounds();
+        body.dropIn(homeX, screen.y - window.getHeight());
+        window.setVisible(true);
+        pet.setBirthdayToday(true);
+        pendingBirthday = true;
+    }
+
+    private boolean pendingBirthday; // drop in first, then the party once he's landed
     private Point zoomFrom;
     private long zoomAt;
 
@@ -325,6 +360,10 @@ public final class Clawdtop {
         if (battery != null) {
             if (!now.pluggedIn() && now.percent() <= 15 && battery.percent() > 15) pet.say("My battery's low... and so is yours.");
             if (now.pluggedIn() && !battery.pluggedIn()) pet.say("Ahh. Power.");
+            boolean critical = !now.pluggedIn() && now.percent() <= 2;
+            boolean wasCritical = !battery.pluggedIn() && battery.percent() <= 2;
+            if (critical && !wasCritical) pet.batteryPanic(true);   // and then it all goes black, when the laptop shuts off
+            if (!critical && wasCritical) pet.batteryPanic(false);
         }
         battery = now;
     }
@@ -583,6 +622,18 @@ public final class Clawdtop {
         earnPoints(mouse, moved);
         if (ticks % 30 == 0) maybeJoke();
         if (ticks % 10 == 0) checkCapsLock();
+        // coming back after a long while counts as a new login
+        long nowMs = System.currentTimeMillis();
+        if (moved) {
+            if (nowMs - lastMoved > 10 * 60_000 && !boxed) cameBack(nowMs - lastMoved);
+            lastMoved = nowMs;
+            if (ticks % 1800 == 0) settings.setLastSeen(nowMs);
+        }
+        if (birthdayHiding && nowMs > birthdayHideUntil) birthdaySurprise();
+        if (pendingBirthday && body.state() != Body.State.FALL) {
+            pendingBirthday = false;
+            pet.birthday(settings.name());
+        }
         if (ticks % 300 == 150) checkTimes();
         if (ticks % 150 == 75) worker.execute(() -> {
             Power.State b = Power.now();
@@ -648,8 +699,10 @@ public final class Clawdtop {
     private void start() {
         pet.setColor(settings.awtColor());
         pet.setPersonality(settings.personality());
+        pet.setBirthdayToday(settings.birthdayToday());
         window.setVisible(true);
         useItems();
+        if (settings.met()) cameBack(0);
         welcomeStarted = !settings.met();
         new Timer(FRAME_MS, e -> tick()).start();
         if (!settings.met()) {
@@ -674,7 +727,7 @@ public final class Clawdtop {
                 }).show();
             });
             welcome.start(window.getBounds(), screenBounds());
-        } else if (!settings.name().isEmpty()) {
+        } else if (!settings.name().isEmpty() && pet.takeLineIfAny() == null && !birthdayHiding) {
             bubble.show("Hi again, " + settings.name() + "!", window.getBounds(), screenBounds());
         }
     }

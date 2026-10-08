@@ -58,11 +58,16 @@ public final class Pet {
         /** The cursor zoomed past so fast he spun round. */
         SPIN,
         /** A celebration: confetti! */
-        PARTY
+        PARTY,
+        /** Your birthday: party hat, a cake, and a party blower he toots. */
+        BIRTHDAY
     }
 
     private boolean canJuggle, canWave;
     private boolean sneezed, clapped, caught;
+    private int toots;
+    private boolean sang, birthdayToday;
+    private String birthdayLine = "Happy birthday!!";
     private String hat = "";
 
     static final long GOODBYE_PAUSE = 2800;  // standing there sadly after saying bye
@@ -121,7 +126,7 @@ public final class Pet {
     private long talkLength;       // how long this beep's mouth moving lasts
 
     /** A little sound he makes. */
-    public enum Beep { HELLO, HAPPY, CLICKED, YAWN, WAKE, TIP, WHEE, OOF, PANIC, AWW, ACHOO, CLAP }
+    public enum Beep { HELLO, HAPPY, CLICKED, YAWN, WAKE, TIP, WHEE, OOF, PANIC, AWW, ACHOO, CLAP, HORN }
 
     public Pet(long seed) {
         random = new Random(seed);
@@ -154,6 +159,21 @@ public final class Pet {
             case RIDE, FALL, DIZZY, SHAKE, WALK, WORK, PEEK -> { } // his body or his job decides these (see follow and job)
             case GOODBYE -> { }
             case SAD, LOVED, JUGGLE, DANCE, WAVE, YELLED, ANNOYED, SPIN, PARTY -> { if (moodFor > nextChange) set(Mood.IDLE, idleTime()); }
+            case BIRTHDAY -> {
+                // three toots on the party blower, then the song line, then he carries on (still in his party hat)
+                for (int k = 0; k < 3; k++) {
+                    if (moodFor >= 600 + k * 900 && toots == k) {
+                        toots++;
+                        wants = Beep.HORN;
+                    }
+                }
+                if (moodFor >= 3400 && !sang) {
+                    sang = true;
+                    line = birthdayLine;
+                    wants = Beep.HAPPY;
+                }
+                if (moodFor > nextChange) set(Mood.IDLE, idleTime());
+            }
             case SNEEZE -> {
                 if (moodFor >= 700 && !sneezed) {
                     sneezed = true;
@@ -334,6 +354,18 @@ public final class Pet {
         set(Mood.PARTY, 3500);
     }
 
+    /** The battery's about to die: he panics, jumping about, until it's plugged in (or everything goes black). */
+    public void batteryPanic(boolean on) {
+        if (on) {
+            wants = Beep.PANIC;
+            line = "WHAT'S HAPPENING?! THE BATTERY'S CRITICALLY LOW!! PLUG ME IN!!";
+            set(Mood.FREAKOUT, Long.MAX_VALUE);
+        } else if (mood == Mood.FREAKOUT && nextChange == Long.MAX_VALUE) {
+            line = "...phew. That was close.";
+            set(Mood.IDLE, idleTime());
+        }
+    }
+
     /** Says something in his bubble (with a little chirp). */
     public void say(String says) {
         line = says;
@@ -346,6 +378,34 @@ public final class Pet {
         double t = moodFor / 1000.0;
         if (moodFor >= 4200) return caught ? null : new double[] {10.5 + (moodFor - 4200) / 60.0, 1 - (moodFor - 4200) / 150.0};
         return new double[] {10.5 + Math.sin(t * 2.3) * 8 + Math.sin(t * 7.1) * 1.5, 2 + Math.cos(t * 3.1) * 2 + Math.sin(t * 9) * 0.8};
+    }
+
+    /** Your birthday surprise: party hat, cake, three toots on his party blower, and a happy birthday. */
+    public void birthday(String name) {
+        birthdayToday = true;
+        toots = 0;
+        sang = false;
+        birthdayLine = "HAPPY BIRTHDAY" + (name.isEmpty() ? "" : ", " + name.toUpperCase(java.util.Locale.ROOT)) + "!!";
+        set(Mood.BIRTHDAY, 7000);
+    }
+
+    /** Whether it's your birthday (he wears a party hat all day, and his cake sits beside him). */
+    public void setBirthdayToday(boolean today) {
+        birthdayToday = today;
+    }
+
+    public boolean birthdayToday() {
+        return birthdayToday;
+    }
+
+    /** How far out his party blower is right now, 0 (rolled up) to 1 (all the way out). */
+    public double blower() {
+        if (mood != Mood.BIRTHDAY) return 0;
+        for (int k = 0; k < 3; k++) {
+            long t = moodFor - (600 + k * 900);
+            if (t >= 0 && t < 600) return Math.sin(t / 600.0 * Math.PI);
+        }
+        return 0;
     }
 
     /** Dances (a trick from the shop). */
@@ -363,6 +423,7 @@ public final class Pet {
 
     /** The hat he's wearing ("" for none, or a seasonal one if it's that time of year and he has none on). */
     public String hat() {
+        if (birthdayToday) return "birthday";
         if (!hat.isEmpty()) return hat;
         java.time.LocalDate d = java.time.LocalDate.now();
         if (d.getMonthValue() == 12 && d.getDayOfMonth() >= 20 && d.getDayOfMonth() <= 26) return "santa";
@@ -450,6 +511,11 @@ public final class Pet {
         newColorIn = 3500;
     }
 
+    /** Whether he already has something to say (without taking it), for not talking over himself. */
+    public String takeLineIfAny() {
+        return line;
+    }
+
     /** Something he wants to say in his bubble now, or null. Each line is only given out once. */
     public String takeLine() {
         String l = line;
@@ -512,7 +578,7 @@ public final class Pet {
     /** How high he is off the ground right now, in his own pixels (bouncing when happy, breathing otherwise). */
     public float lift() {
         if (mood == Mood.HAPPY) return (float) Math.abs(Math.sin(time / 130.0)) * 3;
-        if (mood == Mood.FREAKOUT) return (float) Math.abs(Math.sin(time / 60.0)) * 1.5f;
+        if (mood == Mood.FREAKOUT) return (float) Math.abs(Math.sin(time / 60.0)) * (nextChange == Long.MAX_VALUE ? 3 : 1.5f); // jumping about
         if (mood == Mood.DANCE) return (float) Math.abs(Math.sin(time / 180.0)) * 2;
         if (mood == Mood.WALK) return (time / 150) % 2 == 0 ? 0 : 0.5f; // a little bob with each step
         if (mood == Mood.RIDE || mood == Mood.FALL || mood == Mood.DIZZY || mood == Mood.WORK || mood == Mood.PEEK) return 0;
