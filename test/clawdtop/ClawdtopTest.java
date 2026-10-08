@@ -492,6 +492,25 @@ public class ClawdtopTest {
         // ---- Cleaning a folder (on a pretend mini PC) ----
         CleanerTest.run();
 
+        // ---- Your games ----
+        Path fakeSteam = Files.createDirectories(home.resolve("steamapps"));
+        Files.writeString(fakeSteam.resolve("appmanifest_105600.acf"), "\"AppState\"\n{\n\t\"appid\"\t\t\"105600\"\n\t\"name\"\t\t\"Terraria\"\n}\n");
+        Files.writeString(fakeSteam.resolve("appmanifest_228980.acf"), "\"AppState\"\n{\n\t\"name\"\t\t\"Steamworks Common Redistributables\"\n}\n");
+        Path fakeEpic = Files.createDirectories(home.resolve("epic"));
+        Files.writeString(fakeEpic.resolve("abc.item"), "{\n  \"DisplayName\": \"Rocket League\",\n  \"AppName\": \"Sugar\"\n}");
+        java.util.TreeSet<String> found = new java.util.TreeSet<>();
+        Games.steamApps(found, fakeSteam);
+        Games.epic(found, fakeEpic);
+        check("he reads Steam's and Epic's own lists of games", found.toString(), "[Rocket League, Steamworks Common Redistributables, Terraria]");
+        java.util.List<String> library = java.util.List.of("Rocket League", "Terraria");
+        boolean allNice = true;
+        for (int i = 0; i < 40; i++) {
+            String kind = Games.compliment(library, new java.util.Random(i));
+            allNice &= kind != null && !kind.contains("%");
+        }
+        check("and always has something nice to say", allNice + " " + Games.compliment(java.util.List.of(), new java.util.Random()), "true null");
+        check("launchers count", Games.launcher("steam.exe") + " " + Games.launcher("EADesktop.exe") + " " + Games.launcher("notepad.exe"), "true true false");
+
         // ---- No tomfoolery ----
         Settings calm = Settings.load();
         calm.set("serious", "true");

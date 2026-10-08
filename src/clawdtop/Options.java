@@ -47,6 +47,7 @@ final class Options {
             Option.on("Reactions", "battery", "Talks about the battery", true),
             Option.on("Reactions", "batteryPanic", "Panics when the battery's about to die", true),
             Option.on("Reactions", "freakout", "Freaks out about a new color", true),
+            Option.on("Reactions", "games", "Says nice things about your games (he only looks on this PC)", true),
             Option.on("Reactions", "lateNight", "\"It's late... maybe bed soon?\"", true),
             Option.on("Reactions", "monday", "\"Ugh. Monday.\"", true),
             Option.on("Reactions", "friday", "Friday afternoon confetti", true),

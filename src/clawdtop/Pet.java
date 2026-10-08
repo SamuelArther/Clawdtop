@@ -815,6 +815,11 @@ public final class Pet {
         };
     }
 
+    /** Whether he's in the middle of something (a job, coding, a ride...) and shouldn't be interrupted. */
+    public boolean busyNow() {
+        return busy() || mood == Mood.SLEEP;
+    }
+
     private void cheer() {
         if (busy()) return;
         wants = Beep.HAPPY;

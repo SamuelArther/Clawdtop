@@ -266,6 +266,11 @@ public final class Settings {
         }
     }
 
+    /** Whether something once-only has already happened (without marking it). */
+    public boolean seen(String what) {
+        return java.util.Arrays.asList(values.getProperty("once", "").split(",")).contains(what);
+    }
+
     /** Whether something once-only (like "monday:2026-10-12") has happened; marks it as happened. */
     public boolean once(String what) {
         String done = values.getProperty("once", "");

@@ -174,6 +174,31 @@ public final class Clawdtop {
         canvas.addMouseMotionListener(mouse);
     }
 
+    private java.util.List<String> games;          // your game library (looked up once, in the background)
+    private boolean lookingAtGames;
+
+    /** Says something nice about your games, at most once a day for each reason (a launcher's open, or just because). */
+    private void admireGames(String why) {
+        if (!settings.on("games") || job != null || lookingAtGames || pet.busyNow()) return;
+        String key = "games:" + why + ":" + java.time.LocalDate.now();
+        if (settings.seen(key)) return;
+        if (games != null) {
+            String nice = Games.compliment(games, new java.util.Random());
+            settings.once(key);
+            if (nice != null) pet.say(nice);
+            return;
+        }
+        lookingAtGames = true;
+        worker.execute(() -> {
+            java.util.List<String> found = Games.find();
+            SwingUtilities.invokeLater(() -> {
+                games = found;
+                lookingAtGames = false;
+                admireGames(why);
+            });
+        });
+    }
+
     private Creation riding; // the flying carpet he's on
 
     /** Picks something for him to code (one he hasn't made before, if there are any left), and he gets to it. */
@@ -661,6 +686,7 @@ public final class Clawdtop {
             app = front.app();
             devApp = Foreground.isDevApp(app);
             if (job == null) maybeTip(front);
+            if (Games.launcher(app) && !hidden) admireGames("launcher");
             DisplayMode mode = window.getGraphicsConfiguration().getDevice().getDisplayMode();
             boolean fullScreen = job == null && !devApp && settings.on("hideFullScreen") && Foreground.fullScreen(mode.getWidth(), mode.getHeight());
             if (fullScreen != hidden) {
@@ -668,6 +694,8 @@ public final class Clawdtop {
                 window.setVisible(!hidden);
             }
         }
+        // Now and then (once a day, a while after he starts): something nice about your games
+        if (ticks % 1800 == 900 && ticks > 30 * 60 * 20 && new java.util.Random().nextInt(6) == 0) admireGames("idle");
         // Every couple of seconds: settings changed from the clawd command (clawd controlpanel)?
         if (ticks % 60 == 0 && Settings.changed() != settingsChanged && !farewell) {
             settingsChanged = Settings.changed();
