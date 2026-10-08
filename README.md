@@ -41,8 +41,19 @@ A tiny desktop buddy: Clawd sits on top of your taskbar, right above the clock, 
   page, then asks before downloading his brain (about 1 GB, once).
 - **His home:** tell him what to call your computer when you meet. Move him to a new computer and he asks what the
   new place is called, and remembers everywhere he's lived.
+- **Reminders and timers:** type "remind me in 10 minutes to check the oven" or "set a timer for 5 minutes" in his
+  question box. A **focus timer** (25 minutes, headphones on, no interruptions) is in his menu.
+- **His mini piano:** he plays songs (or makes one up), and you can play yours ("Let me play!": click the keys, or type
+  A to K). **Drop a MIDI file on him** and he runs to get it and plays the tune.
+- **Useful bits:** "How's my computer?", an "Open..." menu for handy places, water and stretch reminders (off at
+  first), a nudge when the computer's been on for a week, and a warning when a drive is nearly full.
+- **Games:** full-screen game? He sits in the bottom corner, over your ammo, and watches. He also reads your game
+  launchers' lists (Steam, Epic, EA, Ubisoft, GOG, Xbox, Riot) on this PC and says nice things about your games.
+- **Cute stuff:** rest the cursor on him and he gets shy; swipe across his face for a boop; hiccups; a nightcap when
+  he sleeps at night; a good-morning stretch.
+- **No tomfoolery:** one switch for serious people. The jokes and gags stop; the useful things stay.
 - Close a coding app and he looks sad for a moment.
-- Full-screen games and videos? He gets out of the way until you're back.
+- Full-screen videos? He gets out of the way until you're back.
 
 **Click** him to say hi. **Drag** him along the taskbar to move him. **Right-click** for his menu: beeps and tips on or off,
 start with Windows, small / normal / big, back above the clock, and "Bye, Clawd" to close him.
@@ -76,6 +87,12 @@ Set him up again later and paste your save token in when he asks: he'll (sort of
 
 It's a `clawd.cmd` in `%LOCALAPPDATA%\Clawdtop\bin`, put on your own (user) PATH; nothing system-wide changes.
 Changes from the control panel reach him within a couple of seconds.
+
+## Testing him
+
+`build.bat` runs the tests with no window (and draws every mood into `build/frames`). The screen tests in
+`test/clawdtop/Smoke*.java` run the real thing on a real desktop (they move the mouse, type and take screenshots), so
+only run them on a computer you're not using.
 
 ## How he works
 
