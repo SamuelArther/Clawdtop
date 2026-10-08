@@ -38,8 +38,19 @@ public final class Pet {
         /** Being uninstalled: "Well..... bye.....", and then he crumbles away to dust. */
         GOODBYE,
         /** A coding app was just closed: sad for a moment. */
-        SAD
+        SAD,
+        /** Petted: little hearts float up. */
+        LOVED,
+        /** A trick he learned: juggling three little balls. */
+        JUGGLE,
+        /** A trick he learned: dancing side to side. */
+        DANCE,
+        /** A trick he learned: waving at you. */
+        WAVE
     }
+
+    private boolean canJuggle, canWave;
+    private String hat = "";
 
     static final long GOODBYE_PAUSE = 2800;  // standing there sadly after saying bye
     static final long CRUMBLE_TIME = 3200;   // crumbling away
@@ -129,7 +140,7 @@ public final class Pet {
         switch (mood) {
             case RIDE, FALL, DIZZY, SHAKE, WALK, WORK, PEEK -> { } // his body or his job decides these (see follow and job)
             case GOODBYE -> { }
-            case SAD -> { if (moodFor > nextChange) set(Mood.IDLE, idleTime()); }
+            case SAD, LOVED, JUGGLE, DANCE, WAVE -> { if (moodFor > nextChange) set(Mood.IDLE, idleTime()); }
             case FREAKOUT -> {
                 if (moodFor > nextChange) {
                     set(Mood.IDLE, idleTime());
@@ -138,7 +149,12 @@ public final class Pet {
                 }
             }
             case IDLE -> {
-                if (personality == Personality.BOUNCY && moodFor > 4000 && random.nextInt(900) == 0) {
+                if (canJuggle && moodFor > 8000 && random.nextInt(2700) == 0) {
+                    set(Mood.JUGGLE, 4500); // bored: a little juggling
+                } else if (canWave && moodFor > 6000 && random.nextInt(3600) == 0) {
+                    wants = Beep.HELLO;
+                    set(Mood.WAVE, 1400); // hi!
+                } else if (personality == Personality.BOUNCY && moodFor > 4000 && random.nextInt(900) == 0) {
                     set(Mood.HAPPY, 700); // a little hop, just because
                 } else if (moodFor > nextChange) {
                     set(Mood.SIT, (personality == Personality.SLEEPY ? 15_000 : 30_000) + random.nextInt(60_000));
@@ -233,6 +249,35 @@ public final class Pet {
         if (mood != Mood.IDLE && mood != Mood.SIT && mood != Mood.HAPPY) return;
         wants = Beep.AWW;
         set(Mood.SAD, 1600);
+    }
+
+    /** Rubbed with the mouse: little hearts float up. */
+    public void petted() {
+        if (mood == Mood.SLEEP || mood == Mood.LIE) return;
+        if (mood != Mood.LOVED) wants = Beep.HAPPY;
+        set(Mood.LOVED, 1800);
+    }
+
+    /** Dances (a trick from the shop). */
+    public void dance() {
+        wants = Beep.WHEE;
+        set(Mood.DANCE, 4000);
+    }
+
+    /** What he's learned and what he's wearing, from his shop items. */
+    public void setItems(boolean juggling, boolean waving, String hat) {
+        canJuggle = juggling;
+        canWave = waving;
+        this.hat = hat == null ? "" : hat;
+    }
+
+    /** The hat he's wearing ("" for none, or a seasonal one if it's that time of year and he has none on). */
+    public String hat() {
+        if (!hat.isEmpty()) return hat;
+        java.time.LocalDate d = java.time.LocalDate.now();
+        if (d.getMonthValue() == 12 && d.getDayOfMonth() >= 20 && d.getDayOfMonth() <= 26) return "santa";
+        if (d.getMonthValue() == 10 && d.getDayOfMonth() == 31) return "pumpkin";
+        return "";
     }
 
     /** You clicked him. Asleep (or dozing), a tap wakes him up with a little startled hop. */
@@ -378,6 +423,7 @@ public final class Pet {
     public float lift() {
         if (mood == Mood.HAPPY) return (float) Math.abs(Math.sin(time / 130.0)) * 3;
         if (mood == Mood.FREAKOUT) return (float) Math.abs(Math.sin(time / 60.0)) * 1.5f;
+        if (mood == Mood.DANCE) return (float) Math.abs(Math.sin(time / 180.0)) * 2;
         if (mood == Mood.WALK) return (time / 150) % 2 == 0 ? 0 : 0.5f; // a little bob with each step
         if (mood == Mood.RIDE || mood == Mood.FALL || mood == Mood.DIZZY || mood == Mood.WORK || mood == Mood.PEEK) return 0;
         if (mood == Mood.SLEEP || mood == Mood.LIE) return 0;

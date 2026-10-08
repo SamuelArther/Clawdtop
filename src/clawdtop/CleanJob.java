@@ -289,6 +289,15 @@ final class CleanJob {
         return String.join(", ", parts);
     }
 
+    private boolean doneCounted;
+
+    /** True once, the first time it's asked after the job finishes (to count the job's Clawd Points once). */
+    boolean stepTimeIsNew() {
+        if (step != Step.DONE || doneCounted) return false;
+        doneCounted = true;
+        return true;
+    }
+
     private void go(Step next) {
         step = next;
         stepFor = 0;

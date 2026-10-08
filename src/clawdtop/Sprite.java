@@ -34,6 +34,14 @@ public final class Sprite {
         Pet.Mood mood = pet.mood();
         body = pet.color();
         hand = new Color(body.getRed() * 83 / 100, body.getGreen() * 77 / 100, body.getBlue() * 74 / 100); // a shade darker, so his hands show in front of him
+        if (mood == Pet.Mood.DANCE) {
+            // dancing: swaying side to side
+            Graphics2D sway = (Graphics2D) g.create();
+            sway.translate(Math.sin(pet.time() / 180.0) * unit, 0);
+            drawBody(sway, pet, unit, mood);
+            sway.dispose();
+            return;
+        }
         if (mood == Pet.Mood.FREAKOUT) {
             // panicking: shaking all over
             Graphics2D panic = (Graphics2D) g.create();
@@ -86,6 +94,16 @@ public final class Sprite {
         if (mood == Pet.Mood.WORK) {
             // His side nubs are his hands, and they float free (no arms, like a Mii): while he types they're over at
             // the laptop, drawn with it below
+        } else if (mood == Pet.Mood.DANCE || mood == Pet.Mood.JUGGLE) {
+            // hands going up and down in turns (dancing, or tossing balls)
+            boolean up = (pet.time() / (mood == Pet.Mood.DANCE ? 180 : 140)) % 2 == 0;
+            box(g, unit, LEFT - 2, top + (up ? 0 : 3), 1, 2, body);
+            box(g, unit, LEFT + 14, top + (up ? 3 : 0), 1, 2, body);
+        } else if (mood == Pet.Mood.WAVE) {
+            // one hand up, waving
+            boolean tilt = (pet.time() / 160) % 2 == 0;
+            box(g, unit, LEFT - 2, top + 4, 2, 2, body);
+            box(g, unit, LEFT + 14 + (tilt ? 0 : 0.6), top - 1, 1, 2, body);
         } else if (mood == Pet.Mood.FREAKOUT) {
             // hands flailing up and down
             boolean flap = (pet.time() / 80) % 2 == 0;
@@ -177,6 +195,25 @@ public final class Sprite {
             }
         }
 
+        drawHat(g, unit, pet.hat(), top);
+
+        // Petted: little hearts float up
+        if (mood == Pet.Mood.LOVED) {
+            for (int i = 0; i < 3; i++) {
+                double t = (pet.moodTime() / 900.0 + i / 3.0) % 1;
+                heart(g, unit, LEFT + 3 + i * 4 + Math.sin(t * 6 + i) * 0.5, top - 1 - t * 4, (int) (255 * (1 - t)));
+            }
+        }
+
+        // Juggling: three balls going round above his head
+        if (mood == Pet.Mood.JUGGLE) {
+            Color[] balls = {new Color(255, 214, 102), new Color(120, 220, 255), new Color(255, 140, 170)};
+            for (int i = 0; i < 3; i++) {
+                double a = pet.moodTime() / 260.0 + i * Math.PI * 2 / 3;
+                box(g, unit, LEFT + 6 + Math.cos(a) * 5, top - 2.5 + Math.sin(a) * 2.2, 1, 1, balls[i]);
+            }
+        }
+
         // Asleep: z's float up from beside his head
         if (mood == Pet.Mood.SLEEP) {
             for (int i = 0; i < 3; i++) {
@@ -250,6 +287,55 @@ public final class Sprite {
                 g.fillRect((int) Math.round(x * speck + drift), (int) Math.round(y * speck - rise), Math.max(1, size), Math.max(1, size));
             }
         }
+    }
+
+    /** A hat from the shop (or the season) on his head, whose top is at top. */
+    static void drawHat(Graphics2D g, int unit, String hat, double top) {
+        double mid = LEFT + 6.5;
+        switch (hat) {
+            case "party-hat" -> {
+                Color pink = new Color(255, 120, 170), gold = new Color(255, 214, 102);
+                box(g, unit, mid - 2.5, top - 1, 5, 1, pink);
+                box(g, unit, mid - 1.5, top - 2, 3, 1, gold);
+                box(g, unit, mid - 0.5, top - 3, 1, 1, pink);
+                box(g, unit, mid - 0.5, top - 4, 1, 1, Color.WHITE);
+            }
+            case "top-hat" -> {
+                Color black = new Color(48, 48, 58), shine = new Color(90, 90, 108);
+                box(g, unit, mid - 3.5, top - 0.75, 7, 0.75, black);
+                box(g, unit, mid - 2, top - 4, 4, 3.25, black);
+                box(g, unit, mid - 2, top - 4, 0.5, 3.25, shine); // a glint down one side
+                box(g, unit, mid - 2, top - 1.5, 4, 0.6, new Color(200, 50, 60));
+            }
+            case "crown" -> {
+                Color gold = new Color(255, 200, 60);
+                box(g, unit, mid - 2.5, top - 1.5, 5, 1.5, gold);
+                for (int i = 0; i < 3; i++) box(g, unit, mid - 2.5 + i * 2, top - 2.5, 1, 1, gold);
+                box(g, unit, mid - 0.5, top - 1.1, 1, 0.7, new Color(220, 40, 60));
+            }
+            case "santa" -> {
+                Color red = new Color(210, 40, 50);
+                box(g, unit, mid - 3, top - 1, 6, 1, Color.WHITE);
+                box(g, unit, mid - 2, top - 2, 4, 1, red);
+                box(g, unit, mid - 0.5, top - 3, 2.5, 1, red);
+                box(g, unit, mid + 2, top - 3.5, 1, 1, Color.WHITE);
+            }
+            case "pumpkin" -> {
+                box(g, unit, mid - 2.5, top - 2.5, 5, 2.5, new Color(240, 140, 30));
+                box(g, unit, mid - 0.5, top - 3.5, 1, 1, new Color(70, 140, 60));
+            }
+            default -> { }
+        }
+    }
+
+    /** A little pink heart, 3 units wide, fading out with alpha. */
+    private static void heart(Graphics2D g, int unit, double x, double y, int alpha) {
+        if (alpha <= 0) return;
+        Color pink = new Color(255, 110, 150, Math.max(0, Math.min(255, alpha)));
+        box(g, unit, x, y, 1, 1, pink);
+        box(g, unit, x + 2, y, 1, 1, pink);
+        box(g, unit, x, y + 1, 3, 1, pink);
+        box(g, unit, x + 1, y + 2, 1, 1, pink);
     }
 
     /** A tiny z, 3 x 3 units, fading as it rises. */

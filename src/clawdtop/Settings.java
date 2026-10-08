@@ -74,6 +74,17 @@ public final class Settings {
         save();
     }
 
+    /** How often he tells jokes: "Off", "Rare", "Sometimes" or "Lots". */
+    public String jokes() {
+        String j = values.getProperty("jokes", "Sometimes");
+        return java.util.List.of("Off", "Rare", "Sometimes", "Lots").contains(j) ? j : "Sometimes";
+    }
+
+    public void setJokes(String often) {
+        values.setProperty("jokes", often);
+        save();
+    }
+
     /** Your name, as you told him when you first met (or "" before then). */
     public String name() {
         return values.getProperty("name", "").strip();
@@ -129,6 +140,52 @@ public final class Settings {
 
     public void setPoints(int points) {
         values.setProperty("points", String.valueOf(Math.max(0, points)));
+        save();
+    }
+
+    /** Adds Clawd Points (for something you did together). */
+    public void earn(int points) {
+        setPoints(points() + points);
+    }
+
+    /** Whether he has this shop item. */
+    public boolean owns(String id) {
+        return java.util.Arrays.asList(values.getProperty("owned", "").split(",")).contains(id);
+    }
+
+    public void own(String id) {
+        if (owns(id)) return;
+        String owned = values.getProperty("owned", "");
+        values.setProperty("owned", owned.isEmpty() ? id : owned + "," + id);
+        save();
+    }
+
+    /** What he's wearing or sitting by: "hat" or "hut" (an item id, or "" for none). */
+    public String wearing(String slot) {
+        String id = values.getProperty(slot, "");
+        return owns(id) ? id : "";
+    }
+
+    public void setWearing(String slot, String id) {
+        values.setProperty(slot, id);
+        save();
+    }
+
+    /** Pets today (points for petting stop after Shop.PETS_A_DAY a day). */
+    public int petsToday() {
+        String today = java.time.LocalDate.now().toString();
+        if (!today.equals(values.getProperty("petDay"))) return 0;
+        try {
+            return Integer.parseInt(values.getProperty("pets", "0"));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    public void countPet() {
+        int pets = petsToday() + 1;
+        values.setProperty("petDay", java.time.LocalDate.now().toString());
+        values.setProperty("pets", String.valueOf(pets));
         save();
     }
 

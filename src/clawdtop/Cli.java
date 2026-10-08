@@ -150,6 +150,7 @@ public final class Cli {
             out.println("   6  Mood right now      (happy, sleepy, asleep, awake)");
             out.println("   7  Beeps               " + onOff(s.sounds()));
             out.println("   8  Tips                " + onOff(s.tips()));
+            out.println("  11  Jokes               " + s.jokes());
             out.println("   9  Start with Windows  " + onOff(Startup.on()));
             out.println("  10  " + (on ? "Stop him" : "Start him"));
             out.println("   0  Done");
@@ -209,6 +210,11 @@ public final class Cli {
                 case "7" -> s.setSounds(!s.sounds());
                 case "8" -> s.setTips(!s.tips());
                 case "9" -> Startup.set(!Startup.on());
+                case "11" -> {
+                    String[] often = {"Off", "Rare", "Sometimes", "Lots"};
+                    int i = choose(often);
+                    if (i >= 0) s.setJokes(often[i]);
+                }
                 case "10" -> {
                     if (on) stop(true);
                     else start();

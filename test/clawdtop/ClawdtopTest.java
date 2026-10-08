@@ -165,6 +165,61 @@ public class ClawdtopTest {
         for (int i = 0; i < 200 && !leaving.gone(); i++) leaving.tick(33, 0, 0, false, false);
         check("then he crumbles away and is gone", (half > 0 && half < 1) + " " + leaving.gone(), "true true");
 
+        // ---- Clawd Points and the shop ----
+        Files.deleteIfExists(home.resolve("settings.properties"));
+        Settings wallet = Settings.load();
+        check("no points to start with", wallet.points(), 0);
+        check("can't buy a crown with no points", Shop.buy(wallet, Shop.find("crown")), false);
+        wallet.earn(50);
+        check("buying a party hat costs 15 and he puts it on", Shop.buy(wallet, Shop.find("party-hat")) + " " + wallet.points() + " "
+                + wallet.owns("party-hat") + " " + wallet.wearing("hat"), "true 35 true party-hat");
+        check("can't buy the same thing twice", Shop.buy(wallet, Shop.find("party-hat")), false);
+        Shop.buy(wallet, Shop.find("juggling"));
+        check("tricks are learned", wallet.owns("juggling") + " " + wallet.points(), "true 5");
+        for (int i = 0; i < 35; i++) {
+            if (wallet.petsToday() < Shop.PETS_A_DAY) {
+                wallet.countPet();
+                wallet.earn(Shop.PET);
+            }
+        }
+        check("petting points stop at 30 a day", wallet.points(), 35);
+        check("the save token keeps his points and things", SaveToken.read(wallet.saveToken()).get("owned"), "party-hat,juggling");
+        Pet dresser = new Pet(13);
+        dresser.takeBeep();
+        dresser.setItems(true, true, "crown");
+        Path shopFrames = Path.of("build", "frames");
+        Files.createDirectories(shopFrames);
+        for (String h : new String[] {"party-hat", "top-hat", "crown"}) {
+            dresser.setItems(true, true, h);
+            for (int i = 0; i < 20; i++) dresser.tick(33, 0, 0, false, false);
+            save(dresser, shopFrames.resolve("hat " + h + ".png"));
+        }
+        dresser.petted();
+        for (int i = 0; i < 10; i++) dresser.tick(33, 0, 0, false, false);
+        save(dresser, shopFrames.resolve("petted.png"));
+        dresser.dance();
+        for (int i = 0; i < 8; i++) dresser.tick(33, 0, 0, false, false);
+        save(dresser, shopFrames.resolve("dancing.png"));
+        check("dancing is a mood", dresser.mood(), Pet.Mood.DANCE);
+        for (String h : new String[] {"cardboard-hut", "wooden-hut", "castle"}) {
+            BufferedImage hutPicture = new BufferedImage(Hut.WIDTH * 8, Hut.HEIGHT * 8, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D hg = hutPicture.createGraphics();
+            hg.setColor(new java.awt.Color(32, 32, 36));
+            hg.fillRect(0, 0, hutPicture.getWidth(), hutPicture.getHeight());
+            Hut.draw(hg, 8, h);
+            hg.dispose();
+            ImageIO.write(hutPicture, "png", shopFrames.resolve("hut " + h + ".png").toFile());
+        }
+
+        // ---- Jokes ----
+        Jokes jk = new Jokes(1);
+        java.util.Set<String> heard = new java.util.HashSet<>();
+        for (int i = 0; i < Jokes.ALL.size(); i++) heard.add(jk.next());
+        check("he tells every joke before any repeats", heard.size(), Jokes.ALL.size());
+        check("jokes fit in his bubble (two short lines at most)", Jokes.ALL.stream().allMatch(j -> j.split("\n").length <= 2
+                && java.util.Arrays.stream(j.split("\n")).allMatch(l -> l.length() <= 55)), true);
+        check("how often", Jokes.gap("Off") == Long.MAX_VALUE && Jokes.gap("Lots") < Jokes.gap("Sometimes") && Jokes.gap("Sometimes") < Jokes.gap("Rare"), true);
+
         // ---- His voice ----
         for (Pet.Beep beep : Pet.Beep.values()) {
             byte[] sound = Beeps.make(beep);

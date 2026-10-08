@@ -49,6 +49,11 @@ public final class Clawdtop {
     private boolean devApp;
     private boolean hidden;
     private java.util.Set<String> devPrograms; // coding apps open last time he looked, to notice one closing
+    private Body.State lastBody = Body.State.HOME;
+    private long activeFor;        // ms the mouse has been moving lately, towards a Clawd Point every 5 minutes
+    private int rubTurns;          // back-and-forth turns of the mouse over him (petting)
+    private int rubDirection;
+    private long rubStarted, lastPet;
     private int ticks;
     private final Body body = new Body();
     private double homeX, groundY; // his perch: the point between his feet, on the taskbar's top edge
@@ -110,6 +115,7 @@ public final class Clawdtop {
         window.setLocation(x, bottom - h + settings.unit()); // his feet just touch the taskbar
         homeX = x + Sprite.feetX() * settings.unit();
         groundY = bottom;
+        if (hut != null) useItems();
     }
 
     private void listen() {
@@ -167,7 +173,118 @@ public final class Clawdtop {
             stop.addActionListener(e -> job.stop(body, pet));
             menu.add(stop);
         }
+        JMenuItem joke = new JMenuItem("Tell me a joke");
+        joke.addActionListener(e -> tellJoke());
+        menu.add(joke);
+        if (settings.owns("dancing")) {
+            JMenuItem dance = new JMenuItem("Dance!");
+            dance.addActionListener(e -> pet.dance());
+            menu.add(dance);
+        }
+        menu.addSeparator();
+        menu.add(shop());
         return menu;
+    }
+
+    /** The shop: what Clawd Points buy (and putting on what he already has). */
+    private javax.swing.JMenu shop() {
+        javax.swing.JMenu shop = new javax.swing.JMenu("Shop (" + settings.points() + " Clawd Points)");
+        Shop.Kind last = null;
+        for (Shop.Item item : Shop.ITEMS) {
+            if (last != null && item.kind() != last) shop.addSeparator();
+            last = item.kind();
+            boolean owned = settings.owns(item.id());
+            String slot = item.kind() == Shop.Kind.HAT ? "hat" : item.kind() == Shop.Kind.HUT ? "hut" : null;
+            JMenuItem entry;
+            if (owned && slot != null) {
+                boolean on = settings.wearing(slot).equals(item.id());
+                entry = new JCheckBoxMenuItem(item.name(), on);
+                entry.addActionListener(e -> {
+                    settings.setWearing(slot, on ? "" : item.id());
+                    useItems();
+                });
+            } else if (owned) {
+                entry = new JMenuItem(item.name() + " (learned!)");
+                entry.setEnabled(false);
+            } else {
+                entry = new JMenuItem(item.name() + " - " + item.price() + " points: " + item.about());
+                entry.setEnabled(settings.points() >= item.price());
+                entry.addActionListener(e -> {
+                    if (Shop.buy(settings, item)) {
+                        useItems();
+                        pet.poke();
+                        bubble.show("Yay, " + item.name().toLowerCase(java.util.Locale.ROOT) + "! Thank you!", window.getBounds(), screenBounds());
+                    }
+                });
+            }
+            shop.add(entry);
+        }
+        return shop;
+    }
+
+    private final Hut hut = new Hut();
+
+    /** Clawd Points for time together, rides, jobs done, and petting (rubbing the mouse back and forth over him). */
+    private void earnPoints(Point mouse, boolean moved) {
+        if (moved) activeFor += FRAME_MS;
+        if (activeFor >= 5 * 60_000) {
+            activeFor = 0;
+            settings.earn(Shop.TIME);
+        }
+        Body.State state = body.state();
+        if (state == Body.State.RIDE && lastBody != Body.State.RIDE) settings.earn(Shop.RIDE);
+        lastBody = state;
+        if (job != null && job.step() == CleanJob.Step.DONE && job.stepTimeIsNew()) settings.earn(Shop.JOB);
+        // Petting: the mouse rubbing back and forth over him
+        long now = System.currentTimeMillis();
+        if (window.getBounds().contains(mouse) && moved && state == Body.State.HOME) {
+            int dir = Integer.signum(mouse.x - lastRubX);
+            if (dir != 0 && dir != rubDirection) {
+                if (rubTurns == 0) rubStarted = now;
+                rubTurns++;
+                rubDirection = dir;
+            }
+            if (rubTurns >= 4 && now - rubStarted < 2000 && now - lastPet > 2500) {
+                lastPet = now;
+                rubTurns = 0;
+                pet.petted();
+                if (settings.petsToday() < Shop.PETS_A_DAY) {
+                    settings.countPet();
+                    settings.earn(Shop.PET);
+                }
+            }
+        }
+        if (now - rubStarted > 2000) rubTurns = 0;
+        lastRubX = mouse.x;
+    }
+
+    private int lastRubX;
+    private final Jokes jokes = new Jokes(System.nanoTime());
+    private long lastJokeAt = System.currentTimeMillis();
+    private long jokeJitter = (long) (Math.random() * 120_000);
+
+    /** Now and then (as often as you set), when he's not busy, he tells a joke. */
+    private void maybeJoke() {
+        long now = System.currentTimeMillis();
+        if (now - lastJokeAt < Jokes.gap(settings.jokes()) + jokeJitter) return;
+        Pet.Mood m = pet.mood();
+        if (job != null || bubble.showing() || hidden || (m != Pet.Mood.IDLE && m != Pet.Mood.SIT)) return;
+        tellJoke();
+    }
+
+    private void tellJoke() {
+        lastJokeAt = System.currentTimeMillis();
+        jokeJitter = (long) (Math.random() * 120_000);
+        bubble.show(jokes.next(), window.getBounds(), screenBounds());
+        pet.speak();
+    }
+
+    /** Puts on his hat and hut, and lets him use the tricks he's learned. */
+    private void useItems() {
+        pet.setItems(settings.owns("juggling"), settings.owns("waving"), settings.wearing("hat"));
+        int unit = settings.unit();
+        hut.show(settings.wearing("hut"), unit, (int) Math.round(homeX - Sprite.feetX() * unit + 2 * unit), (int) Math.round(groundY),
+                !boxed && !hidden && !farewell);
     }
 
     private void startCleaning() {
@@ -301,6 +418,7 @@ public final class Clawdtop {
             pet.changeColor(settings.awtColor()); // a few seconds later, suddenly: he'll freak out
             if (!oldSize.equals(settings.size())) resize();
             else if (body.state() == Body.State.HOME) place();
+            useItems();
         }
         // Every few seconds: did a coding app just close? He's sad for a moment.
         if (ticks % 90 == 45 && !farewell) {
@@ -361,6 +479,8 @@ public final class Clawdtop {
                         (int) Math.round(body.y() - window.getHeight() + unit));
             }
         }
+        earnPoints(mouse, moved);
+        if (ticks % 30 == 0) maybeJoke();
         double eyesX = window.getX() + Sprite.eyesX() * unit;
         double eyesY = window.getY() + Sprite.eyesY() * unit;
         pet.tick(FRAME_MS, mouse.x - eyesX, mouse.y - eyesY, moved, devApp);
@@ -388,6 +508,7 @@ public final class Clawdtop {
         String tip = tips.tipFor(front);
         if (tip == null) return;
         lastTipAt = now;
+        settings.earn(Shop.TIP);
         bubble.show(tip, window.getBounds(), window.getGraphicsConfiguration().getBounds());
         pet.speak();
     }
@@ -415,6 +536,7 @@ public final class Clawdtop {
         pet.setColor(settings.awtColor());
         pet.setPersonality(settings.personality());
         window.setVisible(true);
+        useItems();
         welcomeStarted = !settings.met();
         new Timer(FRAME_MS, e -> tick()).start();
         if (!settings.met()) {
