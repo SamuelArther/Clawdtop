@@ -115,6 +115,19 @@ final class Bubble {
         if (window.isVisible() && System.currentTimeMillis() > hideAt) hide();
     }
 
+    /** Presses one of the question's buttons (for the screen test, as if you'd clicked it). */
+    void press(int i) {
+        if (!asking() || i < 0 || i >= buttons.length) return;
+        IntConsumer then = answer;
+        hide();
+        if (then != null) then.accept(i);
+    }
+
+    /** The question being asked right now, or null. */
+    String question() {
+        return asking() ? String.join("\n", lines) : null;
+    }
+
     void hide() {
         window.setVisible(false);
         answer = null;

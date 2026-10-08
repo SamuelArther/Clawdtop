@@ -1173,6 +1173,7 @@ public final class Clawdtop {
             case "close ask" -> askBox.hide();
             case "tip" -> pet.say("Win+Shift+S takes a screenshot of part of the screen.");
             case "math" -> answer("what's 12 times 7?");
+            case "clean" -> startCleaning();
             case "checkup" -> pet.say(Useful.checkup());
             case "pet" -> pet.petted();
             case "stop ducks" -> pet.stopDucks();
@@ -1195,6 +1196,10 @@ public final class Clawdtop {
                     smokeFind(welcome.panel(), javax.swing.JTextField.class).get(0).setText(action.substring(13));
                     return;
                 }
+                if (action.startsWith("answer ")) {
+                    bubble.press(Integer.parseInt(action.substring(7)));
+                    return;
+                }
                 if (action.startsWith("make ")) pet.create(Creation.find(action.substring(5)));
                 else if (action.startsWith("mood ")) pet.ask(action.substring(5));
                 else if (action.startsWith("say ")) pet.say(action.substring(4));
@@ -1214,6 +1219,11 @@ public final class Clawdtop {
     /** For the screen test: where his home spot is on the screen {x, ground y}, and how big a unit is. */
     double[] smokeHome() {
         return new double[] {homeX, groundY, settings.unit()};
+    }
+
+    /** For the screen test: the question in his bubble, or null. */
+    String smokeQuestion() {
+        return bubble.question();
     }
 
     /** For the screen test: whether he's back to just hanging out at home. */
