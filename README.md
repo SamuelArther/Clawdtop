@@ -26,6 +26,15 @@ A tiny desktop buddy: Clawd sits on top of your taskbar, right above the clock, 
 - **Personality:** Chill, Bouncy, Helpful or Sleepy, picked when you meet him (or in the control panel).
 - **Colors:** change his color in the control panel. He stays orange for a few seconds, then suddenly isn't, and
   freaks out about it (then decides he kinda likes it).
+- **He codes things.** Now and then he gets his laptop out (the same moves as Clawd's laptop animation in Claude Code)
+  and writes a little program of his own: a flying rainbow carpet he rides round the screen, a disco ball, a rain
+  cloud he made by accident (right over himself), a rubber duck to help him debug, Mini Clawd, hello world in a real
+  Windows pop-up, and well over 250 more. He rarely makes the same thing twice. Ask what he's doing and it's
+  "Nothing....". The files really appear in `%APPDATA%\Clawdtop\creations` as he types them, and when one goes
+  wrong he looks sorry and deletes it. Click his carpet mid-flight and see what happens. Or click him and pick
+  **Make something!**
+- **His home:** tell him what to call your computer when you meet. Move him to a new computer and he asks what the
+  new place is called, and remembers everywhere he's lived.
 - Close a coding app and he looks sad for a moment.
 - Full-screen games and videos? He gets out of the way until you're back.
 
@@ -53,6 +62,8 @@ Once he's run, any new terminal knows the `clawd` command:
 | `clawd restart` | stop, then start |
 | `clawd status` | whether he's running, and his settings |
 | `clawd controlpanel` | a little menu: his name, spot, size, personality, color, mood right now, beeps, tips, starting with Windows |
+| `clawd creations` | the little programs he's coded, and where they are |
+| `clawd move` | moves him to another computer on your wifi |
 | `clawd uninstall` | gives you a **save token**, then he says goodbye and crumbles away; the command and his settings go too |
 
 Set him up again later and paste your save token in when he asks: he'll (sort of) remember you.

@@ -28,6 +28,7 @@ final class Options {
             // What he does by himself
             Option.on("Antics", "sneezes", "Sneezes", true),
             Option.on("Antics", "flies", "Flies buzzing round him", true),
+            Option.on("Antics", "creates", "Codes funny little things on his laptop", true),
             Option.on("Antics", "spins", "Spinning when the cursor zooms past", true),
             Option.on("Antics", "naps", "Sitting, lying down and napping", true),
             Option.on("Antics", "eyes", "Eyes follow your cursor", true),

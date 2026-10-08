@@ -8,7 +8,7 @@ import java.util.ArrayDeque;
  * screen pixels for the point between his feet. No windows here, so it can be tested on its own.
  */
 public final class Body {
-    public enum State { HOME, HOP_ON, RIDE, FALL, DIZZY, SHAKE, WALK, HOP_TO, PERCH, AWAY, OUT }
+    public enum State { HOME, HOP_ON, RIDE, FALL, DIZZY, SHAKE, WALK, HOP_TO, PERCH, AWAY, OUT, FLY }
 
     static final double GRAVITY = 2600;      // px/s², a quick, cartoony fall
     static final double WALK_SPEED = 140;    // px/s
@@ -19,6 +19,7 @@ public final class Body {
     static final long SHAKE_TIME = 800;      // shaking it off once he's up
     static final int SHAKE_TURNS = 4;        // direction changes within half a second that count as shaking
     static final double SHAKE_SPEED = 1400;  // and how fast (px/s on average) the cursor has to be going
+    static final long FLY_TIME = 12_000;     // a ride on his flying carpet
 
     private boolean rides = true, shakeOff = true;
     private long hoverToHop = HOVER_TO_HOP;
@@ -148,6 +149,23 @@ public final class Body {
             case OUT -> {
                 if (stateFor > awayFor) set(State.WALK); // feeling better: back home
             }
+            case FLY -> {
+                // Up off the taskbar, swooping round the screen in big loops, and back home
+                double u = stateFor / (double) FLY_TIME;
+                if (u >= 1) {
+                    x = homeX;
+                    y = groundY;
+                    set(State.HOME);
+                    break;
+                }
+                double in = Math.min(1, u / 0.12), out = Math.min(1, (1 - u) / 0.12);
+                double w = in * in * (3 - 2 * in) * out * out * (3 - 2 * out);
+                double loopX = (left + right) / 2 + (right - left) * 0.36 * Math.sin(Math.PI * 2 * 1.5 * u);
+                double loopY = groundY - 280 + 110 * Math.sin(Math.PI * 2 * 3 * u);
+                x = homeX + (loopX - homeX) * w;
+                y = groundY + (loopY - groundY) * w;
+                angle = 0;
+            }
             case SHAKE -> {
                 y = groundY;
                 angle = 0;
@@ -176,6 +194,20 @@ public final class Body {
         headFirst = true;
         vx = sideways;
         vy = -1700;
+        set(State.FALL);
+    }
+
+    /** Off on a ride on his flying carpet (from home). */
+    public void flyCarpet() {
+        if (state == State.HOME) set(State.FLY);
+    }
+
+    /** His carpet's gone out from under him: he falls, head first. */
+    public void knockOff() {
+        if (state != State.FLY) return;
+        headFirst = true;
+        vx = 0;
+        vy = -150;
         set(State.FALL);
     }
 

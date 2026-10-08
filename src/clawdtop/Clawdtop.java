@@ -124,6 +124,11 @@ public final class Clawdtop {
             @Override
             public void mousePressed(MouseEvent e) {
                 if (!bubble.asking()) bubble.hide();
+                if (SwingUtilities.isLeftMouseButton(e) && body.state() == Body.State.FLY) {
+                    body.knockOff(); // poof, no more carpet
+                    pet.carpetGone(riding);
+                    return;
+                }
                 if (SwingUtilities.isRightMouseButton(e)) rightHeldSince = System.currentTimeMillis();
                 if (SwingUtilities.isLeftMouseButton(e) && body.state() == Body.State.HOME) {
                     dragFrom = e.getXOnScreen();
@@ -155,6 +160,8 @@ public final class Clawdtop {
                     settings.setX(window.getX());
                 } else if (pet.sleepy()) {
                     pet.poke(); // just wakes him up
+                } else if (pet.secretlyCoding()) {
+                    pet.say("Nothing...."); // what are you doing? nothing.
                 } else if (!clickedTooMuch()) {
                     pet.poke();
                     jobs().show(canvas, e.getX(), e.getY());
@@ -163,6 +170,56 @@ public final class Clawdtop {
         };
         canvas.addMouseListener(mouse);
         canvas.addMouseMotionListener(mouse);
+    }
+
+    private Creation riding; // the flying carpet he's on
+
+    /** Picks something for him to code (one he hasn't made before, if there are any left), and he gets to it. */
+    private void makeSomething() {
+        Creation c = Creation.pick(new java.util.Random(), settings.made(), settings.lastMade());
+        if (pet.create(c)) settings.addMade(c.id());
+    }
+
+    /** Things he codes: the file fills in as he types; then what he made does its thing (or gets deleted). */
+    private void creations() {
+        if (pet.takeWantsToCreate() && job == null && body.state() == Body.State.HOME) makeSomething();
+        Creation typing = pet.coding();
+        if (typing != null && ticks % 20 == 0) writeCreation(typing, pet.codingProgress());
+        Creation made = pet.takeMade();
+        if (made != null) {
+            writeCreation(made, 1);
+            switch (made.effect()) {
+                case CARPET -> {
+                    riding = made;
+                    body.flyCarpet();
+                }
+                case ROCKET -> body.launch(0);
+                case POPUP -> Useful.popup(made.file(), made.done());
+                default -> { }
+            }
+        }
+        Creation gone = pet.takeDeleted();
+        if (gone != null) worker.execute(() -> {
+            try {
+                java.nio.file.Files.deleteIfExists(Settings.creations().resolve(gone.savedAs()));
+            } catch (java.io.IOException e) {
+                // still there; no harm
+            }
+        });
+    }
+
+    /** Writes as much of a creation's file as he's typed so far (progress 0 to 1). */
+    private void writeCreation(Creation c, double progress) {
+        String code = c.code();
+        String typed = code.substring(0, (int) Math.round(code.length() * Math.max(0, Math.min(1, progress))));
+        worker.execute(() -> {
+            try {
+                java.nio.file.Files.createDirectories(Settings.creations());
+                java.nio.file.Files.writeString(Settings.creations().resolve(c.savedAs()), typed);
+            } catch (java.io.IOException e) {
+                // couldn't save it; he still had fun
+            }
+        });
     }
 
     /** What you can ask him to do (left-click him). */
@@ -176,6 +233,11 @@ public final class Clawdtop {
             JMenuItem stop = new JMenuItem("Stop cleaning");
             stop.addActionListener(e -> job.stop(body, pet));
             menu.add(stop);
+        }
+        if (job == null && body.state() == Body.State.HOME) {
+            JMenuItem make = new JMenuItem("Make something!");
+            make.addActionListener(e -> makeSomething());
+            menu.add(make);
         }
         JMenuItem joke = new JMenuItem("Tell me a joke");
         joke.addActionListener(e -> tellJoke());
@@ -621,6 +683,7 @@ public final class Clawdtop {
             }
             body.tick(FRAME_MS, mouse.x, mouse.y, homeX, groundY, 12 * unit, screen.x, screen.x + screen.width);
             pet.follow(body.state());
+            creations();
             if (body.state() != Body.State.HOME || window.getX() != (int) Math.round(homeX - Sprite.feetX() * unit)) {
                 window.setLocation((int) Math.round(body.x() - Sprite.feetX() * unit),
                         (int) Math.round(body.y() - window.getHeight() + unit));

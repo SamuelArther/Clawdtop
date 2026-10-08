@@ -80,6 +80,34 @@ final class Useful {
         return (fine ? "Your computer's doing great!" : "Here's how your computer's doing:") + "\n" + String.join("\n", lines);
     }
 
+    /** A plain Windows message box (on its own thread, so nothing waits for it to be closed). */
+    static void popup(String title, String text) {
+        if (java.awt.GraphicsEnvironment.isHeadless()) return;
+        Thread t = new Thread(() -> {
+            try {
+                MethodHandle box = Linker.nativeLinker().downcallHandle(
+                        SymbolLookup.libraryLookup("user32", Arena.global()).find("MessageBoxW").orElseThrow(),
+                        FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
+                try (Arena arena = Arena.ofConfined()) {
+                    int flags = 0x40 | 0x10000 | 0x40000; // information icon, in front, on top
+                    int ignored = (int) box.invokeExact(java.lang.foreign.MemorySegment.NULL, wide(arena, text), wide(arena, title), flags);
+                }
+            } catch (Throwable notWindows) {
+                javax.swing.SwingUtilities.invokeLater(() -> javax.swing.JOptionPane.showMessageDialog(null, text, title,
+                        javax.swing.JOptionPane.INFORMATION_MESSAGE));
+            }
+        }, "clawd-popup");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    private static java.lang.foreign.MemorySegment wide(Arena arena, String s) {
+        byte[] bytes = (s + "\0").getBytes(java.nio.charset.StandardCharsets.UTF_16LE);
+        java.lang.foreign.MemorySegment m = arena.allocate(bytes.length);
+        m.copyFrom(java.lang.foreign.MemorySegment.ofArray(bytes));
+        return m;
+    }
+
     /** Things he can open for you, by name: folders, and handy Windows tools. */
     static final String[][] OPENABLE = {
             {"Downloads", "folder:Downloads"}, {"Desktop", "folder:Desktop"}, {"Documents", "folder:Documents"},

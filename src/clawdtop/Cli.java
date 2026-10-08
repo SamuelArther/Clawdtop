@@ -46,6 +46,7 @@ public final class Cli {
             case "controlpanel", "control", "panel", "settings" -> controlPanel();
             case "uninstall" -> uninstall();
             case "move" -> move();
+            case "creations", "made" -> creations();
             case "help", "-h", "--help", "/?" -> help();
             default -> {
                 out.println("I don't know \"" + command + "\". Here's what I can do:");
@@ -71,6 +72,7 @@ public final class Cli {
         out.println("  clawd status         is he running?");
         out.println("  clawd controlpanel   change his settings");
         out.println("  clawd move           move Clawd to another computer on your wifi");
+        out.println("  clawd creations      the little programs he's coded");
         out.println("  clawd uninstall      remove Clawd from this computer");
     }
 
@@ -321,6 +323,29 @@ public final class Cli {
     }
 
     /** Moves him to another computer: it's showing a code in its setup; this sends his save token across. */
+    /** The little programs he's coded, and where they are. */
+    private void creations() throws IOException {
+        Settings s = Settings.load();
+        hello("Things Clawd has coded");
+        out.println();
+        Path folder = Settings.creations();
+        java.util.List<Path> files = new java.util.ArrayList<>();
+        if (Files.isDirectory(folder)) {
+            try (var all = Files.list(folder)) {
+                all.sorted().forEach(files::add);
+            }
+        }
+        if (files.isEmpty()) {
+            out.println("  Nothing yet. (Left-click him and pick \"Make something!\", or wait. He gets ideas.)");
+        } else {
+            for (Path f : files) out.println("  " + f.getFileName() + DIM + "  (" + Files.size(f) + " bytes)" + RESET);
+            out.println();
+            out.println("  They're in " + folder);
+        }
+        out.println("  He's made " + s.made().size() + " of the " + Creation.ALL.size() + " things he knows how to make."
+                + (s.made().size() > files.size() ? DIM + " (The ones that went wrong, he deleted.)" + RESET : ""));
+    }
+
     private void move() throws IOException {
         Settings here = Settings.load();
         hello("Moving Clawd " + (here.homeNamed() ? "out of " + here.home() : "to another computer"));

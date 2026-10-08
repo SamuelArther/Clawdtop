@@ -164,6 +164,30 @@ public final class Settings {
         return name().isEmpty() ? "My " + kind : name() + "'s " + kind;
     }
 
+    /** Everything he's coded so far (ids), so he doesn't keep making the same thing. */
+    public java.util.Set<String> made() {
+        String all = values.getProperty("made", "").strip();
+        return all.isEmpty() ? java.util.Set.of() : new java.util.LinkedHashSet<>(java.util.List.of(all.split(",")));
+    }
+
+    /** The last thing he coded. */
+    public String lastMade() {
+        return values.getProperty("lastMade", "");
+    }
+
+    public void addMade(String id) {
+        java.util.Set<String> all = new java.util.LinkedHashSet<>(made());
+        all.add(id);
+        values.setProperty("made", String.join(",", all));
+        values.setProperty("lastMade", id);
+        save();
+    }
+
+    /** Where the files he codes go. */
+    static Path creations() {
+        return folder().resolve("creations");
+    }
+
     /** Whether you've met (he said hi and you told him your name), so he doesn't introduce himself again. */
     public boolean met() {
         return "true".equals(values.getProperty("met"));

@@ -48,12 +48,26 @@ public final class Sprite {
             jolt.dispose();
             return;
         }
-        if (mood == Pet.Mood.DANCE) {
+        if (mood == Pet.Mood.DANCE || made(pet, Creation.Effect.DISCO) || made(pet, Creation.Effect.MUSIC)) {
             // dancing: swaying side to side
             Graphics2D sway = (Graphics2D) g.create();
             sway.translate(Math.sin(pet.time() / 180.0) * unit, 0);
             drawBody(sway, pet, unit, mood);
             sway.dispose();
+            return;
+        }
+        Creation shown = pet.showing();
+        if (shown != null && (shown.effect() == Creation.Effect.GROW || shown.effect() == Creation.Effect.SHRINK)) {
+            // he coded himself bigger (or tiny): it pops in, wobbles a bit, and stays till he undoes it
+            double pop = Math.min(1, pet.moodTime() / 250.0);
+            double size = shown.effect() == Creation.Effect.GROW ? 1 + 0.3 * pop : 1 - 0.45 * pop;
+            size += Math.sin(pet.moodTime() / 90.0) * 0.02 * pop;
+            Graphics2D scaled = (Graphics2D) g.create();
+            scaled.translate(feetX() * unit, GROUND * unit);
+            scaled.scale(size, size);
+            scaled.translate(-feetX() * unit, -GROUND * unit);
+            drawBody(scaled, pet, unit, mood);
+            scaled.dispose();
             return;
         }
         if (mood == Pet.Mood.FREAKOUT) {
@@ -77,7 +91,7 @@ public final class Sprite {
     }
 
     private static void drawBody(Graphics2D g, Pet pet, int unit, Pet.Mood mood) {
-        if (mood == Pet.Mood.WORK || mood == Pet.Mood.PACK) {
+        if (mood == Pet.Mood.WORK || mood == Pet.Mood.PACK || mood == Pet.Mood.CODING) {
             drawAtLaptop(g, pet, unit, mood);
             return;
         }
@@ -110,9 +124,9 @@ public final class Sprite {
         // Body
         box(g, unit, LEFT, top, 13, 8, body);
         // Arms: out to the sides, or up in the air when he's happy
-        if (mood == Pet.Mood.DANCE || mood == Pet.Mood.JUGGLE) {
+        if (mood == Pet.Mood.DANCE || made(pet, Creation.Effect.DISCO) || made(pet, Creation.Effect.MUSIC) || mood == Pet.Mood.JUGGLE) {
             // hands going up and down in turns (dancing, or tossing balls)
-            boolean up = (pet.time() / (mood == Pet.Mood.DANCE ? 180 : 140)) % 2 == 0;
+            boolean up = (pet.time() / (mood == Pet.Mood.JUGGLE ? 140 : 180)) % 2 == 0;
             box(g, unit, LEFT - 2, top + (up ? 0 : 3), 1, 2, body);
             box(g, unit, LEFT + 14, top + (up ? 3 : 0), 1, 2, body);
         } else if (mood == Pet.Mood.WAVE) {
@@ -139,7 +153,14 @@ public final class Sprite {
             // a couple of sweat drops
             box(g, unit, LEFT + 13.5, top - 1.5 + (pet.time() / 90 % 3) * 0.5, 0.6, 1, new Color(140, 200, 255));
             box(g, unit, LEFT - 1, top - 0.5 + (pet.time() / 110 % 3) * 0.5, 0.6, 1, new Color(140, 200, 255));
-        } else if (mood == Pet.Mood.HAPPY || mood == Pet.Mood.RIDE || mood == Pet.Mood.FALL || mood == Pet.Mood.PARTY) {
+        } else if (mood == Pet.Mood.SORRY) {
+            // hands fidgeting down in front of him, looking at his feet, a nervous sweat drop
+            boolean fidget = (pet.time() / 400) % 2 == 0;
+            box(g, unit, LEFT + 3.5 + (fidget ? 0.3 : 0), top + 6.5, 1.5, 1.5, hand);
+            box(g, unit, LEFT + 8 - (fidget ? 0.3 : 0), top + 6.5, 1.5, 1.5, hand);
+            box(g, unit, LEFT + 13.2, top - 0.5 + (pet.time() / 300 % 3) * 0.3, 0.6, 1, new Color(140, 200, 255));
+        } else if (mood == Pet.Mood.HAPPY || mood == Pet.Mood.RIDE || mood == Pet.Mood.FALL || mood == Pet.Mood.PARTY
+                || mood == Pet.Mood.CARPET) {
             box(g, unit, LEFT - 2, top - 1, 1, 3, body);
             box(g, unit, LEFT - 1, top + 1, 1, 1, body);
             box(g, unit, LEFT + 14, top - 1, 1, 3, body);
@@ -152,7 +173,8 @@ public final class Sprite {
         // Eyes: they follow the cursor (half a unit each way), shut when he blinks or sleeps, and light up for dev apps
         double ex = pet.lookX() * 0.5;
         double ey = pet.lookY() * 0.5;
-        boolean sleepy = mood == Pet.Mood.LIE || mood == Pet.Mood.GOODBYE || mood == Pet.Mood.SAD; // half-shut eyes: dozy, or sad
+        boolean sleepy = mood == Pet.Mood.LIE || mood == Pet.Mood.GOODBYE || mood == Pet.Mood.SAD // half-shut eyes: dozy, or sad
+                || mood == Pet.Mood.SORRY || made(pet, Creation.Effect.RAIN);
         for (int x : new int[] {3, 11}) {
             double eyeX = LEFT + x + ex;
             double eyeY = top + 2 + ey;
@@ -266,6 +288,48 @@ public final class Sprite {
             }
         }
 
+        // His flying carpet: rainbow stripes under his feet, rippling as he flies, with tassels
+        if (mood == Pet.Mood.CARPET) {
+            Color[] rainbow = {new Color(235, 80, 80), new Color(245, 160, 60), new Color(245, 220, 80),
+                    new Color(110, 200, 110), new Color(90, 150, 240), new Color(160, 110, 220)};
+            for (int i = 0; i < 19; i++) {
+                double wave = Math.sin(pet.time() / 110.0 + i * 0.7) * 0.25;
+                for (int b = 0; b < rainbow.length; b++) box(g, unit, LEFT - 3 + i, GROUND - 0.2 + b * 0.2 + wave, 1, 0.2, rainbow[b]);
+            }
+            Color tassel = new Color(255, 214, 102);
+            box(g, unit, LEFT - 3.6, GROUND + 0.2 + Math.sin(pet.time() / 110.0) * 0.25, 0.6, 0.4, tassel);
+            box(g, unit, LEFT + 16, GROUND + 0.2 + Math.sin(pet.time() / 110.0 + 18 * 0.7) * 0.25, 0.6, 0.4, tassel);
+        }
+
+        // The disco ball he coded, spinning over his head, throwing spots of light about
+        if (made(pet, Creation.Effect.DISCO)) {
+            Color silver = new Color(200, 205, 215), shine = new Color(245, 248, 255);
+            box(g, unit, LEFT + 6.4, 0, 0.2, top - 3.5, new Color(150, 150, 160));
+            box(g, unit, LEFT + 5.5, top - 3.5, 2, 2, silver);
+            int turn = (int) (pet.time() / 150 % 4);
+            box(g, unit, LEFT + 5.5 + (turn % 2) * 1, top - 3.5 + (turn / 2) * 1, 1, 1, shine);
+            Color[] lights = {new Color(255, 120, 170, 170), new Color(120, 220, 255, 170), new Color(255, 230, 120, 170)};
+            for (int i = 0; i < 3; i++) {
+                double a = pet.time() / 400.0 + i * 2.1;
+                box(g, unit, LEFT + 6 + Math.cos(a) * 5, top + 3.5 + Math.sin(a * 1.3) * 2.5, 1, 1, lights[i]);
+            }
+        }
+
+        // The rain cloud he made by accident: right over him, raining on his head
+        if (made(pet, Creation.Effect.RAIN)) {
+            Color cloud = new Color(150, 156, 168), dark = new Color(120, 126, 138);
+            box(g, unit, LEFT + 2, top - 3, 9, 1.8, cloud);
+            box(g, unit, LEFT + 3.5, top - 4, 3, 1, cloud);
+            box(g, unit, LEFT + 6.5, top - 4.5, 3, 1.5, cloud);
+            box(g, unit, LEFT + 2, top - 1.6, 9, 0.4, dark);
+            Color rain = new Color(120, 180, 255);
+            for (int i = 0; i < 5; i++) {
+                double t = (pet.time() / 420.0 + i * 0.37) % 1;
+                box(g, unit, LEFT + 3 + i * 1.7, top - 1.2 + t * 1.6, 0.4, 0.7, rain);
+            }
+        }
+        drawCreation(g, pet, unit, top);
+
         // Confetti!
         if (mood == Pet.Mood.PARTY || (mood == Pet.Mood.BIRTHDAY && pet.moodTime() > 3200)) {
             Color[] colors = {new Color(255, 214, 102), new Color(120, 220, 255), new Color(255, 120, 170), new Color(140, 230, 140)};
@@ -368,6 +432,117 @@ public final class Sprite {
         }
     }
 
+    /** What he made, out beside him (the disco ball and rain cloud are drawn with him; this is the rest). */
+    private static void drawCreation(Graphics2D g, Pet pet, int unit, double top) {
+        Creation c = pet.showing();
+        if (c == null) return;
+        long t = pet.moodTime();
+        double pop = Math.min(1, t / 300.0); // things pop in
+        switch (c.effect()) {
+            case ITEM -> {
+                double bob = Math.sin(t / 300.0) * 0.3;
+                Pixels.draw(g, unit, c.item(), 0, GROUND - 4.3 + bob - (1 - pop) * 2, 0.6);
+            }
+            case SNOW -> {
+                for (int i = 0; i < 16; i++) {
+                    double f = (t / 2600.0 + i * 0.137) % 1;
+                    double x = (i * 5.3) % WIDTH + Math.sin(f * 6 + i) * 0.8;
+                    box(g, unit, x, -0.5 + f * (GROUND + 0.5), 0.5, 0.5, new Color(245, 248, 255, 220));
+                }
+            }
+            case FIREWORKS -> {
+                Color[] colors = {new Color(255, 120, 170), new Color(120, 220, 255), new Color(255, 214, 102), new Color(150, 240, 140)};
+                for (int k = 0; k < 3; k++) {
+                    double f = ((t + k * 600) % 1800) / 1800.0;
+                    double cx = 3 + k * 7.5, cy = 2.5 + (k % 2);
+                    if (f < 0.3) {
+                        box(g, unit, cx, GROUND - f / 0.3 * (GROUND - cy), 0.4, 0.8, new Color(255, 230, 180)); // going up
+                    } else {
+                        double r = (f - 0.3) / 0.7 * 3;
+                        int alpha = (int) (255 * (1 - (f - 0.3) / 0.7));
+                        Color col = colors[(k + (int) (t / 1800)) % colors.length];
+                        col = new Color(col.getRed(), col.getGreen(), col.getBlue(), Math.max(0, alpha));
+                        for (int a = 0; a < 8; a++) {
+                            double ang = a * Math.PI / 4;
+                            box(g, unit, cx + Math.cos(ang) * r, cy + Math.sin(ang) * r, 0.5, 0.5, col);
+                        }
+                    }
+                }
+            }
+            case PIZZA -> {
+                // a pizza beside him, one slice gone at a time
+                int left = 4 - (int) Math.min(4, t / (Math.max(1, c.showFor()) / 5.0));
+                Color crust = new Color(225, 170, 90), cheese = new Color(250, 210, 90), pepperoni = new Color(205, 60, 50);
+                double px = LEFT + 14, py = GROUND - 3.5;
+                for (int q = 0; q < left; q++) {
+                    double qx = px + (q % 2) * 1.5, qy = py + (q / 2) * 1.5;
+                    box(g, unit, qx, qy, 1.5, 1.5, crust);
+                    box(g, unit, qx + 0.25, qy + 0.25, 1, 1, cheese);
+                    box(g, unit, qx + 0.5, qy + 0.5, 0.4, 0.4, pepperoni);
+                }
+                if (left < 4 && (t / 200) % 2 == 0) box(g, unit, LEFT + 6, top + 5, 1, 0.5, EYE); // munch
+            }
+            case BUBBLES -> {
+                for (int i = 0; i < 6; i++) {
+                    double f = (t / 2200.0 + i / 6.0) % 1;
+                    double x = LEFT + 6 + Math.sin(f * 5 + i * 2) * 5;
+                    double size = 0.8 + (i % 3) * 0.4;
+                    int alpha = (int) (200 * (1 - f));
+                    box(g, unit, x, top + 2 - f * 6, size, size, new Color(180, 225, 255, alpha / 2));
+                    box(g, unit, x + 0.15, top + 2.15 - f * 6, 0.3, 0.3, new Color(255, 255, 255, alpha));
+                }
+            }
+            case SHADES -> {
+                // cool sunglasses over his eyes
+                Color black = new Color(20, 20, 24);
+                double drop = (1 - pop) * -3; // they slide down onto his face
+                box(g, unit, LEFT + 2, top + 2 + drop, 3, 1.6, black);
+                box(g, unit, LEFT + 9.5, top + 2 + drop, 3, 1.6, black);
+                box(g, unit, LEFT + 5, top + 2.3 + drop, 4.5, 0.5, black);
+                box(g, unit, LEFT + 2.4, top + 2.3 + drop, 0.8, 0.4, new Color(255, 255, 255, 160)); // glint
+            }
+            case MUSIC -> {
+                for (int i = 0; i < 3; i++) {
+                    double f = (t / 1500.0 + i / 3.0) % 1;
+                    double x = LEFT + 12 + Math.sin(f * 4 + i) * 1.5 + i;
+                    int alpha = (int) (255 * (1 - f));
+                    Color note = new Color(255, 214, 102, alpha);
+                    box(g, unit, x, top - f * 4, 0.7, 0.6, note);        // a little note: head
+                    box(g, unit, x + 0.5, top - 1.4 - f * 4, 0.25, 1.6, note); // and stem
+                }
+            }
+            case DUCK -> {
+                Color yellow = new Color(250, 215, 70), beak = new Color(245, 140, 40);
+                double dx = LEFT - 4.5, dy = GROUND - 3 + (pop < 1 ? (1 - pop) * 3 : 0);
+                box(g, unit, dx, dy + 1, 3.5, 2, yellow);     // body
+                box(g, unit, dx + 2, dy, 1.6, 1.5, yellow);   // head
+                box(g, unit, dx + 3.5, dy + 0.6, 0.8, 0.5, beak);
+                box(g, unit, dx + 2.8, dy + 0.3, 0.4, 0.4, EYE);
+                if ((t / 900) % 3 == 1) box(g, unit, dx + 0.4, dy - 1.2, 2.6, 0.9, new Color(255, 255, 255, 200)); // "quack?"
+            }
+            case CLONE -> {
+                // Mini Clawd, copying him, a beat behind (and glitching a bit)
+                double s = 0.3, mx = LEFT + 12.8, my = GROUND - 10 * s;
+                boolean glitch = (t / 130) % 9 == 0;
+                Color mini = glitch ? new Color(120, 220, 255) : body;
+                double hop = Math.abs(Math.sin(t / 220.0)) * 0.6;
+                box(g, unit, mx + 2 * s, my - hop, 13 * s, 8 * s, mini);
+                for (int x : new int[] {0, 2, 10, 12}) box(g, unit, mx + (2 + x) * s, my + 8 * s - hop, s, 2 * s, mini);
+                box(g, unit, mx, my + 4 * s - hop, 2 * s, 2 * s, mini);
+                box(g, unit, mx + 15 * s, my + 4 * s - hop, 2 * s, 2 * s, mini);
+                box(g, unit, mx + 5 * s, my + 2 * s - hop, s, 2 * s, EYE);
+                box(g, unit, mx + 13 * s, my + 2 * s - hop, s, 2 * s, EYE);
+            }
+            default -> { }
+        }
+    }
+
+    /** Whether he's showing off something he made with this effect. */
+    private static boolean made(Pet pet, Creation.Effect effect) {
+        Creation c = pet.showing();
+        return c != null && c.effect() == effect;
+    }
+
     /** How long getting his laptop out takes, before he's typing, and how long putting it away takes (ms). */
     static final long SET_UP = 1150, PUT_AWAY = 600;
     private static final double SLIDE = 2;                 // he scoots this far left to make room for it
@@ -391,7 +566,7 @@ public final class Sprite {
         long t = pet.moodTime();
         Pose pose;
         double slide;
-        if (mood == Pet.Mood.WORK) {
+        if (mood != Pet.Mood.PACK) {
             pose = t < 100 ? Pose.FRONT : t < 560 ? Pose.REACH : t < 760 ? Pose.LIFT : t < 900 ? Pose.SWING
                     : t < 1050 ? Pose.SET : t < SET_UP ? Pose.SIDE : Pose.TYPE;
             slide = SLIDE * ease((t - 100) / 460.0);

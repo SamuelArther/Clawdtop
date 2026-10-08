@@ -66,11 +66,28 @@ public final class Pet {
         /** Just moved in: unpacking his boxes. */
         UNPACK,
         /** Done with his laptop: he stands up, folds it shut and puts it away. */
-        PACK
+        PACK,
+        /** Coding something of his own on his laptop (or deleting it, when it went wrong). */
+        CODING,
+        /** Riding the flying rainbow carpet he coded, all over the screen. */
+        CARPET,
+        /** Caught: something he made went wrong. Eyes down, hands together. */
+        SORRY,
+        /** Showing off something he coded (a disco ball, a rain cloud, a pizza...: see Creation). */
+        MADE
     }
 
     private boolean canJuggle, canWave;
     private boolean sneezed, clapped, caught;
+
+    // Things he codes on his laptop (see Creation)
+    private Creation coding;      // what he's coding right now
+    private boolean deleting;     // ...or deleting, because it went wrong
+    private Creation showing;     // what he made, out now (Sprite draws it)
+    private Creation made;        // just made: the window does its part (a carpet ride, a rocket, a pop-up), once
+    private Creation deleted;     // just deleted: the window throws its file away, once
+    private Creation guilty;      // went wrong: he's sorry, and deletes it once he's home
+    private boolean wantsToCreate; // feeling creative: the window picks something for him to make
     private int toots;
     private boolean sang, birthdayToday;
     private String birthdayLine = "Happy birthday!!";
@@ -195,7 +212,31 @@ public final class Pet {
 
         switch (mood) {
             case RIDE, FALL, DIZZY, SHAKE, WALK, WORK, PEEK -> { } // his body or his job decides these (see follow and job)
-            case PACK -> { if (moodFor > nextChange) set(Mood.IDLE, idleTime()); }
+            case PACK -> { if (moodFor > nextChange) doneCoding(); }
+            case CODING -> {
+                if (moodFor > nextChange) set(Mood.PACK, Sprite.PUT_AWAY);
+            }
+            case CARPET -> { }
+            case SORRY -> {
+                if (moodFor > nextChange) deleteIt();
+            }
+            case MADE -> {
+                if (showing != null && showing.effect() == Creation.Effect.MUSIC && (moodFor / 700) != ((moodFor - ms) / 700)) {
+                    wants = Beep.HAPPY; // his song, a beep at a time
+                }
+                if (moodFor > nextChange) {
+                    Creation c = showing;
+                    showing = null;
+                    line = c.after();
+                    if (c.oops()) {
+                        guilty = c;
+                        wants = Beep.AWW;
+                        set(Mood.SORRY, 2200);
+                    } else {
+                        set(Mood.IDLE, idleTime());
+                    }
+                }
+            }
             case GOODBYE -> { }
             case SAD, LOVED, JUGGLE, DANCE, WAVE, YELLED, ANNOYED, SPIN, PARTY -> { if (moodFor > nextChange) set(Mood.IDLE, idleTime()); }
             case CARRY -> { }
@@ -247,10 +288,16 @@ public final class Pet {
                 }
             }
             case IDLE -> {
-                if (moodFor > 8000 && prefs.on("sneezes") && random.nextInt(6000) == 0) {
+                if (guilty != null && moodFor > 5000 && coding == null) {
+                    line = guilty.after(); // something went wrong earlier: own up and delete it
+                    wants = Beep.AWW;
+                    set(Mood.SORRY, 2200);
+                } else if (moodFor > 8000 && prefs.on("sneezes") && random.nextInt(6000) == 0) {
                     sneezed = false;
                     line = "Ah... ah...";
                     set(Mood.SNEEZE, 1300);
+                } else if (moodFor > 20_000 && prefs.on("creates") && random.nextInt(24_000) == 0) {
+                    wantsToCreate = true; // feeling creative: the window picks what
                 } else if (moodFor > 8000 && prefs.on("flies") && random.nextInt(9000) == 0) {
                     clapped = false;
                     set(Mood.FLY, 5200); // a fly!
@@ -333,6 +380,7 @@ public final class Pet {
         }
         Mood want = switch (body) {
             case HOP_ON, RIDE -> Mood.RIDE;
+            case FLY -> Mood.CARPET;
             case HOP_TO, PERCH -> Mood.IDLE;
             case FALL -> Mood.FALL;
             case DIZZY -> Mood.DIZZY;
@@ -346,12 +394,23 @@ public final class Pet {
                 return;
             }
             if (mood == Mood.RIDE || mood == Mood.FALL || mood == Mood.DIZZY || mood == Mood.SHAKE || mood == Mood.WALK
-                    || mood == Mood.PEEK || mood == Mood.PACK) {
-                set(Mood.IDLE, idleTime());
+                    || mood == Mood.PEEK || mood == Mood.CARPET) {
+                if (guilty != null && body == Body.State.HOME) {
+                    line = guilty.after();
+                    wants = Beep.AWW;
+                    set(Mood.SORRY, 2200);
+                } else {
+                    if (mood == Mood.CARPET) line = "That was AWESOME.";
+                    set(Mood.IDLE, idleTime());
+                }
             }
             return;
         }
         if (want == mood) return;
+        if (mood == Mood.CODING || mood == Mood.PACK) { // picked up mid-code: never mind that
+            coding = null;
+            deleting = false;
+        }
         if (want == Mood.RIDE) wants = Beep.WHEE;
         if (want == Mood.DIZZY) wants = Beep.OOF;
         set(want, Long.MAX_VALUE);
@@ -373,14 +432,14 @@ public final class Pet {
 
     /** Rubbed with the mouse: little hearts float up. */
     public void petted() {
-        if (mood == Mood.SLEEP || mood == Mood.LIE || !prefs.on("petHearts")) return;
+        if (mood == Mood.SLEEP || mood == Mood.LIE || busy() || !prefs.on("petHearts")) return;
         if (mood != Mood.LOVED) wants = Beep.HAPPY;
         set(Mood.LOVED, 1800);
     }
 
     /** Caps Lock went on (true) or off (false). */
     public void capsLock(boolean on) {
-        if (mood == Mood.SLEEP || mood == Mood.GOODBYE || !prefs.on("capsLock")) return;
+        if (mood == Mood.SLEEP || busy() || !prefs.on("capsLock")) return;
         if (on) {
             wants = Beep.PANIC;
             line = "WHY ARE WE YELLING?!";
@@ -408,6 +467,7 @@ public final class Pet {
     /** Something to celebrate: confetti, a happy beep, and what he says. */
     public void party(String says) {
         line = says;
+        if (busy()) return;
         wants = Beep.HAPPY;
         set(Mood.PARTY, 3500);
     }
@@ -483,8 +543,116 @@ public final class Pet {
         return 0;
     }
 
+    /** How long he codes before it's done (ms): a while, and he won't say what he's doing. */
+    static final long CODING_TIME = 18_000;
+
+    /** Gets his laptop out and codes something. Only when he's not busy. Returns whether he started. */
+    public boolean create(Creation c) {
+        if ((mood != Mood.IDLE && mood != Mood.SIT && mood != Mood.HAPPY && mood != Mood.LOVED) || coding != null || guilty != null) return false;
+        coding = c;
+        deleting = false;
+        line = c.starting();
+        set(Mood.CODING, CODING_TIME + random.nextInt(10_000));
+        return true;
+    }
+
+    /** Whether he's coding something of his own right now (not deleting): ask him, and it's "Nothing....". */
+    public boolean secretlyCoding() {
+        return mood == Mood.CODING && !deleting;
+    }
+
+    /** What he's coding right now (null if nothing, or if he's deleting). */
+    public Creation coding() {
+        return mood == Mood.CODING && !deleting ? coding : null;
+    }
+
+    /** How far through coding it he is, 0 to 1 (the file fills in as he types). */
+    public double codingProgress() {
+        if (mood != Mood.CODING || deleting) return mood == Mood.PACK && !deleting && coding != null ? 1 : 0;
+        return Math.min(1, Math.max(0, (moodFor - Sprite.SET_UP) / (double) Math.max(1, nextChange - Sprite.SET_UP - 500)));
+    }
+
+    /** What he made, out right now (for drawing), or null. */
+    public Creation showing() {
+        return mood == Mood.MADE ? showing : null;
+    }
+
+    /** Something he wants to make, now and then (once). */
+    public boolean takeWantsToCreate() {
+        boolean w = wantsToCreate;
+        wantsToCreate = false;
+        return w;
+    }
+
+    /** He's sorry: laptop out again, and the file goes. */
+    private void deleteIt() {
+        deleting = true;
+        line = "rm " + guilty.file();
+        set(Mood.CODING, 2600);
+    }
+
+    /** Laptop away: what he made comes out (or, after deleting something, he's glad it's gone). */
+    private void doneCoding() {
+        set(Mood.IDLE, idleTime());
+        if (deleting) {
+            deleting = false;
+            deleted = guilty;
+            guilty = null;
+            line = "There. It never happened.";
+            return;
+        }
+        Creation c = coding;
+        coding = null;
+        if (c == null) return;
+        made = c;
+        wants = c.oops() ? Beep.OOF : Beep.HAPPY;
+        line = c.done();
+        switch (c.effect()) {
+            case CARPET -> wants = Beep.WHEE; // the window starts the ride
+            case ROCKET -> guilty = c;        // the window launches him; he'll be sorry once he's back
+            case POPUP, NONE -> {
+                // a pop-up says the done line itself (the window shows it); he just says the after line
+                line = c.effect() == Creation.Effect.POPUP ? c.after() : c.done() + "\n" + c.after();
+                if (c.oops()) {
+                    guilty = c;
+                    set(Mood.SORRY, 3600);
+                }
+            }
+            case SPIN -> {
+                line = c.done();
+                set(Mood.SPIN, 700);
+            }
+            default -> {
+                showing = c;
+                set(Mood.MADE, Math.max(2500, c.showFor()));
+            }
+        }
+    }
+
+    /** Something he made that the window has to do its part for (a carpet ride, a rocket, a pop-up), once, or null. */
+    public Creation takeMade() {
+        Creation m = made;
+        made = null;
+        return m;
+    }
+
+    /** Something he just deleted (the window throws its file away), once, or null. */
+    public Creation takeDeleted() {
+        Creation d = deleted;
+        deleted = null;
+        return d;
+    }
+
+    /** You clicked his carpet away mid-flight: down he goes, and he'll be sorry once he's home. */
+    public void carpetGone(Creation carpet) {
+        guilty = carpet;
+        line = "WAIT-";
+        wants = Beep.OOF;
+    }
+
     /** Dances (a trick from the shop). */
     public void dance() {
+        if (busy()) return;
         wants = Beep.WHEE;
         set(Mood.DANCE, 4000);
     }
@@ -516,10 +684,20 @@ public final class Pet {
             return;
         }
         wants = Beep.CLICKED;
-        set(Mood.HAPPY, 1600);
+        if (!busy()) set(Mood.HAPPY, 1600);
+    }
+
+    /** Busy with something that shouldn't be cut short: a job, coding, a ride, a fall, moving house... */
+    private boolean busy() {
+        return switch (mood) {
+            case WORK, PEEK, PACK, CODING, SORRY, MADE, CARPET, RIDE, FALL, DIZZY, SHAKE, WALK, CARRY, UNPACK, BIRTHDAY,
+                    GOODBYE, FREAKOUT -> true;
+            default -> false;
+        };
     }
 
     private void cheer() {
+        if (busy()) return;
         wants = Beep.HAPPY;
         set(Mood.HAPPY, 2400);
     }

@@ -485,6 +485,108 @@ public class ClawdtopTest {
         // ---- Cleaning a folder (on a pretend mini PC) ----
         CleanerTest.run();
 
+        // ---- Things he codes ----
+        check("he knows how to make lots of things", Creation.ALL.size() >= 26, true);
+        java.util.Set<String> ids = new java.util.HashSet<>();
+        boolean allGood = true;
+        for (Creation c : Creation.ALL) {
+            allGood &= ids.add(c.id()) && !c.file().isBlank() && !c.code().isBlank() && !c.starting().isBlank() && !c.done().isBlank()
+                    && (c.effect() != Creation.Effect.ITEM || Pixels.ITEMS.containsKey(c.item()));
+        }
+        check("each has its own name, file, lines and code (and a picture if it's a thing)", allGood, true);
+        Creation parsed = Creation.parse("""
+                zap | zap.py | ITEM:bomb | yes | 4
+                Making a zapper.
+                Zap!
+                ...oops.
+                zap()
+                    again()
+                ---
+                """).get(0);
+        check("the long list is read from plain text", parsed.id() + " " + parsed.file() + " " + parsed.effect() + " " + parsed.item()
+                + " " + parsed.oops() + " " + parsed.showFor() + " " + parsed.after() + " " + parsed.code().replace("\n", "/"),
+                "zap zap.py ITEM bomb true 4000 ...oops. zap()/    again()/");
+        java.util.Set<String> allButOne = new java.util.HashSet<>();
+        for (Creation c : Creation.ALL) if (!c.id().equals("duck")) allButOne.add(c.id());
+        check("joke scripts are saved so they can't run by accident", new Creation("x", "panic.bat", "", "", "", 0, Creation.Effect.NONE, false, "x").savedAs()
+                + " " + Creation.find("hello").savedAs(), "panic.bat.txt hello.py");
+        check("he makes something he hasn't made before", Creation.pick(new java.util.Random(3), allButOne, "").id(), "duck");
+        check("and once he's made everything, anything but the last one", Creation.pick(new java.util.Random(3), ids, "duck").id().equals("duck"), false);
+
+        Pet coder = new Pet(11);
+        coder.takeBeep();
+        Creation disco = Creation.find("disco");
+        check("he gets his laptop out to code", coder.create(disco) + " " + coder.mood() + " " + coder.takeLine(), "true CODING I've got an idea!");
+        for (int i = 0; i < 100; i++) coder.tick(33, 0, 0, false, false);
+        double halfway = coder.codingProgress();
+        check("ask what he's doing and it's a secret", coder.secretlyCoding(), true);
+        check("the file fills in as he types", halfway > 0 && halfway < 1, true);
+        for (int i = 0; i < 1000 && coder.mood() != Pet.Mood.MADE; i++) coder.tick(33, 0, 0, false, false);
+        check("then out comes what he made", coder.mood() + " " + coder.showing().id() + " " + coder.takeMade().id(), "MADE disco disco");
+        for (int i = 0; i < 300 && coder.mood() == Pet.Mood.MADE; i++) coder.tick(33, 0, 0, false, false);
+        coder.takeLine();
+        check("and after a while it's over", coder.mood() + " " + coder.showing(), "IDLE null");
+
+        Creation weather = Creation.find("weather");
+        coder.create(weather);
+        for (int i = 0; i < 1500 && coder.mood() != Pet.Mood.SORRY; i++) coder.tick(33, 0, 0, false, false);
+        check("when it goes wrong, he's sorry", coder.mood(), Pet.Mood.SORRY);
+        for (int i = 0; i < 300 && coder.mood() != Pet.Mood.CODING; i++) coder.tick(33, 0, 0, false, false);
+        check("and deletes it", coder.mood() + " " + coder.takeLine() + " " + coder.secretlyCoding(), "CODING rm weather.py false");
+        for (int i = 0; i < 300 && coder.mood() != Pet.Mood.IDLE; i++) coder.tick(33, 0, 0, false, false);
+        check("then it never happened", coder.takeLine() + " / " + coder.takeDeleted().file(), "There. It never happened. / weather.py");
+
+        Pet flyer = new Pet(12);
+        Body carpetBody = new Body();
+        flyer.create(Creation.find("carpet"));
+        for (int i = 0; i < 1500 && flyer.mood() != Pet.Mood.IDLE; i++) flyer.tick(33, 0, 0, false, false);
+        Creation carpet = flyer.takeMade();
+        check("he made a flying carpet", carpet.effect(), Creation.Effect.CARPET);
+        carpetBody.tick(33, 0, 0, 1800, 1040, 96, 0, 1920);
+        carpetBody.flyCarpet();
+        double carpetTop = 1040;
+        for (int i = 0; i < 120; i++) {
+            carpetBody.tick(33, 0, 0, 1800, 1040, 96, 0, 1920);
+            flyer.follow(carpetBody.state());
+            flyer.tick(33, 0, 0, false, false);
+            carpetTop = Math.min(carpetTop, carpetBody.y());
+        }
+        check("and flies round the screen on it", flyer.mood() + " " + (carpetTop < 900), "CARPET true");
+        save(flyer, Path.of("build", "frames").resolve("flying carpet.png"));
+        carpetBody.knockOff();
+        flyer.carpetGone(carpet);
+        for (int i = 0; i < 2000 && carpetBody.state() != Body.State.HOME; i++) {
+            carpetBody.tick(33, 0, 0, 1800, 1040, 96, 0, 1920);
+            flyer.follow(carpetBody.state());
+            flyer.tick(33, 0, 0, false, false);
+        }
+        flyer.follow(carpetBody.state());
+        check("click it away and he falls, gets home, and he's sorry", carpetBody.state() + " " + flyer.mood(), "HOME SORRY");
+        save(flyer, Path.of("build", "frames").resolve("sorry.png"));
+
+        // a picture of each thing he can make, while it's out
+        java.util.List<BufferedImage> made = new java.util.ArrayList<>();
+        for (Creation c : Creation.BUILT_IN) {
+            if (c.showFor() == 0) continue;
+            Pet show = new Pet(5);
+            show.create(c);
+            for (int i = 0; i < 1500 && show.mood() != Pet.Mood.MADE; i++) show.tick(33, 0, 0, false, false);
+            for (int i = 0; i < 40; i++) show.tick(33, 0, 0, false, false);
+            made.add(picture(show));
+        }
+        for (String item : new String[] {"cat", "rock", "ghost", "donut", "robot", "trophy"}) {
+            Pet show = new Pet(5);
+            show.create(new Creation("x", "x.py", "", "", "", 5000, Creation.Effect.ITEM, false, "x", item));
+            for (int i = 0; i < 1500 && show.mood() != Pet.Mood.MADE; i++) show.tick(33, 0, 0, false, false);
+            for (int i = 0; i < 20; i++) show.tick(33, 0, 0, false, false);
+            made.add(picture(show));
+        }
+        BufferedImage madeSheet = new BufferedImage(6 * Sprite.WIDTH * 8, (made.size() + 5) / 6 * Sprite.HEIGHT * 8, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D mg = madeSheet.createGraphics();
+        for (int i = 0; i < made.size(); i++) mg.drawImage(made.get(i), i % 6 * Sprite.WIDTH * 8, i / 6 * Sprite.HEIGHT * 8, null);
+        mg.dispose();
+        ImageIO.write(madeSheet, "png", Path.of("build", "frames").resolve("things he makes.png").toFile());
+
         // ---- Pictures of every mood, to look at ----
         Path frames = Path.of("build", "frames");
         Files.createDirectories(frames);
