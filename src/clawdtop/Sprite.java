@@ -48,7 +48,7 @@ public final class Sprite {
             jolt.dispose();
             return;
         }
-        if (mood == Pet.Mood.DANCE || made(pet, Creation.Effect.DISCO) || made(pet, Creation.Effect.MUSIC)) {
+        if (mood == Pet.Mood.DANCE || mood == Pet.Mood.LISTEN || made(pet, Creation.Effect.DISCO) || made(pet, Creation.Effect.MUSIC)) {
             // dancing: swaying side to side
             Graphics2D sway = (Graphics2D) g.create();
             sway.translate(Math.sin(pet.time() / 180.0) * unit, 0);
@@ -264,6 +264,20 @@ public final class Sprite {
             boolean flail = (pet.time() / 70) % 2 == 0;
             box(g, unit, LEFT - 2, top + (flail ? -0.5 : 3), 1.2, 2.5, body);
             box(g, unit, LEFT + 13.8, top + (flail ? 3 : -0.5), 1.2, 2.5, body);
+        } else if (mood == Pet.Mood.PIANO) {
+            // his mini piano in front of him, and his hands hopping over the keys
+            drawPiano(g, pet, unit, top);
+        } else if (mood == Pet.Mood.LISTEN) {
+            box(g, unit, LEFT - 2, top + 4, 2, 2, body);
+            box(g, unit, LEFT + 13, top + 4, 2, 2, body);
+        } else if (mood == Pet.Mood.SALUTE) {
+            // a salute (one hand up at his brow), and a little flag in the other
+            box(g, unit, LEFT + 12.5, top - 0.5, 2, 1.5, body);
+            box(g, unit, LEFT - 2, top + 4, 2, 2, body);
+            box(g, unit, LEFT - 1.4, top - 4, 0.4, 8, new Color(150, 150, 160)); // pole
+            Color red = new Color(200, 40, 50), blue = new Color(40, 60, 140);
+            for (int s = 0; s < 5; s++) box(g, unit, LEFT - 1, top - 4 + s * 0.6, 4, 0.6, s % 2 == 0 ? red : Color.WHITE);
+            box(g, unit, LEFT - 1, top - 4, 1.6, 1.8, blue);
         } else if (mood == Pet.Mood.STRETCH && pet.moodTime() < 1400) {
             // reaching up as high as he can
             box(g, unit, LEFT - 1, top - 3, 1, 3, body);
@@ -283,6 +297,7 @@ public final class Sprite {
         double ex = pet.lookX() * 0.5;
         double ey = pet.lookY() * 0.5;
         boolean sleepy = mood == Pet.Mood.LIE || mood == Pet.Mood.GOODBYE || mood == Pet.Mood.SAD // half-shut eyes: dozy, or sad
+                || mood == Pet.Mood.LISTEN
                 || (mood == Pet.Mood.STRETCH && pet.moodTime() < 1400)
                 || mood == Pet.Mood.SORRY || made(pet, Creation.Effect.RAIN);
         for (int x : new int[] {3, 11}) {
@@ -659,6 +674,32 @@ public final class Sprite {
                 box(g, unit, mx + 13 * s, my + 2 * s - hop, s, 2 * s, EYE);
             }
             default -> { }
+        }
+    }
+
+    /** His mini piano: a little red case with white and black keys, low in front of him; his hands on the keys. */
+    private static void drawPiano(Graphics2D g, Pet pet, int unit, double top) {
+        double px = LEFT + 0.5, py = GROUND - 3, w = 12;
+        double out = Math.min(1, pet.moodTime() / (double) Pet.PIANO_INTRO); // it slides up into place
+        py += (1 - out) * 3;
+        box(g, unit, px - 0.5, py - 0.5, w + 1, 3.5, new Color(200, 90, 70));
+        box(g, unit, px, py, w, 2.5, Color.WHITE);
+        for (int k = 1; k < 12; k++) box(g, unit, px + k, py, 0.12, 2.5, new Color(190, 190, 200));
+        for (int k : new int[] {1, 2, 4, 5, 6, 8, 9, 11}) box(g, unit, px + k - 0.3, py, 0.6, 1.4, new Color(30, 30, 34));
+        double key = pet.pianoKey();
+        boolean down = pet.pianoPressing();
+        if (Double.isNaN(key)) {
+            box(g, unit, px + 2, py - 2, 2, 2, hand);
+            box(g, unit, px + 8, py - 2, 2, 2, hand);
+        } else {
+            double kx = px + key * (w - 2);
+            boolean leftHand = key < 0.5;
+            box(g, unit, leftHand ? kx : px + 2, py - (leftHand && down ? 1.2 : 2), 2, 2, hand);
+            box(g, unit, leftHand ? px + 8 : kx, py - (!leftHand && down ? 1.2 : 2), 2, 2, hand);
+            if (down) { // a note floats up
+                box(g, unit, kx + 0.6, py - 3.5, 0.7, 0.6, new Color(255, 214, 102));
+                box(g, unit, kx + 1.1, py - 4.8, 0.25, 1.4, new Color(255, 214, 102));
+            }
         }
     }
 

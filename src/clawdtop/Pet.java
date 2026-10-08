@@ -90,7 +90,13 @@ public final class Pet {
         /** Hic! Hic! Hic! */
         HICCUP,
         /** Good morning! A great big stretch. */
-        STRETCH
+        STRETCH,
+        /** Playing his mini piano. */
+        PIANO,
+        /** Listening to you play your piano: eyes shut, swaying. */
+        LISTEN,
+        /** Veterans Day: a little flag, and a salute. */
+        SALUTE
     }
 
     private boolean canJuggle, canWave;
@@ -252,6 +258,38 @@ public final class Pet {
             case CARPET, ROCKET, THINK -> { }
             case BLUSH -> { if (!hovered && moodFor > nextChange) set(Mood.IDLE, idleTime()); }
             case BOOPED, STRETCH -> { if (moodFor > nextChange) set(Mood.IDLE, idleTime()); }
+            case SALUTE -> { if (moodFor > nextChange) set(Mood.IDLE, idleTime()); }
+            case LISTEN -> {
+                if (moodFor > nextChange) {
+                    String[] bravo = {"Bravo!", "Encore! Encore!", "That was beautiful.", "You should go on tour.", "I got chills. Crab chills."};
+                    line = bravo[random.nextInt(bravo.length)];
+                    wants = Beep.CLAP;
+                    set(Mood.HAPPY, 900);
+                }
+            }
+            case PIANO -> {
+                long into = moodFor - PIANO_INTRO;
+                if (song != null && into >= 0) {
+                    double beat = 0;
+                    for (int i = 0; i < song.notes().length; i++) {
+                        long at = (long) (beat * song.beatMs());
+                        if (into >= at && songNote < i + 1) {
+                            songNote = i + 1;
+                            note = song.notes()[i];
+                            noteMs = (int) (song.beats()[i] * song.beatMs());
+                            noteAt = moodFor;
+                        }
+                        beat += song.beats()[i];
+                    }
+                }
+                if (moodFor > nextChange) {
+                    String[] thanks = {"Thank you, thank you!", "*bows*", "I've been practicing.", "That's all I know. For now."};
+                    line = thanks[random.nextInt(thanks.length)];
+                    wants = Beep.HAPPY;
+                    song = null;
+                    set(Mood.HAPPY, 900);
+                }
+            }
             case HICCUP -> {
                 if ((moodFor / 1000) != ((moodFor - ms) / 1000) && moodFor < 3000) {
                     wants = Beep.CLICKED;
@@ -372,6 +410,8 @@ public final class Pet {
                     sneezed = false;
                     line = "Ah... ah...";
                     set(Mood.SNEEZE, 1300);
+                } else if (moodFor > 20_000 && prefs.on("piano") && random.nextInt(40_000) == 0) {
+                    playPiano(random.nextInt(3) == 0 ? null : Piano.SONGS[random.nextInt(Piano.SONGS.length)]); // a little tune, just because
                 } else if (moodFor > 10_000 && prefs.on("hiccups") && random.nextInt(30_000) == 0) {
                     line = "hic!";
                     wants = Beep.CLICKED;
@@ -840,10 +880,62 @@ public final class Pet {
     /** Busy with something that shouldn't be cut short: a job, coding, a ride, a fall, moving house... */
     private boolean busy() {
         return switch (mood) {
-            case WORK, PEEK, PACK, CODING, SORRY, MADE, CARPET, LAUNCHPAD, ROCKET, DUCKS, THINK, RIDE, FALL, DIZZY, SHAKE, WALK, CARRY, UNPACK, BIRTHDAY,
+            case WORK, PEEK, PACK, CODING, SORRY, MADE, CARPET, LAUNCHPAD, ROCKET, DUCKS, THINK, PIANO, RIDE, FALL, DIZZY, SHAKE, WALK, CARRY, UNPACK, BIRTHDAY,
                     GOODBYE, FREAKOUT -> true;
             default -> false;
         };
+    }
+
+    /** How long he takes to get his piano out before the first note. */
+    static final long PIANO_INTRO = 700;
+    private Piano.Song song;
+    private int songNote;
+    private int note, noteMs;
+    private long noteAt;
+
+    /** Plays a song on his mini piano (null: one he makes up). Returns whether he started. */
+    public boolean playPiano(Piano.Song which) {
+        if (busy() || mood == Mood.SLEEP) return false;
+        song = which != null ? which : Piano.madeUp(random);
+        songNote = 0;
+        note = 0;
+        line = "Here's " + song.name() + "!";
+        set(Mood.PIANO, PIANO_INTRO + song.length() + 700);
+        return true;
+    }
+
+    /** A piano note to play now (MIDI number), once, or 0; and how long it lasts (noteLength). */
+    public int takeNote() {
+        int n = note;
+        note = 0;
+        return n;
+    }
+
+    public int noteLength() {
+        return noteMs;
+    }
+
+    /** Which key his hand is on (0 left to 1 right), and whether it's pressing it now; NaN when not playing. */
+    public double pianoKey() {
+        if (mood != Mood.PIANO || song == null || songNote == 0) return Double.NaN;
+        return Piano.place(song.notes()[songNote - 1]);
+    }
+
+    public boolean pianoPressing() {
+        return mood == Mood.PIANO && moodFor - noteAt < 140;
+    }
+
+    /** You played a note on your piano: he listens, swaying, and says something nice when you stop. */
+    public void listened() {
+        if (mood != Mood.LISTEN && (busy() || mood == Mood.SLEEP)) return;
+        set(Mood.LISTEN, 2500);
+    }
+
+    /** Veterans Day. */
+    public void salute() {
+        if (busy()) return;
+        line = "Happy Veterans Day.\nThank you to everyone who served.";
+        set(Mood.SALUTE, 6000);
     }
 
     private boolean hovered;
@@ -1032,6 +1124,7 @@ public final class Pet {
     /** How high he is off the ground right now, in his own pixels (bouncing when happy, breathing otherwise). */
     public float lift() {
         if (mood == Mood.HAPPY) return (float) Math.abs(Math.sin(time / 130.0)) * 3;
+        if (mood == Mood.LISTEN || mood == Mood.PIANO) return 0;
         if (mood == Mood.HICCUP) return moodFor % 1000 < 180 && moodFor < 3000 ? 1.5f : 0; // a little jump with each hic
         if (mood == Mood.STRETCH) return (float) Math.sin(Math.min(1, moodFor / 600.0) * Math.PI / 2) * (moodFor < 1400 ? 1.5f : 0);
         if (mood == Mood.FREAKOUT) return (float) Math.abs(Math.sin(time / 60.0)) * (nextChange == Long.MAX_VALUE ? 3 : 1.5f); // jumping about

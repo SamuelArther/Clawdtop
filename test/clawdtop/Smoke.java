@@ -29,7 +29,7 @@ public final class Smoke {
         Path home = Files.createTempDirectory("clawdtop-smoke");
         System.setProperty("clawdtop.home", home.toString());
         System.setProperty("clawdtop.codingMs", "4000");
-        Files.writeString(home.resolve("settings.properties"), "met=true\nname=Tester\nsounds=false\ntips=false\nmetDate=2026-10-01\n");
+        Files.writeString(home.resolve("settings.properties"), "met=true\nname=Tester\nbeeps=false\ntips=false\nmetDate=2026-10-01\n");
         Thread.setDefaultUncaughtExceptionHandler((t, e) -> problem(t.getName(), e));
 
         Clawdtop[] clawd = new Clawdtop[1];

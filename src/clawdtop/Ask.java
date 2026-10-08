@@ -7,7 +7,6 @@ import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
-import javax.swing.JWindow;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Component;
@@ -25,7 +24,7 @@ final class Ask {
     private static final Color INK = new Color(40, 38, 36);
     private static final Color ORANGE = new Color(215, 119, 87);
 
-    private final JWindow window = java.awt.GraphicsEnvironment.isHeadless() ? null : new JWindow();
+    private final TypingWindow window = java.awt.GraphicsEnvironment.isHeadless() ? null : new TypingWindow();
     private final JPanel panel;
     private final JTextField field = new JTextField(26);
 
@@ -92,9 +91,7 @@ final class Ask {
         window.setSize(size);
         int x = Math.max(screen.x + 4, Math.min(screen.x + screen.width - size.width - 4, clawd.x + clawd.width / 2 - size.width + 30));
         window.setLocation(x, Math.max(screen.y + 4, clawd.y - size.height));
-        window.setVisible(true);
-        window.toFront();
-        field.requestFocusInWindow();
+        window.showAndFocus(field);
     }
 
     void hide() {

@@ -69,6 +69,38 @@ public final class Beeps {
         return out;
     }
 
+    /** Plays one piano note (MIDI number, 60 is middle C) for ms, in the background. */
+    public void piano(int midi, int ms) {
+        int vol = volume;
+        player.execute(() -> {
+            byte[] sound = voiced(note(midi, ms), "Normal", vol);
+            try (SourceDataLine line = AudioSystem.getSourceDataLine(new AudioFormat(RATE, 16, 1, true, false))) {
+                line.open();
+                line.start();
+                line.write(sound, 0, sound.length);
+                line.drain();
+            } catch (Exception noSound) {
+                // quiet
+            }
+        });
+    }
+
+    /** A toy-piano note: a soft tone with a couple of overtones that rings and fades. */
+    static byte[] note(int midi, int ms) {
+        double freq = 440 * Math.pow(2, (midi - 69) / 12.0);
+        int count = (int) (RATE * Math.min(1.2, ms / 1000.0 + 0.15));
+        byte[] out = new byte[count * 2];
+        for (int i = 0; i < count; i++) {
+            double t = i / RATE;
+            double tone = Math.sin(2 * Math.PI * freq * t) + 0.35 * Math.sin(4 * Math.PI * freq * t) + 0.12 * Math.sin(6 * Math.PI * freq * t);
+            double env = Math.min(1, t / 0.005) * Math.exp(-t * 4.5) * Math.min(1, (count - i) / (RATE * 0.02));
+            int v = (int) (tone / 1.47 * env * VOLUME * 1.2 * 32767);
+            out[i * 2] = (byte) v;
+            out[i * 2 + 1] = (byte) (v >> 8);
+        }
+        return out;
+    }
+
     /** A party blower's toot: a buzzy sawtooth that slides up as it unrolls, then drops as it rolls back. */
     static byte[] horn() {
         int count = (int) (RATE * 0.55);

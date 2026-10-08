@@ -23,7 +23,7 @@ public final class SmokeClean {
         out.mkdirs();
         Path home = Files.createTempDirectory("clawdtop-smoke");
         System.setProperty("clawdtop.home", home.toString());
-        Files.writeString(home.resolve("settings.properties"), "met=true\nname=Tester\nsounds=false\ntips=false\nmetDate=2026-10-08\n");
+        Files.writeString(home.resolve("settings.properties"), "met=true\nname=Tester\nbeeps=false\ntips=false\nmetDate=2026-10-08\n");
         Path downloads = Files.createDirectories(Files.createTempDirectory("clawdtop-cleaning").resolve("Downloads"));
         Files.writeString(downloads.resolve("Thumbs.db"), "x");
         Files.writeString(downloads.resolve("report.tmp"), "x");

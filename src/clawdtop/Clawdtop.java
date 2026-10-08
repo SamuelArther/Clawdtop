@@ -174,6 +174,7 @@ public final class Clawdtop {
         canvas.addMouseMotionListener(mouse);
     }
 
+    private final Piano yourPiano = new Piano();
     private final Ask askBox = new Ask();
     private final Brain brain = new Brain();
     private boolean thinking;
@@ -417,6 +418,25 @@ public final class Clawdtop {
             ask.addActionListener(e -> askBox.show("Ask me anything!", window.getBounds(), screenBounds(), this::answer));
             menu.add(ask);
         }
+        if (job == null && body.state() == Body.State.HOME) {
+            javax.swing.JMenu piano = new javax.swing.JMenu("Piano");
+            JMenuItem any = new JMenuItem("Play me something!");
+            any.addActionListener(e -> pet.playPiano(new java.util.Random().nextInt(3) == 0 ? null : Piano.SONGS[new java.util.Random().nextInt(Piano.SONGS.length)]));
+            piano.add(any);
+            for (Piano.Song s : Piano.SONGS) {
+                JMenuItem item = new JMenuItem(s.name());
+                item.addActionListener(e -> pet.playPiano(s));
+                piano.add(item);
+            }
+            JMenuItem mine = new JMenuItem("Let me play!");
+            mine.addActionListener(e -> yourPiano.show(window.getBounds(), screenBounds(), note -> {
+                beeps.piano(note, 400); // you are playing it: it always makes a sound
+                pet.listened();
+            }));
+            piano.addSeparator();
+            piano.add(mine);
+            menu.add(piano);
+        }
         JMenuItem joke = new JMenuItem("Tell me a joke");
         joke.addActionListener(e -> tellJoke());
         menu.add(joke);
@@ -550,6 +570,10 @@ public final class Clawdtop {
         int hourNow = java.time.LocalTime.now().getHour();
         if (hourNow >= 5 && hourNow < 12 && settings.on("morning") && settings.once("morning:" + java.time.LocalDate.now())) {
             pet.morning(settings.name());
+        }
+        java.time.LocalDate todayNow = java.time.LocalDate.now();
+        if (todayNow.getMonthValue() == 11 && todayNow.getDayOfMonth() == 11 && settings.once("veterans:" + todayNow.getYear())) {
+            pet.salute();
         }
         long gap = System.currentTimeMillis() - settings.lastSeen();
         if (settings.lastSeen() > 0 && gap >= 2 * 86_400_000L && settings.on("missedYou")) {
@@ -974,6 +998,8 @@ public final class Clawdtop {
         boolean overHim = Math.abs(mouse.x - eyesX) < 7 * unit && Math.abs(mouse.y - eyesY) < 4 * unit && body.state() == Body.State.HOME;
         pet.hover(overHim && !moved, FRAME_MS);
         pet.tick(FRAME_MS, mouse.x - eyesX, mouse.y - eyesY, moved, devApp);
+        int note = pet.takeNote();
+        if (note > 0 && mayBeep()) beeps.piano(note, pet.noteLength());
         Pet.Beep beep = pet.takeBeep();
         if (beep != null && mayBeep()) beeps.play(beep);
         String line = pet.takeLine();
@@ -1152,9 +1178,11 @@ public final class Clawdtop {
                 // next start writes it again
             }
         }));
-        Thread command = new Thread(Install::ensureCommand, "Clawdtop command");
-        command.setDaemon(true);
-        command.start();
+        if (System.getProperty("clawdtop.home") == null) { // (a test run in its own folder leaves your PATH alone)
+            Thread command = new Thread(Install::ensureCommand, "Clawdtop command");
+            command.setDaemon(true);
+            command.start();
+        }
         SwingUtilities.invokeLater(() -> new Clawdtop().start());
     }
 
@@ -1173,6 +1201,13 @@ public final class Clawdtop {
             case "close ask" -> askBox.hide();
             case "tip" -> pet.say("Win+Shift+S takes a screenshot of part of the screen.");
             case "math" -> answer("what's 12 times 7?");
+            case "piano" -> pet.playPiano(Piano.SONGS[0]);
+            case "your piano" -> yourPiano.show(window.getBounds(), screenBounds(), note -> {
+                beeps.piano(note, 400);
+                pet.listened();
+                smokeNotes++;
+            });
+            case "salute" -> pet.salute();
             case "clean" -> startCleaning();
             case "checkup" -> pet.say(Useful.checkup());
             case "pet" -> pet.petted();
@@ -1219,6 +1254,28 @@ public final class Clawdtop {
     /** For the screen test: where his home spot is on the screen {x, ground y}, and how big a unit is. */
     double[] smokeHome() {
         return new double[] {homeX, groundY, settings.unit()};
+    }
+
+    int smokeNotes; // notes you've played on your piano (for the screen test)
+
+    /** For the screen test: the middle of the text box that's showing, on the screen. */
+    java.awt.Point smokeFieldOnScreen() {
+        javax.swing.JTextField f = askBox.field().isShowing() ? askBox.field()
+                : welcome == null ? null : smokeFind(welcome.panel(), javax.swing.JTextField.class).stream().filter(java.awt.Component::isShowing).findFirst().orElse(null);
+        if (f == null) return null;
+        java.awt.Point p = f.getLocationOnScreen();
+        return new java.awt.Point(p.x + f.getWidth() / 2, p.y + f.getHeight() / 2);
+    }
+
+    /** For the screen test: the middle of your piano's first white key, on the screen. */
+    java.awt.Point smokePianoOnScreen() {
+        return yourPiano.firstKeyOnScreen();
+    }
+
+    /** For the screen test: what's typed in the question box, and in the hello's name box. */
+    String smokeTyped() {
+        String welcomeText = welcome == null ? "" : smokeFind(welcome.panel(), javax.swing.JTextField.class).stream().map(javax.swing.JTextField::getText).findFirst().orElse("");
+        return askBox.field().getText() + "|" + welcomeText + "|" + smokeNotes + "|" + pet.mood();
     }
 
     /** For the screen test: the question in his bubble, or null. */

@@ -8,7 +8,6 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
-import javax.swing.JWindow;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Component;
@@ -34,7 +33,7 @@ final class Welcome {
     private static final Color ORANGE = new Color(215, 119, 87);
 
     private final Settings settings;
-    private final JWindow window = java.awt.GraphicsEnvironment.isHeadless() ? null : new JWindow(); // none in tests
+    private final TypingWindow window = java.awt.GraphicsEnvironment.isHeadless() ? null : new TypingWindow(); // none in tests
     private final JPanel panel;
     private final Runnable moved;     // where he sits changed: put him there
     private final Consumer<Pet.Beep> beep;
@@ -335,7 +334,7 @@ final class Welcome {
         if (window != null) {
             window.setSize(size);
             place();
-            window.setVisible(true);
+            window.showAndFocus(field);
         }
         panel.repaint();
     }
