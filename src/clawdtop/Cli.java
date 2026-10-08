@@ -122,6 +122,8 @@ public final class Cli {
         hello(clawd.isPresent() ? "Clawd is on your taskbar." : "Clawd isn't running. (clawd start)");
         out.println();
         out.println("  Name:        " + (s.name().isEmpty() ? DIM + "(not told yet)" + RESET : s.name()));
+        out.println("  Lives in:    " + (s.homeNamed() ? s.home() : DIM + "(this computer has no name yet)" + RESET));
+        if (!s.oldHomes().isEmpty()) out.println("  Lived in:    " + String.join(", ", s.oldHomes()));
         out.println("  Sits:        " + (s.x() >= 0 ? "where you dragged him" : s.spot().toLowerCase(Locale.ROOT)));
         out.println("  Size:        " + s.size().toLowerCase(Locale.ROOT));
         out.println("  Beeps:       " + onOff(s.sounds()));
@@ -155,6 +157,7 @@ public final class Cli {
             out.println("  11  Jokes               " + s.jokes());
             out.println("  12  Your birthday       " + (s.birthday().isEmpty() ? DIM + "(not set)" + RESET : s.birthday().replace('-', '/')));
             out.println("  13  All the options     " + DIM + "(" + Options.ALL.size() + " of them!)" + RESET);
+            out.println("  14  His home's name     " + (s.homeNamed() ? s.home() : DIM + "(none)" + RESET));
             out.println("   9  Start with Windows  " + onOff(Startup.on()));
             out.println("  10  " + (on ? "Stop him" : "Start him"));
             out.println("   0  Done");
@@ -215,6 +218,12 @@ public final class Cli {
                 case "8" -> s.setTips(!s.tips());
                 case "9" -> Startup.set(!Startup.on());
                 case "13" -> allOptions();
+                case "14" -> {
+                    out.print("What should he call this computer? (like " + s.suggestedHome() + ") ");
+                    out.flush();
+                    String home = in.readLine();
+                    if (home != null && !home.isBlank()) s.setHome(home);
+                }
                 case "12" -> {
                     out.print("  Your birthday, month/day like 10/08 (blank for none): ");
                     out.flush();
@@ -313,7 +322,8 @@ public final class Cli {
 
     /** Moves him to another computer: it's showing a code in its setup; this sends his save token across. */
     private void move() throws IOException {
-        hello("Moving Clawd to another computer");
+        Settings here = Settings.load();
+        hello("Moving Clawd " + (here.homeNamed() ? "out of " + here.home() : "to another computer"));
         out.println();
         out.println("On the new computer, start Clawdtop and pick \"Moving from another computer\". It shows a code.");
         out.print("Type the code: ");

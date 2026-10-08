@@ -431,6 +431,11 @@ public class ClawdtopTest {
         find(hello.panel(), javax.swing.JTextField.class).setText("10/8");
         click(hello.panel(), "Next");
         check("and your birthday (just month and day)", fresh.birthday(), "10-08");
+        check("he suggests a name for his new home", find(hello.panel(), javax.swing.JTextField.class).getText().startsWith("Samuel's "), true);
+        snapshot(hello.panel(), frames0.resolve("welcome 3c home.png"));
+        find(hello.panel(), javax.swing.JTextField.class).setText("Samuel's Laptop");
+        click(hello.panel(), "Next");
+        check("and calls your computer what you said", fresh.home(), "Samuel's Laptop");
         snapshot(hello.panel(), frames0.resolve("welcome 4 beeps.png"));
         click(hello.panel(), "Shh, no beeps");
         check("beeps off if you say so", fresh.sounds(), false);
@@ -451,6 +456,7 @@ public class ClawdtopTest {
                 Install.withoutEntry(userPath, "C:\\Users\\me\\AppData\\Local\\Clawdtop\\bin"), "%USERPROFILE%\\bin;C:\\Tools");
         check("clawd help", cli("help").contains("clawd controlpanel"), true);
         check("clawd status says who he knows", cli("status").contains("Name:        Samuel"), true);
+        check("and where he lives", cli("status").contains("Lives in:    Samuel's Laptop"), true);
         check("an unknown command says what he can do", cli("dance").contains("I don't know \"dance\""), true);
         String panel = cli("controlpanel", "1", "Sam", "7", "8", "2", "3", "3", "4", "2", "5", "2", "5", "9", "#33aaff", "0");
         Settings afterPanel = Settings.load();
@@ -461,13 +467,18 @@ public class ClawdtopTest {
         // ---- Save tokens ----
         String token = afterPanel.saveToken();
         check("a save token starts with CLAWD-", token.startsWith("CLAWD-"), true);
-        check("and holds who he is to you", SaveToken.read(token).toString(), "{name=Sam, color=#33AAFF, personality=BOUNCY, spot=On the left, size=Big, birthday=10-08, metDate=" + afterPanel.metDate() + "}");
+        check("and holds who he is to you", SaveToken.read(token).toString(), "{name=Sam, color=#33AAFF, personality=BOUNCY, spot=On the left, size=Big, birthday=10-08, metDate=" + afterPanel.metDate() + ", home=Samuel's Laptop}");
         check("a mistyped token is caught", SaveToken.read(token.substring(0, 10) + "x" + token.substring(11)) + " " + SaveToken.read("hello"), "null null");
         Files.deleteIfExists(home.resolve("settings.properties"));
         Settings reborn = Settings.load();
         check("a fresh Clawd with your token remembers you", reborn.useToken(token) + " " + reborn.name() + " " + reborn.color() + " "
                 + reborn.personality() + " " + reborn.restored(), "true Sam #33AAFF BOUNCY true");
         check("a wrong token changes nothing", Settings.load().useToken("CLAWD-nope-0000"), false);
+        reborn.movedFrom(reborn.home());
+        reborn.setHome("Gaming PC");
+        check("moving: the new computer gets a name, the old one goes on the list", reborn.home() + " / " + reborn.oldHomes()
+                + " / " + SaveToken.read(reborn.saveToken()).get("oldHomes"), "Gaming PC / [Samuel's Laptop] / Samuel's Laptop");
+        check("and the control panel can rename it", cli("controlpanel", "14", "Big Desk", "0").contains("His home's name") + " " + Settings.load().home(), "true Big Desk");
         check("and shows his settings", panel.contains("Clawd's control panel"), true);
         check("uninstall asks first, and no means no", cli("uninstall", "n").contains("He's staying"), true);
 

@@ -202,7 +202,7 @@ public final class Pet {
             case UNPACK -> {
                 if (moodFor >= 2600 && !sang) {
                     sang = true;
-                    line = "This place is nice!";
+                    line = "This place is nice!" + (home.equals("home") ? "" : "\n" + home + "... I like it here.");
                     wants = Beep.HAPPY;
                 }
                 if (moodFor > nextChange) set(Mood.IDLE, idleTime());
@@ -422,6 +422,13 @@ public final class Pet {
             line = "...phew. That was close.";
             set(Mood.IDLE, idleTime());
         }
+    }
+
+    private String home = "home";
+
+    /** What he calls his home (this computer). */
+    public void setHome(String name) {
+        home = name;
     }
 
     /** Moving house: carrying boxes (true), or done and unpacking (false). */

@@ -125,6 +125,45 @@ public final class Settings {
         save();
     }
 
+    /** What he calls this computer, his home (like "Sam's Laptop"), or "home" if you never said. */
+    public String home() {
+        String h = values.getProperty("home", "").strip();
+        return h.isEmpty() ? "home" : h;
+    }
+
+    /** Whether you've named his home. */
+    public boolean homeNamed() {
+        return !values.getProperty("home", "").isBlank();
+    }
+
+    public void setHome(String home) {
+        home = home.strip().replace("|", "");
+        values.setProperty("home", home.length() > 30 ? home.substring(0, 30) : home);
+        save();
+    }
+
+    /** Every computer he's lived on before this one, oldest first. */
+    public java.util.List<String> oldHomes() {
+        String all = values.getProperty("oldHomes", "").strip();
+        return all.isEmpty() ? java.util.List.of() : java.util.List.of(all.split("\\|"));
+    }
+
+    /** He just moved here from oldHome (its name): it goes on the list of places he's lived. */
+    public void movedFrom(String oldHome) {
+        java.util.List<String> homes = new java.util.ArrayList<>(oldHomes());
+        if (!oldHome.isBlank()) homes.add(oldHome.strip().replace("|", ""));
+        while (homes.size() > 10) homes.remove(0);
+        values.setProperty("oldHomes", String.join("|", homes));
+        values.remove("home");
+        save();
+    }
+
+    /** A name for this computer if you don't pick one: yours on it, laptop or computer. */
+    public String suggestedHome() {
+        String kind = Power.now() != null ? "Laptop" : "Computer";
+        return name().isEmpty() ? "My " + kind : name() + "'s " + kind;
+    }
+
     /** Whether you've met (he said hi and you told him your name), so he doesn't introduce himself again. */
     public boolean met() {
         return "true".equals(values.getProperty("met"));

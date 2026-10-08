@@ -134,11 +134,7 @@ final class Welcome {
                 if (settings.useToken(token)) {
                     movedIn = true;
                     beep.accept(Pet.Beep.HAPPY);
-                    show(new String[] {"Got everything!", "I'm on my way over..."}, null, button("OK!", () -> {
-                        settings.setMet();
-                        if (window != null) window.dispose();
-                        finished.run();
-                    }));
+                    askNewHome(settings.homeNamed() ? settings.home() : "your old computer");
                 }
             }));
         } catch (java.io.IOException e) {
@@ -223,12 +219,45 @@ final class Welcome {
             } catch (RuntimeException notADate) {
                 // left blank or odd: no birthday surprise, that's all
             }
-            askBeeps();
+            askHome();
         };
         date.addActionListener(e -> next.run());
         show(new String[] {"When's your birthday?", "Just the month and day, like 10/08. (No year!)"}, date,
-                button("Skip", this::askBeeps), button("Next", next));
+                button("Skip", this::askHome), button("Next", next));
         date.requestFocusInWindow();
+    }
+
+    /** What he should call this computer: his new home. */
+    void askHome() {
+        JTextField home = new JTextField(settings.homeNamed() ? settings.home() : settings.suggestedHome(), 16);
+        home.setFont(Bubble.FONT.deriveFont(14f));
+        Runnable next = () -> {
+            settings.setHome(home.getText().isBlank() ? settings.suggestedHome() : home.getText());
+            beep.accept(Pet.Beep.HAPPY);
+            askBeeps();
+        };
+        home.addActionListener(e -> next.run());
+        show(new String[] {"And what should I call this computer?", "It's my new home!"}, home, button("Next", next));
+        home.selectAll();
+        home.requestFocusInWindow();
+    }
+
+    /** Moved in from another computer (oldHome is its name): what's this one called? */
+    void askNewHome(String oldHome) {
+        JTextField home = new JTextField(settings.suggestedHome(), 16);
+        home.setFont(Bubble.FONT.deriveFont(14f));
+        Runnable next = () -> {
+            settings.movedFrom(oldHome);
+            settings.setHome(home.getText().isBlank() ? settings.suggestedHome() : home.getText());
+            settings.setMet();
+            if (window != null) window.dispose();
+            finished.run();
+        };
+        home.addActionListener(e -> next.run());
+        show(new String[] {"Got everything from " + oldHome + "!", "What should I call this new place?"}, home,
+                button("Move in!", next));
+        home.selectAll();
+        home.requestFocusInWindow();
     }
 
     void askBeeps() {

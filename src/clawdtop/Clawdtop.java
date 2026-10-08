@@ -296,7 +296,8 @@ public final class Clawdtop {
     private void cameBack(long awayFor) {
         long gap = System.currentTimeMillis() - settings.lastSeen();
         if (settings.lastSeen() > 0 && gap >= 2 * 86_400_000L && settings.on("missedYou")) {
-            pet.say("Hi.... I missed you..... you've been gone for " + Settings.howLong(gap) + "....");
+            pet.say("Hi.... I missed you..... you've been gone for " + Settings.howLong(gap) + "...."
+                    + (settings.homeNamed() ? "\n" + settings.home() + " was so quiet without you." : ""));
         }
         settings.setLastSeen(System.currentTimeMillis());
         int year = java.time.LocalDate.now().getYear();
@@ -753,6 +754,7 @@ public final class Clawdtop {
         };
         window.setAlwaysOnTop(s.on("onTop"));
         canvas.setToolTipText(s.on("pointsTag") ? s.points() + " Clawd Points" : null);
+        pet.setHome(s.home());
     }
 
     /** Whether he may beep right now (beeps on, and not in quiet hours). */
