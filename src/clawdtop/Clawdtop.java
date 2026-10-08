@@ -160,6 +160,8 @@ public final class Clawdtop {
                     settings.setX(window.getX());
                 } else if (pet.sleepy()) {
                     pet.poke(); // just wakes him up
+                } else if (pet.mood() == Pet.Mood.PIANO) {
+                    pet.stopPiano(); // enough music
                 } else if (pet.duckSpam()) {
                     pet.stopDucks(); // you clicked his laptop: it shuts. No more ducks
                 } else if (pet.secretlyCoding()) {
@@ -171,10 +173,46 @@ public final class Clawdtop {
             }
         };
         canvas.addMouseListener(mouse);
+        // Drop a MIDI file on him: he fetches it and plays it
+        new java.awt.dnd.DropTarget(canvas, new java.awt.dnd.DropTargetAdapter() {
+            @Override
+            public void dragEnter(java.awt.dnd.DropTargetDragEvent e) {
+                if (e.isDataFlavorSupported(java.awt.datatransfer.DataFlavor.javaFileListFlavor)) pet.sniff();
+            }
+
+            @Override
+            public void drop(java.awt.dnd.DropTargetDropEvent e) {
+                try {
+                    e.acceptDrop(java.awt.dnd.DnDConstants.ACTION_COPY);
+                    @SuppressWarnings("unchecked")
+                    java.util.List<java.io.File> files = (java.util.List<java.io.File>) e.getTransferable().getTransferData(java.awt.datatransfer.DataFlavor.javaFileListFlavor);
+                    java.io.File midi = files.stream().filter(Piano::isMidi).findFirst().orElse(null);
+                    e.dropComplete(true);
+                    if (midi == null) {
+                        pet.say("Hmm, that's not music. I can only play MIDI files (.mid).");
+                        return;
+                    }
+                    playDropped(midi);
+                } catch (Exception ex) {
+                    e.dropComplete(false);
+                }
+            }
+        });
         canvas.addMouseMotionListener(mouse);
     }
 
     private final Piano yourPiano = new Piano();
+
+    /** A MIDI file you dropped on him: read it (in the background), then he fetches it and plays it. */
+    void playDropped(java.io.File midi) {
+        worker.execute(() -> {
+            Piano.Song song = Piano.fromMidi(midi);
+            SwingUtilities.invokeLater(() -> {
+                if (song == null) pet.say("I tried, but I can't read that music.");
+                else if (!pet.fetch(song)) pet.say("Ooh, music! Give me a sec, I'm busy.");
+            });
+        });
+    }
     private final Ask askBox = new Ask();
     private final Brain brain = new Brain();
     private boolean thinking;

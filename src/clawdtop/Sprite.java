@@ -190,6 +190,10 @@ public final class Sprite {
     }
 
     private static void drawBody(Graphics2D g, Pet pet, int unit, Pet.Mood mood) {
+        if (mood == Pet.Mood.FETCH) {
+            drawFetch(g, pet, unit);
+            return;
+        }
         if (mood == Pet.Mood.WORK || mood == Pet.Mood.PACK || mood == Pet.Mood.CODING || mood == Pet.Mood.THINK
                 || (mood == Pet.Mood.DUCKS && pet.duckSpam())) {
             drawAtLaptop(g, pet, unit, mood);
@@ -265,8 +269,7 @@ public final class Sprite {
             box(g, unit, LEFT - 2, top + (flail ? -0.5 : 3), 1.2, 2.5, body);
             box(g, unit, LEFT + 13.8, top + (flail ? 3 : -0.5), 1.2, 2.5, body);
         } else if (mood == Pet.Mood.PIANO) {
-            // his mini piano in front of him, and his hands hopping over the keys
-            drawPiano(g, pet, unit, top);
+            // (his hands are behind his piano: see drawPiano)
         } else if (mood == Pet.Mood.LISTEN) {
             box(g, unit, LEFT - 2, top + 4, 2, 2, body);
             box(g, unit, LEFT + 13, top + 4, 2, 2, body);
@@ -329,6 +332,8 @@ public final class Sprite {
                 box(g, unit, eyeX, eyeY, 1, 2, EYE);
             }
         }
+        if (mood == Pet.Mood.PIANO) drawPiano(g, pet, unit, top); // in front of him
+
         // Blushing: little pink cheeks
         if (mood == Pet.Mood.BLUSH) {
             Color pink = new Color(255, 130, 160, 200);
@@ -677,30 +682,64 @@ public final class Sprite {
         }
     }
 
-    /** His mini piano: a little red case with white and black keys, low in front of him; his hands on the keys. */
+    /**
+     * His mini piano, turned to face him: we see its wooden back, low in front of him, with a little music stand on top
+     * holding his sheet music (his eyes peek out either side of it). His hands pop up over the top as he plays.
+     */
     private static void drawPiano(Graphics2D g, Pet pet, int unit, double top) {
-        double px = LEFT + 0.5, py = GROUND - 3, w = 12;
+        double px = LEFT - 0.5, w = 14;
         double out = Math.min(1, pet.moodTime() / (double) Pet.PIANO_INTRO); // it slides up into place
-        py += (1 - out) * 3;
-        box(g, unit, px - 0.5, py - 0.5, w + 1, 3.5, new Color(200, 90, 70));
-        box(g, unit, px, py, w, 2.5, Color.WHITE);
-        for (int k = 1; k < 12; k++) box(g, unit, px + k, py, 0.12, 2.5, new Color(190, 190, 200));
-        for (int k : new int[] {1, 2, 4, 5, 6, 8, 9, 11}) box(g, unit, px + k - 0.3, py, 0.6, 1.4, new Color(30, 30, 34));
+        double py = GROUND - 4.5 + (1 - out) * 4.5;
+        Color wood = new Color(160, 82, 60), dark = new Color(118, 58, 42), light = new Color(190, 104, 78);
+        Graphics2D c = (Graphics2D) g.create();
+        c.clipRect(-WIDTH * unit, -HEIGHT * unit, WIDTH * unit * 3, (GROUND + HEIGHT) * unit);
+        box(c, unit, px, py, w, 4.5, wood);                       // its back
+        box(c, unit, px, py, w, 0.6, light);                      // the lid's edge
+        box(c, unit, px + 1, py + 1.4, w - 2, 0.3, dark);         // panels
+        box(c, unit, px + 1, py + 3, w - 2, 0.3, dark);
+        box(c, unit, px + 0.6, py + 4.5, 0.8, 0.5, dark);         // little feet
+        box(c, unit, px + w - 1.4, py + 4.5, 0.8, 0.5, dark);
+        // the music stand, and his sheet music on it
+        double sx = LEFT + 4.5, sy = py - 3.2;
+        box(c, unit, sx + 1.8, sy + 2.6, 0.4, 0.7, dark);
+        box(c, unit, sx - 0.3, sy + 2.4, 4.6, 0.4, dark);
+        box(c, unit, sx, sy, 4, 2.6, new Color(250, 248, 240));
+        for (int l = 0; l < 4; l++) box(c, unit, sx + 0.3, sy + 0.5 + l * 0.5, 3.4, 0.1, new Color(150, 150, 160));
+        box(c, unit, sx + 0.8, sy + 0.8, 0.4, 0.35, EYE);
+        box(c, unit, sx + 1.9, sy + 1.3, 0.4, 0.35, EYE);
+        box(c, unit, sx + 2.9, sy + 0.6, 0.4, 0.35, EYE);
+        // his hands, popping up over the top on each note
         double key = pet.pianoKey();
-        boolean down = pet.pianoPressing();
-        if (Double.isNaN(key)) {
-            box(g, unit, px + 2, py - 2, 2, 2, hand);
-            box(g, unit, px + 8, py - 2, 2, 2, hand);
-        } else {
-            double kx = px + key * (w - 2);
-            boolean leftHand = key < 0.5;
-            box(g, unit, leftHand ? kx : px + 2, py - (leftHand && down ? 1.2 : 2), 2, 2, hand);
-            box(g, unit, leftHand ? px + 8 : kx, py - (!leftHand && down ? 1.2 : 2), 2, 2, hand);
-            if (down) { // a note floats up
-                box(g, unit, kx + 0.6, py - 3.5, 0.7, 0.6, new Color(255, 214, 102));
-                box(g, unit, kx + 1.1, py - 4.8, 0.25, 1.4, new Color(255, 214, 102));
-            }
+        if (!Double.isNaN(key) && pet.pianoPressing()) {
+            double kx = px + 0.5 + key * (w - 3);
+            box(c, unit, kx, py - 1, 2, 1.2, hand);
+            box(c, unit, kx + 1.2, sy - 1.6, 0.7, 0.6, new Color(255, 214, 102)); // a note floats up
+            box(c, unit, kx + 1.7, sy - 2.9, 0.25, 1.4, new Color(255, 214, 102));
         }
+        c.dispose();
+    }
+
+    /** A MIDI file you dropped on him: he runs over to it, grabs it, and brings it back (a sheet of music). */
+    private static void drawFetch(Graphics2D g, Pet pet, int unit) {
+        long t = pet.moodTime();
+        double run = t < 500 ? 0 : t < 1200 ? ease((t - 500) / 700.0) : t < 1500 ? 1 : 1 - ease((t - 1500) / 700.0);
+        boolean carrying = t >= 1300;
+        double paperX = LEFT - 4.5, paperY = GROUND - 1.2;
+        if (!carrying) { // lying on the ground where you dropped it
+            box(g, unit, paperX, paperY, 3, 1.2, new Color(250, 248, 240));
+            box(g, unit, paperX + 0.4, paperY + 0.3, 2.2, 0.1, new Color(150, 150, 160));
+            box(g, unit, paperX + 0.4, paperY + 0.7, 2.2, 0.1, new Color(150, 150, 160));
+        }
+        Graphics2D him = (Graphics2D) g.create();
+        him.translate(-run * 6 * unit, 0);
+        drawBody(him, pet, unit, Pet.Mood.WALK); // legs going
+        if (carrying) { // the music held up high
+            box(him, unit, LEFT + 4.5, GROUND - 13.5, 4, 3, new Color(250, 248, 240));
+            for (int l = 0; l < 3; l++) box(him, unit, LEFT + 4.8, GROUND - 12.9 + l * 0.7, 3.4, 0.12, new Color(150, 150, 160));
+            box(him, unit, LEFT + 3.5, GROUND - 11, 1, 1, hand);
+            box(him, unit, LEFT + 8.5, GROUND - 11, 1, 1, hand);
+        }
+        him.dispose();
     }
 
     /** Whether he's showing off something he made with this effect. */

@@ -65,6 +65,50 @@ final class Piano {
         return new Song("a song I just made up", notes, beats, 300);
     }
 
+    /**
+     * A MIDI file as a song for his piano: the tune (the highest note whenever notes start together), up to 400 notes,
+     * with the real timing. Null if it isn't a MIDI file or has no notes.
+     */
+    static Song fromMidi(java.io.File file) {
+        try {
+            javax.sound.midi.Sequence seq = javax.sound.midi.MidiSystem.getSequence(file);
+            java.util.TreeMap<Long, Integer> top = new java.util.TreeMap<>(); // start tick -> highest note
+            for (javax.sound.midi.Track track : seq.getTracks()) {
+                for (int i = 0; i < track.size(); i++) {
+                    javax.sound.midi.MidiEvent e = track.get(i);
+                    if (e.getMessage() instanceof javax.sound.midi.ShortMessage m && m.getCommand() == javax.sound.midi.ShortMessage.NOTE_ON
+                            && m.getData2() > 0 && m.getChannel() != 9) { // (channel 10 is drums)
+                        top.merge(e.getTick(), m.getData1(), Math::max);
+                    }
+                }
+            }
+            if (top.isEmpty() || seq.getTickLength() == 0) return null;
+            double msPerTick = seq.getMicrosecondLength() / 1000.0 / seq.getTickLength();
+            java.util.List<Long> ticks = new java.util.ArrayList<>(top.keySet());
+            int count = Math.min(400, ticks.size());
+            int[] notes = new int[count];
+            double[] ms = new double[count];
+            for (int i = 0; i < count; i++) {
+                int n = top.get(ticks.get(i));
+                while (n > 84) n -= 12; // keep it on his little piano
+                while (n < 48) n += 12;
+                notes[i] = n;
+                long next = i + 1 < ticks.size() ? ticks.get(i + 1) : ticks.get(i) + seq.getResolution();
+                ms[i] = Math.max(60, Math.min(2000, (next - ticks.get(i)) * msPerTick));
+            }
+            String name = file.getName().replaceAll("(?i)\\.midi?$", "").replace('_', ' ');
+            return new Song("your " + (name.length() > 30 ? name.substring(0, 30) : name), notes, ms, 1);
+        } catch (Exception notMidi) {
+            return null;
+        }
+    }
+
+    /** Whether a file looks like MIDI (by its name). */
+    static boolean isMidi(java.io.File f) {
+        String n = f.getName().toLowerCase(java.util.Locale.ROOT);
+        return n.endsWith(".mid") || n.endsWith(".midi");
+    }
+
     /** Where a note's key is on his little piano, 0 (left) to 1 (right). */
     static double place(int midi) {
         return Math.max(0, Math.min(1, (midi - 58) / 20.0));

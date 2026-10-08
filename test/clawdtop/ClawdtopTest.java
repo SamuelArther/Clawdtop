@@ -547,6 +547,37 @@ public class ClawdtopTest {
         check("he knows how long it's been on", Useful.uptime() > 0, true);
         check("reminders have something to say", Useful.WATER.length >= 3 && Useful.STRETCH.length >= 3, true);
 
+        // ---- His piano, and MIDI files ----
+        javax.sound.midi.Sequence seq = new javax.sound.midi.Sequence(javax.sound.midi.Sequence.PPQ, 4);
+        javax.sound.midi.Track track = seq.createTrack();
+        int[] tune = {60, 60, 67, 67, 69, 69, 67};
+        for (int i = 0; i < tune.length; i++) {
+            track.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.NOTE_ON, 0, tune[i], 90), i * 4L));
+            track.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.NOTE_ON, 0, tune[i] - 12, 90), i * 4L)); // a bass note under it
+            track.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.NOTE_ON, 9, 36, 90), i * 4L)); // drums
+            track.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.NOTE_OFF, 0, tune[i], 0), i * 4L + 3));
+        }
+        java.io.File midiFile = home.resolve("Twinkle_Little.mid").toFile();
+        javax.sound.midi.MidiSystem.write(seq, 0, midiFile);
+        Piano.Song fromMidi = Piano.fromMidi(midiFile);
+        check("a dropped MIDI file becomes his song: the tune (not the bass or drums), with its own name",
+                java.util.Arrays.toString(fromMidi.notes()) + " " + fromMidi.name(), "[60, 60, 67, 67, 69, 69, 67] your Twinkle Little");
+        check("and not-music isn't", Piano.fromMidi(home.resolve("settings.properties").toFile()) + " " + Piano.isMidi(midiFile), "null true");
+        Pet player = new Pet(4);
+        player.takeBeep();
+        check("he fetches it", player.fetch(fromMidi) + " " + player.mood(), "true FETCH");
+        java.util.List<Integer> played = new java.util.ArrayList<>();
+        for (int i = 0; i < 400 && (player.mood() == Pet.Mood.FETCH || player.mood() == Pet.Mood.PIANO); i++) {
+            player.tick(33, 0, 0, false, false);
+            int note = player.takeNote();
+            if (note > 0) played.add(note);
+        }
+        check("then plays every note of it on his piano", played.toString(), "[60, 60, 67, 67, 69, 69, 67]");
+        Pet pianist = new Pet(4);
+        pianist.playPiano(Piano.SONGS[0]);
+        for (int i = 0; i < 60; i++) pianist.tick(33, 0, 0, false, false);
+        save(pianist, Path.of("build", "frames").resolve("playing the piano.png"));
+
         // ---- No tomfoolery ----
         Settings calm = Settings.load();
         calm.set("serious", "true");

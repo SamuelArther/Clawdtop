@@ -96,7 +96,9 @@ public final class Pet {
         /** Listening to you play your piano: eyes shut, swaying. */
         LISTEN,
         /** Veterans Day: a little flag, and a salute. */
-        SALUTE
+        SALUTE,
+        /** You dropped a MIDI file: he runs over, grabs it, and brings it back to play it. */
+        FETCH
     }
 
     private boolean canJuggle, canWave;
@@ -259,6 +261,14 @@ public final class Pet {
             case BLUSH -> { if (!hovered && moodFor > nextChange) set(Mood.IDLE, idleTime()); }
             case BOOPED, STRETCH -> { if (moodFor > nextChange) set(Mood.IDLE, idleTime()); }
             case SALUTE -> { if (moodFor > nextChange) set(Mood.IDLE, idleTime()); }
+            case FETCH -> {
+                if (moodFor > nextChange) {
+                    Piano.Song next = fetched;
+                    fetched = null;
+                    set(Mood.IDLE, 0);
+                    if (next != null) playPiano(next);
+                }
+            }
             case LISTEN -> {
                 if (moodFor > nextChange) {
                     String[] bravo = {"Bravo!", "Encore! Encore!", "That was beautiful.", "You should go on tour.", "I got chills. Crab chills."};
@@ -880,7 +890,7 @@ public final class Pet {
     /** Busy with something that shouldn't be cut short: a job, coding, a ride, a fall, moving house... */
     private boolean busy() {
         return switch (mood) {
-            case WORK, PEEK, PACK, CODING, SORRY, MADE, CARPET, LAUNCHPAD, ROCKET, DUCKS, THINK, PIANO, RIDE, FALL, DIZZY, SHAKE, WALK, CARRY, UNPACK, BIRTHDAY,
+            case WORK, PEEK, PACK, CODING, SORRY, MADE, CARPET, LAUNCHPAD, ROCKET, DUCKS, THINK, PIANO, FETCH, RIDE, FALL, DIZZY, SHAKE, WALK, CARRY, UNPACK, BIRTHDAY,
                     GOODBYE, FREAKOUT -> true;
             default -> false;
         };
@@ -899,7 +909,7 @@ public final class Pet {
         song = which != null ? which : Piano.madeUp(random);
         songNote = 0;
         note = 0;
-        line = "Here's " + song.name() + "!";
+        line = song.name().startsWith("your ") ? "Ahem. This one's called " + song.name().substring(5) + "." : "Here's " + song.name() + "!";
         set(Mood.PIANO, PIANO_INTRO + song.length() + 700);
         return true;
     }
@@ -923,6 +933,34 @@ public final class Pet {
 
     public boolean pianoPressing() {
         return mood == Mood.PIANO && moodFor - noteAt < 140;
+    }
+
+    private Piano.Song fetched;
+
+    /** Ooh, a file being dragged over him (it might be music!). */
+    public void sniff() {
+        if (busy() || mood == Mood.SLEEP || mood == Mood.HAPPY) return;
+        line = "Ooh! Is that music?!";
+        wants = Beep.HAPPY;
+        set(Mood.HAPPY, 900); // a little excited hop
+    }
+
+    /** You dropped a MIDI file on him: he fetches it, then plays it. */
+    public boolean fetch(Piano.Song song) {
+        if (busy() || song == null) return false;
+        fetched = song;
+        line = "Music! For me?!";
+        wants = Beep.WHEE;
+        set(Mood.FETCH, 2300);
+        return true;
+    }
+
+    /** Stops playing (you clicked him). */
+    public void stopPiano() {
+        if (mood != Mood.PIANO) return;
+        song = null;
+        line = "Okay, okay. I'll stop.";
+        set(Mood.IDLE, idleTime());
     }
 
     /** You played a note on your piano: he listens, swaying, and says something nice when you stop. */
