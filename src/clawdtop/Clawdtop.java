@@ -48,6 +48,8 @@ public final class Clawdtop {
     private boolean devApp;
     private boolean hidden;
     private int ticks;
+    private final Body body = new Body();
+    private double homeX, groundY; // his perch: the point between his feet, on the taskbar's top edge
     private int dragFrom = Integer.MIN_VALUE;
     private int windowXAtDrag;
 
@@ -59,7 +61,7 @@ public final class Clawdtop {
                 g2.setComposite(java.awt.AlphaComposite.Clear); // a see-through window: clear last frame first
                 g2.fillRect(0, 0, getWidth(), getHeight());
                 g2.setComposite(java.awt.AlphaComposite.SrcOver);
-                Sprite.draw(g2, pet, settings.unit());
+                Sprite.drawTurned(g2, pet, settings.unit(), body.angle());
                 g2.dispose();
             }
         };
@@ -90,6 +92,8 @@ public final class Clawdtop {
         int x = settings.x() >= 0 ? settings.x() : screen.x + screen.width - 64 - w / 2; // the clock is in the corner
         x = Math.max(screen.x, Math.min(screen.x + screen.width - w, x));
         window.setLocation(x, bottom - h + settings.unit()); // his feet just touch the taskbar
+        homeX = x + Sprite.feetX() * settings.unit();
+        groundY = bottom;
     }
 
     private void listen() {
@@ -97,7 +101,7 @@ public final class Clawdtop {
             @Override
             public void mousePressed(MouseEvent e) {
                 bubble.hide();
-                if (SwingUtilities.isLeftMouseButton(e)) {
+                if (SwingUtilities.isLeftMouseButton(e) && body.state() == Body.State.HOME) {
                     dragFrom = e.getXOnScreen();
                     windowXAtDrag = window.getX();
                 }
@@ -192,6 +196,16 @@ public final class Clawdtop {
         }
 
         int unit = settings.unit();
+        // His body: on his perch, or riding your cursor, flying off, dizzy, walking home
+        if (dragFrom == Integer.MIN_VALUE) {
+            Rectangle screen = window.getGraphicsConfiguration().getBounds();
+            body.tick(FRAME_MS, mouse.x, mouse.y, homeX, groundY, 12 * unit, screen.x, screen.x + screen.width);
+            pet.follow(body.state());
+            if (body.state() != Body.State.HOME || window.getX() != (int) Math.round(homeX - Sprite.feetX() * unit)) {
+                window.setLocation((int) Math.round(body.x() - Sprite.feetX() * unit),
+                        (int) Math.round(body.y() - window.getHeight() + unit));
+            }
+        }
         double eyesX = window.getX() + Sprite.eyesX() * unit;
         double eyesY = window.getY() + Sprite.eyesY() * unit;
         pet.tick(FRAME_MS, mouse.x - eyesX, mouse.y - eyesY, moved, devApp);

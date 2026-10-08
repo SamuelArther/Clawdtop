@@ -13,6 +13,9 @@ A tiny desktop buddy: Clawd sits on top of your taskbar, right above the clock, 
   bubble (all built in, nothing from the internet). Open the **Run box (Win + R)** and he shows handy commands
   (`%temp%`, `appwiz.cpl`, `msinfo32`...). VS Code, terminals, IntelliJ, File Explorer, Task Manager and browsers have
   their own shortcuts. Click the bubble to close it, or turn tips off in his menu.
+- **Give him a ride:** hold your cursor on the taskbar's top edge right next to him and he hops on and rides along
+  wherever you go. Bring him back down to the taskbar and stop, and he hops off and walks home. **Shake** the cursor
+  and he flies off, lands head first, lies there seeing stars, flips back up and walks home to his perch.
 - Full-screen games and videos? He gets out of the way until you're back.
 
 **Click** him to say hi. **Drag** him along the taskbar to move him. **Right-click** for his menu: beeps and tips on or off,

@@ -60,6 +60,49 @@ public class ClawdtopTest {
         lonely.poke();
         check("clicking him makes him happy", lonely.mood() + " " + lonely.takeBeep(), "HAPPY CLICKED");
 
+        // ---- Riding your cursor ----
+        Body body = new Body();
+        double perch = 1800, ground = 1032, reach = 36;
+        body.tick(33, 1000, 500, perch, ground, reach, 0, 1920);
+        check("he sits on his perch", body.state() + " " + body.x() + " " + body.y(), "HOME 1800.0 1032.0");
+        for (int i = 0; i < 20; i++) body.tick(33, perch + 5, ground, perch, ground, reach, 0, 1920);
+        check("the cursor on top of him doesn't make him hop on", body.state(), Body.State.HOME);
+        for (int i = 0; i < 20; i++) body.tick(33, perch - 25, ground + 3, perch, ground, reach, 0, 1920);
+        check("waiting on the taskbar's edge beside him: he hops on", body.state(), Body.State.HOP_ON);
+        for (int i = 0; i < 12; i++) body.tick(33, perch - 25, ground + 3, perch, ground, reach, 0, 1920);
+        check("and rides the cursor", body.state() + " " + body.x() + " " + body.y(), "RIDE 1775.0 1035.0");
+        Pet rider = new Pet(5);
+        rider.takeBeep();
+        rider.follow(body.state());
+        check("riding makes him go whee", rider.mood() + " " + rider.takeBeep(), "RIDE WHEE");
+        double cx = 1000;
+        for (int i = 0; i < 30; i++) {
+            cx += 20; // a smooth trip across the screen
+            body.tick(33, cx, 600, perch, ground, reach, 0, 1920);
+        }
+        check("he stays on for a smooth ride", body.state() + " " + body.x() + " " + body.y(), "RIDE 1600.0 600.0");
+        for (int i = 0; i < 16 && body.state() == Body.State.RIDE; i++) body.tick(33, 1600 + (i % 2 == 0 ? 120 : -120), 600, perch, ground, reach, 0, 1920);
+        check("shaking the cursor throws him off", body.state(), Body.State.FALL);
+        for (int i = 0; i < 6; i++) body.tick(33, 0, 0, perch, ground, reach, 0, 1920);
+        check("he flips over, head first, as he falls", Math.round(body.angle() * 100) / 100.0, Math.round(Math.PI * 100) / 100.0);
+        int fallTicks = 0;
+        while (body.state() == Body.State.FALL && fallTicks++ < 200) body.tick(33, 0, 0, perch, ground, reach, 0, 1920);
+        check("and lands on his head on the taskbar", body.state() + " " + body.y(), "DIZZY 1032.0");
+        rider.follow(Body.State.FALL);
+        rider.follow(body.state());
+        check("oof", rider.mood() + " " + rider.takeBeep(), "DIZZY OOF");
+        while (body.state() == Body.State.DIZZY) body.tick(33, 0, 0, perch, ground, reach, 0, 1920);
+        check("then gets back on his feet and walks home", body.state() + " " + body.angle(), "WALK 0.0");
+        int walkTicks = 0;
+        while (body.state() == Body.State.WALK && walkTicks++ < 2000) body.tick(33, 0, 0, perch, ground, reach, 0, 1920);
+        check("all the way back to his perch", body.state() + " " + body.x(), "HOME 1800.0");
+        rider.follow(body.state());
+        check("and he's himself again", rider.mood(), Pet.Mood.IDLE);
+        Body gentle = new Body();
+        for (int i = 0; i < 40; i++) gentle.tick(33, perch - 25, ground, perch, ground, reach, 0, 1920);
+        for (int i = 0; i < 40; i++) gentle.tick(33, 1500, ground + 2, perch, ground, reach, 0, 1920);
+        check("bring him back down to the taskbar and stop: he hops off and walks home", gentle.state(), Body.State.WALK);
+
         // ---- His voice ----
         for (Pet.Beep beep : Pet.Beep.values()) {
             byte[] sound = Beeps.make(beep);
@@ -134,6 +177,17 @@ public class ClawdtopTest {
         for (int i = 0; i < 20 * 60 * 30 && sleepy.mood() != Pet.Mood.SLEEP; i++) sleepy.tick(33, 0, 0, false, false);
         for (int i = 0; i < 40; i++) sleepy.tick(33, 0, 0, false, false);
         save(sleepy, frames.resolve("asleep.png"));
+        Pet moving = new Pet(6);
+        moving.takeBeep();
+        moving.follow(Body.State.RIDE);
+        save(moving, frames.resolve("riding.png"));
+        moving.follow(Body.State.FALL);
+        save(moving, frames.resolve("falling.png"), Math.PI * 0.5);
+        moving.follow(Body.State.DIZZY);
+        for (int i = 0; i < 5; i++) moving.tick(33, 0, 0, false, false);
+        save(moving, frames.resolve("dizzy, head first.png"), Math.PI);
+        moving.follow(Body.State.WALK);
+        save(moving, frames.resolve("walking home.png"));
         String[] bubbleLines = new Tips().tipFor(run).split("\n");
         java.awt.Dimension bubbleSize = Bubble.size(bubbleLines);
         BufferedImage bubble = new BufferedImage(bubbleSize.width, bubbleSize.height, BufferedImage.TYPE_INT_ARGB);
@@ -151,12 +205,16 @@ public class ClawdtopTest {
 
     /** One picture, 8 screen pixels to his pixel, on a taskbar-gray background so the see-through parts show. */
     static void save(Pet pet, Path file) throws Exception {
+        save(pet, file, 0);
+    }
+
+    static void save(Pet pet, Path file, double angle) throws Exception {
         int unit = 8;
         BufferedImage image = new BufferedImage(Sprite.WIDTH * unit, Sprite.HEIGHT * unit, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = image.createGraphics();
         g.setColor(new java.awt.Color(32, 32, 36));
         g.fillRect(0, 0, image.getWidth(), image.getHeight());
-        Sprite.draw(g, pet, unit);
+        Sprite.drawTurned(g, pet, unit, angle);
         g.dispose();
         ImageIO.write(image, "png", file.toFile());
     }

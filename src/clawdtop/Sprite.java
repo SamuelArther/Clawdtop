@@ -35,15 +35,20 @@ public final class Sprite {
         double lift = pet.lift();
         double top = GROUND - 2 - 8 + drop - lift; // his body is 8 tall, on legs 2 tall
 
-        // Legs: four little stubs (shorter when he sits, tucked away when he lies down)
+        // Legs: four little stubs (shorter when he sits, tucked away when he lies down, stepping when he walks)
         int legs = 2 - drop;
         if (legs > 0) {
-            for (int x : new int[] {0, 2, 10, 12}) box(g, unit, LEFT + x, GROUND - legs - lift, 1, legs, BODY);
+            boolean step = mood == Pet.Mood.WALK && (pet.time() / 150) % 2 == 0;
+            int[] xs = {0, 2, 10, 12};
+            for (int i = 0; i < 4; i++) {
+                double up = mood == Pet.Mood.WALK && (i % 2 == 0) == step ? 0.5 : 0;
+                box(g, unit, LEFT + xs[i], GROUND - legs - lift - up, 1, legs, BODY);
+            }
         }
         // Body
         box(g, unit, LEFT, top, 13, 8, BODY);
         // Arms: out to the sides, or up in the air when he's happy
-        if (mood == Pet.Mood.HAPPY) {
+        if (mood == Pet.Mood.HAPPY || mood == Pet.Mood.RIDE || mood == Pet.Mood.FALL) {
             box(g, unit, LEFT - 2, top - 1, 1, 3, BODY);
             box(g, unit, LEFT - 1, top + 1, 1, 1, BODY);
             box(g, unit, LEFT + 14, top - 1, 1, 3, BODY);
@@ -89,6 +94,17 @@ public final class Sprite {
             }
         }
 
+        // Dizzy (he's upside down, so these are drawn by his feet and end up over his head): stars going round
+        if (mood == Pet.Mood.DIZZY) {
+            for (int i = 0; i < 3; i++) {
+                double a = pet.time() / 250.0 + i * Math.PI * 2 / 3;
+                double sx = LEFT + 6 + Math.cos(a) * 5;
+                double sy = GROUND + 0.2 + Math.sin(a) * 0.6;
+                box(g, unit, sx, sy - 0.5, 1, 1, LIT);
+                box(g, unit, sx - 0.5, sy, 2, 0.4, GLOW);
+            }
+        }
+
         // Asleep: z's float up from beside his head
         if (mood == Pet.Mood.SLEEP) {
             for (int i = 0; i < 3; i++) {
@@ -96,6 +112,20 @@ public final class Sprite {
                 drawZ(g, unit, LEFT + 11 + t * 3, top - 1 - t * 5, t < 0.15 ? 0 : 1 - t);
             }
         }
+    }
+
+    /**
+     * Draws him turned by angle (0 standing, PI upside down, as when he falls head first), shifted down as he turns so
+     * his head, not the air above it, meets the ground.
+     */
+    public static void drawTurned(Graphics2D g, Pet pet, int unit, double angle) {
+        Graphics2D turned = (Graphics2D) g.create();
+        if (angle != 0) {
+            turned.translate(0, 4 * unit * (1 - Math.cos(angle)) / 2);
+            turned.rotate(angle, WIDTH * unit / 2.0, HEIGHT * unit / 2.0);
+        }
+        draw(turned, pet, unit);
+        turned.dispose();
     }
 
     /** A tiny z, 3 x 3 units, fading as it rises. */
@@ -116,6 +146,11 @@ public final class Sprite {
         int x1 = (int) Math.round((x + w) * unit);
         int y1 = (int) Math.round((y + h) * unit);
         g.fillRect(x0, y0, Math.max(1, x1 - x0), Math.max(1, y1 - y0));
+    }
+
+    /** The point between his feet, across the drawing, in units. */
+    public static double feetX() {
+        return LEFT + 6.5;
     }
 
     /** Where his eyes are in the drawing, in units (for working out where the cursor is from them). */

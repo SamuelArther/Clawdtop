@@ -18,7 +18,15 @@ public final class Pet {
         /** Fast asleep (nobody's moved the mouse in a while). */
         SLEEP,
         /** A dev app just came to the front, or you clicked him: he bounces with his arms up. */
-        HAPPY
+        HAPPY,
+        /** Riding your cursor, arms up. */
+        RIDE,
+        /** Shaken off, flying through the air head first. */
+        FALL,
+        /** Landed on his head: lying there upside down, seeing stars. */
+        DIZZY,
+        /** Walking home to his perch. */
+        WALK
     }
 
     private final Random random;
@@ -36,7 +44,7 @@ public final class Pet {
     private long talkLength;       // how long this beep's mouth moving lasts
 
     /** A little sound he makes. */
-    public enum Beep { HELLO, HAPPY, CLICKED, YAWN, WAKE, TIP }
+    public enum Beep { HELLO, HAPPY, CLICKED, YAWN, WAKE, TIP, WHEE, OOF }
 
     public Pet(long seed) {
         random = new Random(seed);
@@ -66,6 +74,7 @@ public final class Pet {
         }
 
         switch (mood) {
+            case RIDE, FALL, DIZZY, WALK -> { } // his body decides these (see follow)
             case IDLE -> { if (moodFor > nextChange) set(Mood.SIT, 30_000 + random.nextInt(60_000)); }
             case SIT -> {
                 if (moodFor > nextChange) set(sinceMouseMoved > 20_000 ? Mood.LIE : Mood.IDLE, sinceMouseMoved > 20_000 ? 60_000 + random.nextInt(120_000) : idleTime());
@@ -105,6 +114,25 @@ public final class Pet {
     public void speak() {
         wants = Beep.TIP;
         if (mood == Mood.LIE || mood == Mood.SIT) set(Mood.IDLE, idleTime());
+    }
+
+    /** Keeps his mood in step with what his body is doing: riding, falling, dizzy, walking home, or back home. */
+    public void follow(Body.State body) {
+        Mood want = switch (body) {
+            case HOP_ON, RIDE -> Mood.RIDE;
+            case FALL -> Mood.FALL;
+            case DIZZY -> Mood.DIZZY;
+            case WALK -> Mood.WALK;
+            case HOME -> null;
+        };
+        if (want == null) {
+            if (mood == Mood.RIDE || mood == Mood.FALL || mood == Mood.DIZZY || mood == Mood.WALK) set(Mood.IDLE, idleTime());
+            return;
+        }
+        if (want == mood) return;
+        if (want == Mood.RIDE) wants = Beep.WHEE;
+        if (want == Mood.DIZZY) wants = Beep.OOF;
+        set(want, Long.MAX_VALUE);
     }
 
     /** You clicked him. */
@@ -153,6 +181,8 @@ public final class Pet {
     /** How high he is off the ground right now, in his own pixels (bouncing when happy, breathing otherwise). */
     public float lift() {
         if (mood == Mood.HAPPY) return (float) Math.abs(Math.sin(time / 130.0)) * 3;
+        if (mood == Mood.WALK) return (time / 150) % 2 == 0 ? 0 : 0.5f; // a little bob with each step
+        if (mood == Mood.RIDE || mood == Mood.FALL || mood == Mood.DIZZY) return 0;
         if (mood == Mood.SLEEP || mood == Mood.LIE) return 0;
         return (time / 900) % 2 == 0 ? 0 : 0.5f; // a slow breath
     }
