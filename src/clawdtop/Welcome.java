@@ -313,7 +313,9 @@ final class Welcome {
         String who = settings.name().isEmpty() ? "" : " " + settings.name();
         settings.setMet();
         show(new String[] {"All set" + (who.isEmpty() ? "" : ",") + who + "!",
-                "I'm in a box down on your taskbar.", "Click it to let me out!"}, null,
+                "I'm in a box down on your taskbar.", "Click it to let me out!",
+                "(I'm also installing my brain in the background, so I can answer your questions:",
+                "Ollama, free, about 2 GB. You don't have to do anything.)"}, null,
                 button("OK!", () -> {
                     if (window != null) window.dispose();
                     finished.run();

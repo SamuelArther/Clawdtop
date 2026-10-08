@@ -299,16 +299,10 @@ public final class Clawdtop {
                 if (problem != null && found != null) {
                     // no brain yet, but he looked it up
                     pet.say(Brain.wrap("I looked it up! " + Brain.clean(found.text()) + " (from " + found.source() + ")", 46));
-                } else if ("no ollama".equals(problem)) {
-                    bubble.ask("I need my brain first! It's a free app called Ollama.\nWant me to open its download page?",
-                            new String[] {"Open it", "Not now"}, c -> {
-                                if (c == 0) Useful.browse(Brain.DOWNLOAD_PAGE);
-                            }, window.getBounds(), screenBounds());
-                } else if ("no brain".equals(problem)) {
-                    bubble.ask("My brain isn't downloaded yet (" + Brain.downloadSize(settings.choice("brain")) + ", just once).\nDownload it now?",
-                            new String[] {"Download", "Not now"}, c -> {
-                                if (c == 0) downloadBrain(model, question);
-                            }, window.getBounds(), screenBounds());
+                } else if (problem != null) {
+                    // no brain yet: he installs it (with a notice), then answers
+                    pet.say("I need my brain for that! Getting it ready now...\nI'll answer as soon as it's done.");
+                    prepareBrain(() -> answer(question));
                 } else if (reply == null) {
                     pet.say("Hmm... my brain froze. Try again?");
                 } else {
@@ -316,6 +310,25 @@ public final class Clawdtop {
                 }
             });
         }, "clawd-brain");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    private boolean brainBusy; // installing his brain right now
+
+    /** Gets his brain ready in the background (installing Ollama and the model if needed), then runs then (if any). */
+    void prepareBrain(Runnable then) {
+        if (brainBusy) return;
+        brainBusy = true;
+        String model = Brain.model(settings.choice("brain"));
+        Thread t = new Thread(() -> {
+            boolean ok = BrainInstall.ensure(brain, model, note -> SwingUtilities.invokeLater(() -> pet.say(note)));
+            SwingUtilities.invokeLater(() -> {
+                brainBusy = false;
+                if (ok && then != null) then.run();
+                else if (ok) pet.say("My brain is ready! Ask me anything.");
+            });
+        }, "clawd-brain-install");
         t.setDaemon(true);
         t.start();
     }
@@ -1279,6 +1292,7 @@ public final class Clawdtop {
             boxed = true;
             window.setVisible(false); // he's in his box, which shows up when you've finished meeting him
             welcome.onFinished(() -> {
+                if (settings.on("askMe") && System.getProperty("clawdtop.home") == null) prepareBrain(null); // his brain, in the background
                 settings = Settings.load(); // a save token may have brought back his color and the rest
                 settingsChanged = Settings.changed();
                 pet.setColor(settings.awtColor());

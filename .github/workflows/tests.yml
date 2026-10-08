@@ -32,3 +32,17 @@ jobs:
         with:
           name: linux-screenshots
           path: shots
+
+  brain:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Install his brain the way he does, and ask him things
+        shell: bash
+        run: |
+          javac -d build/test-classes src/clawdtop/*.java test/clawdtop/*.java
+          java --enable-native-access=ALL-UNNAMED -cp build/test-classes clawdtop.BrainCheck qwen2.5:0.5b
