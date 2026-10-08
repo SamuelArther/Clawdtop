@@ -20,7 +20,15 @@ public final class Body {
     static final int SHAKE_TURNS = 4;        // direction changes within half a second that count as shaking
     static final double SHAKE_SPEED = 1400;  // and how fast (px/s on average) the cursor has to be going
     static final long FLY_TIME = 12_000;     // a ride on his flying carpet
-    static final long ROCKET_TIME = 6500;    // his rocket's flight, before it crashes
+    static final long ROCKET_TIME = 9000;    // his rocket's flight, before it crashes
+    static final double LIFTOFF_SPEED = 1500, CRUISE_SPEED = 260; // px/s: a blast off, then a lot slower
+
+    private double ceiling = Double.NaN;
+
+    /** The top of the screen (his rocket bounces off it). */
+    public void setCeiling(double top) {
+        ceiling = top;
+    }
 
     private boolean rides = true, shakeOff = true;
     private long hoverToHop = HOVER_TO_HOP;
@@ -168,24 +176,40 @@ public final class Body {
                 angle = 0;
             }
             case ROCKET -> {
-                // Off the taskbar and all over the screen, wilder and wilder, sputtering at the end... then BOOM
-                double u = stateFor / (double) ROCKET_TIME;
-                double in = Math.min(1, u / 0.1);
-                double w = in * in * (3 - 2 * in);
-                double loopX = (left + right) / 2 + (right - left) * 0.4 * Math.sin(Math.PI * 2 * 1.3 * u) * Math.cos(Math.PI * 2 * 0.4 * u);
-                double loopY = groundY - 330 + 210 * Math.sin(Math.PI * 2 * 2.1 * u + 1.5 * Math.sin(Math.PI * 2 * u));
-                double sputter = u > 0.75 ? Math.sin(time / 35.0) * 8 : 0;
-                double nx = Math.max(left, Math.min(right, homeX + (loopX - homeX) * w + sputter));
-                double ny = groundY + (loopY - groundY) * w + sputter * 0.5;
-                if (Math.hypot(nx - x, ny - y) > 0.5) {
-                    // the rocket points the way it's going (0 is straight up)
-                    double heading = Math.atan2(nx - x, -(ny - y));
-                    double turn = Math.IEEEremainder(heading - angle, Math.PI * 2);
-                    angle += turn * Math.min(1, dt * 8);
+                // Blasts off at full speed, then cruises round the screen (a lot slower), wandering, bouncing off
+                // the edges, sputtering at the end... then BOOM
+                double ceiling = Double.isNaN(this.ceiling) ? groundY - 700 : this.ceiling;
+                double speed = Math.hypot(vx, vy);
+                double want = stateFor < 600 ? LIFTOFF_SPEED : CRUISE_SPEED;
+                speed += (want - speed) * Math.min(1, dt * (stateFor < 600 ? 10 : 2));
+                double dir = Math.atan2(vy, vx);
+                if (stateFor > 800) dir += (Math.sin(time / 650.0) * 1.4 + Math.sin(time / 230.0) * 0.7) * dt; // wandering
+                vx = Math.cos(dir) * speed;
+                vy = Math.sin(dir) * speed;
+                x += vx * dt;
+                y += vy * dt;
+                if (x < left + 40) {
+                    x = left + 40;
+                    vx = Math.abs(vx);
+                } else if (x > right - 40) {
+                    x = right - 40;
+                    vx = -Math.abs(vx);
                 }
-                x = nx;
-                y = ny;
-                if (u >= 1) {
+                if (y < ceiling + 110) { // (his rocket's tall: y is its bottom)
+                    y = ceiling + 110;
+                    vy = Math.abs(vy);
+                } else if (stateFor > 1000 && y > groundY - 20) {
+                    y = groundY - 20;
+                    vy = -Math.abs(vy);
+                }
+                if (stateFor > ROCKET_TIME - 1500) { // sputtering
+                    x += Math.sin(time / 30.0) * 3;
+                    y += Math.cos(time / 37.0) * 2;
+                }
+                // it points the way it's going (0 is straight up)
+                double heading = Math.atan2(vx, -vy);
+                angle += Math.IEEEremainder(heading - angle, Math.PI * 2) * Math.min(1, dt * 8);
+                if (stateFor >= ROCKET_TIME) {
                     boom = true;
                     angle = 0;
                     headFirst = true;
@@ -236,6 +260,8 @@ public final class Body {
     public void rocketRide() {
         if (state != State.HOME) return;
         angle = 0;
+        vx = 0;
+        vy = -LIFTOFF_SPEED; // straight up, full speed
         set(State.ROCKET);
     }
 

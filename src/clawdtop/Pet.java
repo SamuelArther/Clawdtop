@@ -258,13 +258,11 @@ public final class Pet {
                 }
             }
             case LAUNCHPAD -> {
-                // climbs aboard, then counts down: 5... 4... 3... 2... 1...
-                for (int n = 0; n < 5; n++) {
-                    if (moodFor >= Sprite.SHUT + 100 + n * 1000 && countdown == n) {
-                        countdown++;
-                        line = (5 - n) + "...";
-                        wants = Beep.TIP;
-                    }
+                // climbs aboard, the door shuts... and a second later, off he goes
+                if (moodFor >= Sprite.SHUT && countdown == 0) {
+                    countdown = 1;
+                    line = "Here we go...";
+                    wants = Beep.TIP;
                 }
                 if (moodFor > nextChange) {
                     made = rocket; // the window launches it (and then he's riding it: see follow)
@@ -697,7 +695,7 @@ public final class Pet {
                 guilty = c;                   // (he'll be sorry once he's back)
                 rocket = c;
                 countdown = 0;
-                set(Mood.LAUNCHPAD, Sprite.SHUT + 5100);
+                set(Mood.LAUNCHPAD, Sprite.SHUT + 1000);
             }
             case POPUP, NONE -> {
                 // a pop-up says the done line itself (the window shows it); he just says the after line

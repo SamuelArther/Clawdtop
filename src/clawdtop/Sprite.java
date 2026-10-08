@@ -93,10 +93,10 @@ public final class Sprite {
         }
         drawBody(g, pet, unit, mood);
         long boom = pet.boomAge();
-        if (boom < 900) {
+        if (boom < 300) {
             // KABOOM: a burst of fire and smoke round him
             Color[] fire = {new Color(255, 240, 150), new Color(255, 170, 60), new Color(230, 80, 50), new Color(120, 120, 128)};
-            double f = boom / 900.0;
+            double f = boom / 300.0;
             for (int i = 0; i < 14; i++) {
                 double a = i * Math.PI * 2 / 14 + i;
                 double r = 1 + f * (4 + i % 3 * 1.5);
@@ -130,8 +130,8 @@ public final class Sprite {
         double ramp = t < RAMP_OUT ? 0 : t < WALKED_IN ? ease((t - RAMP_OUT) / 300.0) : 1 - ease((t - WALKED_IN) / 300.0);
         boolean doorOpen = t >= RAMP_OUT - 100 && t < SHUT;
         boolean inside = t >= WALKED_IN;
-        double shake = t > 6600 ? Math.sin(t / 25.0) * 0.15 : 0;
-        drawRocket(g, unit, ROCKET_X + shake, GROUND + drop, ramp, t > 7000, inside, pet, doorOpen ? 1 : 0);
+        double shake = t > SHUT + 300 ? Math.sin(t / 25.0) * 0.15 : 0;
+        drawRocket(g, unit, ROCKET_X + shake, GROUND + drop, ramp, t > SHUT + 600, inside, pet, doorOpen ? 1 : 0);
         if (!inside) {
             // him, then walking up the ramp and in through the door (the rocket hides what's gone in)
             double walk = t < RAMP_OUT + 300 ? 0 : ease((t - RAMP_OUT - 300) / (double) (WALKED_IN - RAMP_OUT - 300));
@@ -258,7 +258,12 @@ public final class Sprite {
             box(g, unit, LEFT + 3.5 + (fidget ? 0.3 : 0), top + 6.5, 1.5, 1.5, hand);
             box(g, unit, LEFT + 8 - (fidget ? 0.3 : 0), top + 6.5, 1.5, 1.5, hand);
             box(g, unit, LEFT + 13.2, top - 0.5 + (pet.time() / 300 % 3) * 0.3, 0.6, 1, new Color(140, 200, 255));
-        } else if (mood == Pet.Mood.HAPPY || mood == Pet.Mood.RIDE || mood == Pet.Mood.FALL || mood == Pet.Mood.PARTY
+        } else if (mood == Pet.Mood.FALL) {
+            // falling: arms flailing like mad
+            boolean flail = (pet.time() / 70) % 2 == 0;
+            box(g, unit, LEFT - 2, top + (flail ? -0.5 : 3), 1.2, 2.5, body);
+            box(g, unit, LEFT + 13.8, top + (flail ? 3 : -0.5), 1.2, 2.5, body);
+        } else if (mood == Pet.Mood.HAPPY || mood == Pet.Mood.RIDE || mood == Pet.Mood.PARTY
                 || mood == Pet.Mood.CARPET || (mood == Pet.Mood.DUCKS && pet.moodTime() >= Pet.DUCK_SURPRISE + 400)) {
             box(g, unit, LEFT - 2, top - 1, 1, 3, body);
             box(g, unit, LEFT - 1, top + 1, 1, 1, body);

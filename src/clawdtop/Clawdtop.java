@@ -202,7 +202,8 @@ public final class Clawdtop {
             }
         }
         if (pet.duckSpam() && ticks % 7 == 0) dropDuck();
-        if (ducks.active()) {
+        explosion.tick(FRAME_MS);
+        if (ducks.active() || explosion.active()) {
             Rectangle screen = screenBounds();
             ducks.tick(FRAME_MS, groundY, screen.x, screen.x + screen.width);
             if (duckWindow != null) duckWindow.repaint();
@@ -221,10 +222,18 @@ public final class Clawdtop {
     }
 
     private final DuckRain ducks = new DuckRain();
-    private javax.swing.JWindow duckWindow; // see-through, over the bottom half of the screen, just for the ducks
+    private final Explosion explosion = new Explosion();
+    private javax.swing.JWindow duckWindow; // see-through, over the whole screen, for big things: ducks, explosions
 
     /** One more duck, from the middle of the screen. */
     private void dropDuck() {
+        showFx();
+        Rectangle screen = screenBounds();
+        ducks.spawn(screen.x + screen.width / 2.0, screen.y + screen.height / 2.0);
+    }
+
+    /** Shows the see-through window for big things (ducks, explosions), over the screen above the taskbar. */
+    private void showFx() {
         Rectangle screen = screenBounds();
         if (duckWindow == null) {
             duckWindow = new javax.swing.JWindow();
@@ -237,6 +246,7 @@ public final class Clawdtop {
                     g2.fillRect(0, 0, getWidth(), getHeight());
                     g2.setComposite(java.awt.AlphaComposite.SrcOver);
                     ducks.paint(g2, duckWindow.getX(), duckWindow.getY(), Math.max(2, settings.unit() * 2 / 3));
+                    explosion.paint(g2, duckWindow.getX(), duckWindow.getY(), settings.unit() / 4.0);
                     g2.dispose();
                 }
             };
@@ -246,10 +256,8 @@ public final class Clawdtop {
             duckWindow.setFocusableWindowState(false);
             duckWindow.setType(java.awt.Window.Type.UTILITY);
         }
-        int top = screen.y + screen.height / 2 - 40;
-        duckWindow.setBounds(screen.x, top, screen.width, (int) Math.round(groundY) - top + 2);
+        duckWindow.setBounds(screen.x, screen.y, screen.width, (int) Math.round(groundY) - screen.y + 2);
         if (!duckWindow.isVisible()) duckWindow.setVisible(true);
-        ducks.spawn(screen.x + screen.width / 2.0, screen.y + screen.height / 2.0);
     }
 
     /** Writes as much of a creation's file as he's typed so far (progress 0 to 1). */
@@ -725,10 +733,15 @@ public final class Clawdtop {
                 job.tick(FRAME_MS, body, pet);
                 if (job.over()) job = null;
             }
+            body.setCeiling(screen.y);
             body.tick(FRAME_MS, mouse.x, mouse.y, homeX, groundY, 12 * unit, screen.x, screen.x + screen.width);
             pet.follow(body.state());
             creations();
-            if (body.takeBoom()) pet.boom();
+            if (body.takeBoom()) {
+                pet.boom();
+                explosion.start(body.x(), body.y() - 7 * unit); // round the middle of his rocket
+                showFx();
+            }
             if (body.state() != Body.State.HOME || window.getX() != (int) Math.round(homeX - Sprite.feetX() * unit)) {
                 window.setLocation((int) Math.round(body.x() - Sprite.feetX() * unit),
                         (int) Math.round(body.y() - window.getHeight() + unit));
