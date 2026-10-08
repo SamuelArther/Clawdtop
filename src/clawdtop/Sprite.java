@@ -18,6 +18,7 @@ public final class Sprite {
     static final Color GLOW = new Color(255, 214, 102, 150);
     static final Color ZZZ = new Color(200, 210, 230, 220);
     static final Color LAPTOP = new Color(150, 158, 170);
+    static final Color HAND = new Color(178, 92, 64); // a shade darker than his body, so his hands show in front of it
     static final Color LAPTOP_DARK = new Color(96, 104, 116);
     static final Color SCREEN_GLOW = new Color(150, 210, 255, 120);
 
@@ -58,10 +59,8 @@ public final class Sprite {
         box(g, unit, LEFT, top, 13, 8, BODY);
         // Arms: out to the sides, or up in the air when he's happy
         if (mood == Pet.Mood.WORK) {
-            // Typing: arms reach in front, taking turns
-            boolean tap = (pet.time() / 120) % 2 == 0;
-            box(g, unit, LEFT - 1, top + 5 + (tap ? 0.5 : 0), 2, 1, BODY);
-            box(g, unit, LEFT + 12, top + 5 + (tap ? 0 : 0.5), 2, 1, BODY);
+            // His side nubs are his hands, and they float free (no arms, like a Mii): while he types they're over at
+            // the laptop, drawn with it below
         } else if (mood == Pet.Mood.HAPPY || mood == Pet.Mood.RIDE || mood == Pet.Mood.FALL) {
             box(g, unit, LEFT - 2, top - 1, 1, 3, BODY);
             box(g, unit, LEFT - 1, top + 1, 1, 1, BODY);
@@ -101,17 +100,15 @@ public final class Sprite {
             box(clip, unit, LEFT + 6, ly + 1.25, 1, 1, BODY);            // a tiny orange logo
             box(clip, unit, LEFT + 2.5, ly + 3.5, 8, 1, LAPTOP);          // the keyboard part
             clip.dispose();
+            // His two floating hands typing on the keyboard where it sticks out past the screen, taking turns,
+            // never in front of the screen. Until the laptop's all the way out they're still at his sides.
+            boolean tap = (pet.time() / 110) % 2 == 0;
             if (out >= 1) {
-                // His two little hands on the keys, typing away: they take turns tapping, round and round
-                long beat = pet.time() / 110;
-                double[] keysX = {3.5, 4.5, 5.5, 7, 8, 9};
-                double leftX = keysX[(int) (beat / 2 % 3)];
-                double rightX = keysX[3 + (int) ((beat / 2 + 1) % 3)];
-                boolean leftDown = beat % 2 == 0;
-                box(g, unit, LEFT + leftX - 0.5, ly + 3 + (leftDown ? 0.5 : 0), 1, 1, BODY);
-                box(g, unit, LEFT + rightX - 0.5, ly + 3 + (leftDown ? 0 : 0.5), 1, 1, BODY);
-                // the key just pressed lights up
-                box(g, unit, LEFT + (leftDown ? leftX : rightX) - 0.5, ly + 4.5, 1, 0.25, SCREEN_GLOW);
+                box(g, unit, LEFT + 2.5, ly + 2.5 + (tap ? 0.75 : 0), 1, 1, HAND);
+                box(g, unit, LEFT + 9.5, ly + 2.5 + (tap ? 0 : 0.75), 1, 1, HAND);
+            } else {
+                box(g, unit, LEFT - 2, top + 4, 2, 2, BODY);
+                box(g, unit, LEFT + 13, top + 4, 2, 2, BODY);
             }
         }
 
