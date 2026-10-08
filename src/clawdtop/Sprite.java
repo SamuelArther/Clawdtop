@@ -101,6 +101,18 @@ public final class Sprite {
             box(clip, unit, LEFT + 6, ly + 1.25, 1, 1, BODY);            // a tiny orange logo
             box(clip, unit, LEFT + 2.5, ly + 3.5, 8, 1, LAPTOP);          // the keyboard part
             clip.dispose();
+            if (out >= 1) {
+                // His two little hands on the keys, typing away: they take turns tapping, round and round
+                long beat = pet.time() / 110;
+                double[] keysX = {3.5, 4.5, 5.5, 7, 8, 9};
+                double leftX = keysX[(int) (beat / 2 % 3)];
+                double rightX = keysX[3 + (int) ((beat / 2 + 1) % 3)];
+                boolean leftDown = beat % 2 == 0;
+                box(g, unit, LEFT + leftX - 0.5, ly + 3 + (leftDown ? 0.5 : 0), 1, 1, BODY);
+                box(g, unit, LEFT + rightX - 0.5, ly + 3 + (leftDown ? 0 : 0.5), 1, 1, BODY);
+                // the key just pressed lights up
+                box(g, unit, LEFT + (leftDown ? leftX : rightX) - 0.5, ly + 4.5, 1, 0.25, SCREEN_GLOW);
+            }
         }
 
         // Mouth: only while he beeps, flapping open and shut between his eyes
