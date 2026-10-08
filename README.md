@@ -7,7 +7,7 @@ A tiny desktop buddy: Clawd sits on top of your taskbar, right above the clock, 
 
 - He stands around, breathes and blinks, and **his eyes follow your cursor**.
 - Leave him alone for a while and he **sits down**, then **lies down**, then **falls asleep** (with little z's).
-  Move your mouse near him and he wakes up.
+  Tap him (or move your mouse near him) and he wakes up.
 - Open **VS Code, a terminal, IntelliJ** or another coding app and **his eyes light up** and he bounces, happy.
 - He talks in **little quiet beeps**, and now and then he has a **tip** for what you're doing, in a little speech
   bubble (all built in, nothing from the internet). Open the **Run box (Win + R)** and he shows handy commands

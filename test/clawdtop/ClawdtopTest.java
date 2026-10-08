@@ -55,6 +55,13 @@ public class ClawdtopTest {
         check("asleep, his eyes are shut and he doesn't watch the cursor", lonely.eyesShut() + " " + lonely.lookX(), "true 0.0");
         lonely.tick(33, 500, 0, true, false);
         check("moving the mouse far away doesn't wake him", lonely.mood(), Pet.Mood.SLEEP);
+        Pet napper = new Pet(2);
+        napper.takeBeep();
+        for (int i = 0; i < 20 * 60 * 30 && napper.mood() != Pet.Mood.SLEEP; i++) napper.tick(33, 0, 0, false, false);
+        napper.takeBeep();
+        check("asleep, he's sleepy", napper.sleepy(), true);
+        napper.poke();
+        check("tapping him wakes him up with a little hop", napper.mood() + " " + napper.takeBeep() + " " + napper.sleepy(), "HAPPY WAKE false");
         lonely.tick(33, 40, 10, true, false);
         check("moving it near him does, with a beep", lonely.mood() + " " + lonely.takeBeep(), "IDLE WAKE");
         lonely.poke();

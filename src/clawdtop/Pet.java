@@ -153,8 +153,14 @@ public final class Pet {
         job = mood;
     }
 
-    /** You clicked him. */
+    /** You clicked him. Asleep (or dozing), a tap wakes him up with a little startled hop. */
     public void poke() {
+        if (mood == Mood.SLEEP || mood == Mood.LIE) {
+            wants = Beep.WAKE;
+            set(Mood.HAPPY, 700);
+            sinceMouseMoved = 0;
+            return;
+        }
         wants = Beep.CLICKED;
         set(Mood.HAPPY, 1600);
     }
@@ -176,6 +182,11 @@ public final class Pet {
 
     public Mood mood() {
         return mood;
+    }
+
+    /** Whether he's asleep or dozing (a tap only wakes him then; it doesn't open his menu). */
+    public boolean sleepy() {
+        return mood == Mood.SLEEP || mood == Mood.LIE;
     }
 
     /** Whether his eyes are shut right now (blinking or asleep). */

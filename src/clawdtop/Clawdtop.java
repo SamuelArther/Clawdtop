@@ -134,6 +134,8 @@ public final class Clawdtop {
                 dragFrom = Integer.MIN_VALUE;
                 if (moved) {
                     settings.setX(window.getX());
+                } else if (pet.sleepy()) {
+                    pet.poke(); // just wakes him up
                 } else {
                     pet.poke();
                     jobs().show(canvas, e.getX(), e.getY());
