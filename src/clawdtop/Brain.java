@@ -130,6 +130,8 @@ final class Brain {
     /** His answer, tidied: no markdown or emoji, no bad words (just in case), not too long. */
     static String clean(String text) {
         String t = text.replace("**", "").replace("__", "").replace("`", "").replaceAll("(?m)^#+\\s*", "").replaceAll("(?m)^\\s*[-*]\\s+", "- ");
+        t = t.replace('’', '\'').replace('‘', '\'').replace('“', '"').replace('”', '"')
+                .replace('—', '-').replace('–', '-'); // curly quotes and dashes, made plain
         t = t.replaceAll("[^\\x00-\\x7E\\n]", ""); // plain characters only (no emoji)
         t = BAD.matcher(t).replaceAll("beep");
         t = t.strip();

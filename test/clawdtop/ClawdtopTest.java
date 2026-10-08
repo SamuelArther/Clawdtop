@@ -466,6 +466,7 @@ public class ClawdtopTest {
         check("JSON both ways", Brain.content("{\"model\":\"x\",\"message\":{\"role\":\"assistant\",\"content\":\"Hi \\\"there\\\"!\\nCrabs \\u0026 code.\"},\"done\":true}")
                 + "|" + Brain.json("a \"b\"\n"), "Hi \"there\"!\nCrabs & code.|\"a \\\"b\\\"\\n\"");
         check("his answers never have bad words (even if the model slips)", Brain.clean("Well, **damn**, that's a shitty bug 🦀"), "Well, beep, that's a beep bug");
+        check("curly quotes stay (as plain ones)", Brain.clean("It’s “pretty” high — wow"), "It's \"pretty\" high - wow");
         check("long answers wrap for his bubble", Brain.wrap("The quick brown fox jumps over the lazy dog again", 20), "The quick brown fox\njumps over the lazy\ndog again");
         check("he answers in his own personality, kid-friendly or not", Brain.systemPrompt(Pet.Personality.BOUNCY, true, "Sam").contains("exclamation")
                 && Brain.systemPrompt(Pet.Personality.BOUNCY, true, "Sam").contains("kid") && !Brain.systemPrompt(Pet.Personality.CHILL, false, "").contains("kids")
