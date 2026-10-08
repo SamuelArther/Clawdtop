@@ -496,34 +496,31 @@ public final class Clawdtop {
     /** What you can ask him to do (left-click him). */
     private JPopupMenu jobs() {
         JPopupMenu menu = new JPopupMenu();
-        if (job == null) {
-            JMenuItem clean = new JMenuItem(Platform.WINDOWS ? "Clean a folder..." : "Clean a folder (Windows only for now)");
-            clean.setEnabled(Platform.WINDOWS);
-            clean.addActionListener(e -> startCleaning());
-            menu.add(clean);
-        } else {
+        boolean free = job == null && body.state() == Body.State.HOME;
+        if (job != null) {
             JMenuItem stop = new JMenuItem("Stop cleaning");
             stop.addActionListener(e -> job.stop(body, pet));
             menu.add(stop);
-        }
-        if (job == null && body.state() == Body.State.HOME) {
-            JMenuItem make = new JMenuItem("Make something!");
-            make.addActionListener(e -> makeSomething());
-            menu.add(make);
         }
         if (settings.on("askMe") && job == null) {
             JMenuItem ask = new JMenuItem("Ask me a question...");
             ask.addActionListener(e -> askBox.show("Ask me anything!", window.getBounds(), screenBounds(), this::answer));
             menu.add(ask);
         }
-        if (job == null && body.state() == Body.State.HOME) {
+
+        // Fun
+        javax.swing.JMenu fun = new javax.swing.JMenu("Fun");
+        if (free) {
+            JMenuItem make = new JMenuItem("Make something!");
+            make.addActionListener(e -> makeSomething());
+            fun.add(make);
             javax.swing.JMenu piano = new javax.swing.JMenu("Piano");
             JMenuItem any = new JMenuItem("Play me something!");
             any.addActionListener(e -> pet.playPiano(new java.util.Random().nextInt(3) == 0 ? null : Piano.SONGS[new java.util.Random().nextInt(Piano.SONGS.length)]));
             piano.add(any);
-            for (Piano.Song s : Piano.SONGS) {
-                JMenuItem item = new JMenuItem(s.name());
-                item.addActionListener(e -> pet.playPiano(s));
+            for (Piano.Song song : Piano.SONGS) {
+                JMenuItem item = new JMenuItem(song.name());
+                item.addActionListener(e -> pet.playPiano(song));
                 piano.add(item);
             }
             JMenuItem mine = new JMenuItem("Let me play!");
@@ -533,45 +530,55 @@ public final class Clawdtop {
             }));
             piano.addSeparator();
             piano.add(mine);
-            menu.add(piano);
-        }
-        if (job == null && body.state() == Body.State.HOME) {
+            fun.add(piano);
             JMenuItem lap = new JMenuItem("Run a lap!");
             lap.addActionListener(e -> {
                 if (pet.lap()) body.runLap();
             });
-            menu.add(lap);
+            fun.add(lap);
             JMenuItem music = new JMenuItem("Music time!");
             music.addActionListener(e -> pet.vibe());
-            menu.add(music);
+            fun.add(music);
         }
         JMenuItem joke = new JMenuItem("Tell me a joke");
         joke.addActionListener(e -> tellJoke());
-        menu.add(joke);
+        fun.add(joke);
+        if (settings.owns("dancing")) {
+            JMenuItem dance = new JMenuItem("Dance!");
+            dance.addActionListener(e -> pet.dance());
+            fun.add(dance);
+        }
+        menu.add(fun);
+
+        // Useful
+        javax.swing.JMenu useful = new javax.swing.JMenu("Useful");
+        if (job == null) {
+            JMenuItem clean = new JMenuItem(Platform.WINDOWS ? "Clean a folder..." : "Clean a folder (Windows only for now)");
+            clean.setEnabled(Platform.WINDOWS);
+            clean.addActionListener(e -> startCleaning());
+            useful.add(clean);
+        }
         JMenuItem focusItem = new JMenuItem(focusUntil > 0 ? "Stop the focus timer (" + Math.max(1, (focusUntil - System.currentTimeMillis()) / 60_000) + " min left)" : "Focus timer (25 min)");
         focusItem.addActionListener(e -> focus(focusUntil == 0));
-        menu.add(focusItem);
+        useful.add(focusItem);
         JMenuItem watchItem = new JMenuItem(stopwatchFrom > 0 ? "Stop the stopwatch" : "Start a stopwatch");
         watchItem.addActionListener(e -> stopwatch(stopwatchFrom == 0));
-        menu.add(watchItem);
+        useful.add(watchItem);
         JMenuItem checkup = new JMenuItem("How's my computer?");
         checkup.addActionListener(e -> worker.execute(() -> {
             String report = Useful.checkup();
             SwingUtilities.invokeLater(() -> pet.say(report));
         }));
-        menu.add(checkup);
+        useful.add(checkup);
         javax.swing.JMenu open = new javax.swing.JMenu("Open...");
         for (String[] thing : Useful.OPENABLE) {
             JMenuItem item = new JMenuItem(thing[0]);
             item.addActionListener(e -> Useful.open(thing[1]));
             open.add(item);
         }
-        menu.add(open);
-        if (settings.owns("dancing")) {
-            JMenuItem dance = new JMenuItem("Dance!");
-            dance.addActionListener(e -> pet.dance());
-            menu.add(dance);
-        }
+        useful.add(open);
+        menu.add(useful);
+
         menu.addSeparator();
         menu.add(shop());
         return menu;
