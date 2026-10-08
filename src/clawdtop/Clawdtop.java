@@ -201,6 +201,7 @@ public final class Clawdtop {
         canvas.addMouseMotionListener(mouse);
     }
 
+    private boolean inCorner; // sitting in the corner, watching your full-screen game
     private final Piano yourPiano = new Piano();
 
     /** A MIDI file you dropped on him: read it (in the background), then he fetches it and plays it. */
@@ -914,9 +915,31 @@ public final class Clawdtop {
             if (job == null) maybeTip(front);
             if (Games.launcher(app) && !hidden) admireGames("launcher");
             DisplayMode mode = window.getGraphicsConfiguration().getDevice().getDisplayMode();
-            boolean fullScreen = job == null && !devApp && settings.on("hideFullScreen") && Foreground.fullScreen(mode.getWidth(), mode.getHeight());
-            if (fullScreen != hidden) {
-                hidden = fullScreen;
+            boolean fullScreen = job == null && !devApp && Foreground.fullScreen(mode.getWidth(), mode.getHeight());
+            // A full-screen game: he sits down in the bottom corner (over your health bar) and watches. A video: he hides.
+            boolean corner = fullScreen && !Games.videoApp(app) && settings.choice("gameMode").equals("Sit in a corner")
+                    && (body.state() == Body.State.HOME || inCorner);
+            boolean hide = fullScreen && !corner && settings.on("hideFullScreen");
+            if (corner && !inCorner) { // (set before the move below, so it lands right in the corner)
+                Rectangle whole = window.getGraphicsConfiguration().getBounds();
+                homeX = whole.x + whole.width - (Sprite.WIDTH - Sprite.feetX()) * settings.unit() - 6;
+                groundY = whole.y + whole.height;
+            }
+            if (corner != inCorner) {
+                inCorner = corner;
+                Rectangle whole = window.getGraphicsConfiguration().getBounds();
+                if (corner) {
+                    homeX = whole.x + whole.width - (Sprite.WIDTH - Sprite.feetX()) * settings.unit() - 6; // bottom right, over the ammo
+                    groundY = whole.y + whole.height;
+                    window.setAlwaysOnTop(false); // (re-asserted just below, to get above the game)
+                    window.setAlwaysOnTop(true);
+                    if (pet.takeLineIfAny() == null && settings.once("gameCorner:" + java.time.LocalDate.now())) pet.say("Ooh, a game! I'll watch from here.");
+                } else {
+                    place();
+                }
+            }
+            if (hide != hidden) {
+                hidden = hide;
                 window.setVisible(!hidden);
             }
         }

@@ -77,7 +77,8 @@ final class Options {
             Option.number("Voice", "quietTo", "Quiet until (hour, 0 to 23)", 7, 0, 23),
             // On screen
             Option.on("Screen", "onTop", "Always on top", true),
-            Option.on("Screen", "hideFullScreen", "Hide for full-screen games and videos", true),
+            Option.on("Screen", "hideFullScreen", "Hide for full-screen videos (and games, if not in a corner)", true),
+            Option.pick("Screen", "gameMode", "In full-screen games", "Sit in a corner", "Sit in a corner", "Hide"),
             Option.on("Screen", "nameTag", "His name when you hover over him", false),
             Option.on("Screen", "pointsTag", "Show his points when you hover", false),
             Option.number("Screen", "nudge", "Nudge up or down (pixels)", 0, -40, 40),

@@ -316,8 +316,10 @@ public final class Sprite {
             } else if (mood == Pet.Mood.BOOPED) {
                 box(g, unit, LEFT + x + (x == 3 ? 1.2 : -1.2), eyeY, 1, 2, EYE); // cross-eyed
             } else if (pet.eyesLit()) {
-                box(g, unit, eyeX - 0.5, eyeY - 0.5, 2, 3, GLOW);
-                box(g, unit, eyeX, eyeY, 1, 2, LIT);
+                // excited: big wide eyes with a little shine in them
+                box(g, unit, eyeX - 0.3, eyeY - 0.5, 1.6, 2.8, EYE);
+                box(g, unit, eyeX, eyeY - 0.2, 0.6, 0.6, Color.WHITE);
+                box(g, unit, eyeX + 0.7, eyeY + 1.4, 0.3, 0.3, Color.WHITE);
             } else if (mood == Pet.Mood.ANNOYED) {
                 box(g, unit, eyeX, eyeY + 1, 1, 1, EYE);                              // narrowed eyes
                 box(g, unit, eyeX + (x == 3 ? -0.5 : 0), eyeY - 0.5 + (x == 3 ? 0 : 0), 1.5, 0.5, EYE); // grumpy eyebrows
@@ -350,14 +352,6 @@ public final class Sprite {
             }
         }
 
-        if (pet.eyesLit() && !pet.eyesShut()) {
-            // a little twinkle above his head
-            int phase = (int) (pet.time() / 150 % 4);
-            if (phase < 2) {
-                box(g, unit, LEFT + 15, top - 2 - phase, 1, 1, LIT);
-                box(g, unit, LEFT + 14.5, top - 1.5 - phase, 2, 0.5, GLOW);
-            }
-        }
 
         // Dizzy (he's upside down, so these are drawn by his feet and end up over his head): stars going round
         if (mood == Pet.Mood.DIZZY) {
@@ -703,11 +697,8 @@ public final class Sprite {
         double sx = LEFT + 4.5, sy = py - 3.2;
         box(c, unit, sx + 1.8, sy + 2.6, 0.4, 0.7, dark);
         box(c, unit, sx - 0.3, sy + 2.4, 4.6, 0.4, dark);
-        box(c, unit, sx, sy, 4, 2.6, new Color(250, 248, 240));
-        for (int l = 0; l < 4; l++) box(c, unit, sx + 0.3, sy + 0.5 + l * 0.5, 3.4, 0.1, new Color(150, 150, 160));
-        box(c, unit, sx + 0.8, sy + 0.8, 0.4, 0.35, EYE);
-        box(c, unit, sx + 1.9, sy + 1.3, 0.4, 0.35, EYE);
-        box(c, unit, sx + 2.9, sy + 0.6, 0.4, 0.35, EYE);
+        box(c, unit, sx, sy, 4, 2.6, new Color(250, 248, 240)); // the back of the page (the notes face him)
+        box(c, unit, sx + 3.4, sy, 0.6, 2.6, new Color(228, 226, 218));
         // his hands, popping up over the top on each note
         double key = pet.pianoKey();
         if (!Double.isNaN(key) && pet.pianoPressing()) {

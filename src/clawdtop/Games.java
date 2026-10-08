@@ -220,6 +220,15 @@ final class Games {
         return String.format(ANY[random.nextInt(ANY.length)], games.get(random.nextInt(games.size())));
     }
 
+    /** Whether the app in front plays videos (full screen there is a video, not a game: he hides instead). */
+    static boolean videoApp(String app) {
+        return switch (app.toLowerCase(Locale.ROOT)) {
+            case "chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe", "vlc.exe", "mpc-hc64.exe", "wmplayer.exe",
+                    "microsoft.media.player.exe", "video.ui.exe", "netflix.exe", "applicationframehost.exe", "powerpnt.exe" -> true;
+            default -> false;
+        };
+    }
+
     /** Whether the app in front is a game launcher (he might say something about your games). */
     static boolean launcher(String app) {
         return switch (app.toLowerCase(Locale.ROOT)) {
