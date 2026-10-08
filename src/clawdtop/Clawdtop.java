@@ -174,7 +174,6 @@ public final class Clawdtop {
         canvas.addMouseMotionListener(mouse);
     }
 
-    private Point lastMouseForBoop;
     private final Ask askBox = new Ask();
     private final Brain brain = new Brain();
     private boolean thinking;
@@ -588,7 +587,15 @@ public final class Clawdtop {
             double speed = zoomFrom.distance(mouse) / Math.max(1, now - zoomAt) * 1000; // px a second
             Rectangle near = window.getBounds();
             near.grow(40, 40);
-            if (speed > 4000 && near.contains(mouse)) pet.spin();
+            // Did the cursor's path cross his face? Then it's a boop. Zooming past close by spins him round.
+            double eyesX = window.getX() + Sprite.eyesX() * settings.unit(), eyesY = window.getY() + Sprite.eyesY() * settings.unit();
+            boolean acrossFace = false;
+            for (int k = 0; k <= 12 && body.state() == Body.State.HOME; k++) {
+                double px = zoomFrom.x + (mouse.x - zoomFrom.x) * k / 12.0, py = zoomFrom.y + (mouse.y - zoomFrom.y) * k / 12.0;
+                if (Math.abs(px - eyesX) < 7 * settings.unit() && Math.abs(py - eyesY) < 4 * settings.unit()) acrossFace = true;
+            }
+            if (acrossFace && speed > 450) pet.booped();
+            else if (speed > 4000 && near.contains(mouse)) pet.spin();
         }
         zoomFrom = mouse;
         zoomAt = now;
@@ -966,8 +973,6 @@ public final class Clawdtop {
         // the cursor resting on him (he gets shy), or swiping across his face (boop!)
         boolean overHim = Math.abs(mouse.x - eyesX) < 7 * unit && Math.abs(mouse.y - eyesY) < 4 * unit && body.state() == Body.State.HOME;
         pet.hover(overHim && !moved, FRAME_MS);
-        if (overHim && lastMouseForBoop != null && lastMouseForBoop.distance(mouse) > 6 * unit) pet.booped();
-        lastMouseForBoop = mouse;
         pet.tick(FRAME_MS, mouse.x - eyesX, mouse.y - eyesY, moved, devApp);
         Pet.Beep beep = pet.takeBeep();
         if (beep != null && mayBeep()) beeps.play(beep);

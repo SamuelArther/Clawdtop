@@ -290,6 +290,13 @@ public final class Sprite {
             double eyeY = top + 2 + ey;
             if (pet.eyesShut()) {
                 box(g, unit, LEFT + x, top + 3.5, 1, 0.5, EYE);
+            } else if (mood == Pet.Mood.BLUSH) {
+                // happy squinty eyes: little upside-down Vs
+                box(g, unit, LEFT + x - 0.5, top + 3, 0.6, 0.6, EYE);
+                box(g, unit, LEFT + x, top + 2.5, 0.6, 0.6, EYE);
+                box(g, unit, LEFT + x + 0.5, top + 3, 0.6, 0.6, EYE);
+            } else if (mood == Pet.Mood.BOOPED) {
+                box(g, unit, LEFT + x + (x == 3 ? 1.2 : -1.2), eyeY, 1, 2, EYE); // cross-eyed
             } else if (pet.eyesLit()) {
                 box(g, unit, eyeX - 0.5, eyeY - 0.5, 2, 3, GLOW);
                 box(g, unit, eyeX, eyeY, 1, 2, LIT);
@@ -301,13 +308,6 @@ public final class Sprite {
                     || (mood == Pet.Mood.DUCKS && pet.moodTime() >= Pet.DUCK_SURPRISE && pet.moodTime() < Pet.DUCK_SURPRISE + 400)) {
                 box(g, unit, eyeX - 0.5, eyeY - 0.5, 2, 3, EYE); // eyes wide open in shock
                 box(g, unit, eyeX, eyeY + 0.5, 1, 1, LIT);
-            } else if (mood == Pet.Mood.BLUSH) {
-                // happy squinty eyes: little upside-down Vs
-                box(g, unit, LEFT + x - 0.5, top + 3, 0.6, 0.6, EYE);
-                box(g, unit, LEFT + x, top + 2.5, 0.6, 0.6, EYE);
-                box(g, unit, LEFT + x + 0.5, top + 3, 0.6, 0.6, EYE);
-            } else if (mood == Pet.Mood.BOOPED) {
-                box(g, unit, LEFT + x + (x == 3 ? 1.2 : -1.2), eyeY, 1, 2, EYE); // cross-eyed
             } else if (sleepy) {
                 box(g, unit, eyeX, eyeY + 1, 1, 1, EYE);
             } else {
