@@ -33,16 +33,20 @@ A tiny desktop buddy: Clawd sits on top of your taskbar, right above the clock, 
   "Nothing....". The files really appear in `%APPDATA%\Clawdtop\creations` as he types them, and when one goes
   wrong he looks sorry and deletes it. Click his carpet mid-flight and see what happens. Or click him and pick
   **Make something!**
-- **Ask him a question** (in his menu): a small AI brain that runs on your own computer through
-  [Ollama](https://ollama.com) (free), only while he's answering, using under 2 GB of memory. Nothing you ask goes
-  online. He answers in his personality and never says a bad word. Setup asks how he should answer: normal (the most
-  accurate answers, recommended) or kid-friendly (simple and gentle, for little kids). Math? "I wouldn't trust myself to answer right....." He opens Calculator, tells you the buttons, and
-  watches: "Good job!" or "Not quite entered right...". If you don't have Ollama yet, he offers to open its download
-  page, then asks before downloading his brain (about 1 GB, once).
+- **Ask him a question** (top of his menu): a small AI brain that runs on your own computer through
+  [Ollama](https://ollama.com) (free), using under 2 GB of memory, only while he's answering. He installs it himself
+  in the background after setup (Ollama's own signed installer, just for you, no admin needed), with a notice. He
+  answers in his personality and never says a bad word. Setup asks how he should answer: normal (the most accurate,
+  recommended) or kid-friendly (simple and gentle, for little kids), and whether he may **look things up online**
+  (Wikipedia and DuckDuckGo; off unless you say yes). Math? "I wouldn't trust myself to answer right....." He opens
+  Calculator, tells you the buttons, and watches: "Good job!" or "Not quite entered right...".
 - **His home:** tell him what to call your computer when you meet. Move him to a new computer and he asks what the
   new place is called, and remembers everywhere he's lived.
-- **Reminders and timers:** type "remind me in 10 minutes to check the oven" or "set a timer for 5 minutes" in his
-  question box. A **focus timer** (25 minutes, headphones on, no interruptions) is in his menu.
+- **Reminders and timers:** type "remind me in 10 minutes to check the oven", "set a timer for 5 minutes" or "start
+  a stopwatch" in his question box. For timers he holds a tiny alarm clock and a red digital display. A **focus timer**
+  (25 minutes, headphones on, no interruptions) is in his menu.
+- **Run a lap:** he sprints along the taskbar, up the wall, across the top of the screen upside down, down the other
+  side and home, sweating more and more. **Music time:** headphones on, bobbing to the beat.
 - **His mini piano:** he plays songs (or makes one up), and you can play yours ("Let me play!": click the keys, or type
   A to K). **Drop a MIDI file on him** and he runs to get it and plays the tune.
 - **Useful bits:** "How's my computer?", an "Open..." menu for handy places, water and stretch reminders (off at
@@ -59,6 +63,10 @@ A tiny desktop buddy: Clawd sits on top of your taskbar, right above the clock, 
 start with Windows, small / normal / big, back above the clock, and "Bye, Clawd" to close him.
 
 ## Running him
+
+**Windows:** below. **Mac or Linux:** `./build.sh`, then `./Clawdtop.sh` (or double-click `Clawdtop.command` on a
+Mac). Everything works there except cleaning folders and checking your math on Calculator (Windows only for now).
+
 
 You need Java 22 or newer. If you have [Kelp](https://github.com/KelpSquid/kelp) and have played Minecraft 26.3 with
 it, you already have Java 25 and don't need anything else.
