@@ -206,7 +206,7 @@ public final class Sprite {
             return;
         }
         int drop = switch (mood) {    // how far his body sits down from standing
-            case SIT, WORK, SAD -> 1;
+            case SIT, WORK, SAD, FOCUS -> 1;
             case LIE, SLEEP -> 2;
             default -> 0;
         };
@@ -268,6 +268,11 @@ public final class Sprite {
             boolean flail = (pet.time() / 70) % 2 == 0;
             box(g, unit, LEFT - 2, top + (flail ? -0.5 : 3), 1.2, 2.5, body);
             box(g, unit, LEFT + 13.8, top + (flail ? 3 : -0.5), 1.2, 2.5, body);
+        } else if (mood == Pet.Mood.REMIND) {
+            // waving both hands: hey! hey!
+            boolean up = (pet.time() / 140) % 2 == 0;
+            box(g, unit, LEFT - 2, top + (up ? -1 : 1), 1.2, 2.5, body);
+            box(g, unit, LEFT + 13.8, top + (up ? 1 : -1), 1.2, 2.5, body);
         } else if (mood == Pet.Mood.PIANO) {
             // (his hands are behind his piano: see drawPiano)
         } else if (mood == Pet.Mood.LISTEN) {
@@ -300,7 +305,7 @@ public final class Sprite {
         double ex = pet.lookX() * 0.5;
         double ey = pet.lookY() * 0.5;
         boolean sleepy = mood == Pet.Mood.LIE || mood == Pet.Mood.GOODBYE || mood == Pet.Mood.SAD // half-shut eyes: dozy, or sad
-                || mood == Pet.Mood.LISTEN
+                || mood == Pet.Mood.LISTEN || mood == Pet.Mood.FOCUS
                 || (mood == Pet.Mood.STRETCH && pet.moodTime() < 1400)
                 || mood == Pet.Mood.SORRY || made(pet, Creation.Effect.RAIN);
         for (int x : new int[] {3, 11}) {
@@ -335,6 +340,15 @@ public final class Sprite {
             }
         }
         if (mood == Pet.Mood.PIANO) drawPiano(g, pet, unit, top); // in front of him
+        if (mood == Pet.Mood.FOCUS) {
+            // tiny headphones: a band over his head and a cup on each side
+            Color band = new Color(60, 60, 70), cup = new Color(90, 90, 104);
+            box(g, unit, LEFT + 1, top - 1, 11, 0.6, band);
+            box(g, unit, LEFT + 0.5, top - 0.6, 0.6, 1.8, band);
+            box(g, unit, LEFT + 11.9, top - 0.6, 0.6, 1.8, band);
+            box(g, unit, LEFT - 0.6, top + 1, 1.6, 2.4, cup);
+            box(g, unit, LEFT + 12, top + 1, 1.6, 2.4, cup);
+        }
 
         // Blushing: little pink cheeks
         if (mood == Pet.Mood.BLUSH) {

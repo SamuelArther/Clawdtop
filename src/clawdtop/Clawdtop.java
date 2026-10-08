@@ -202,6 +202,26 @@ public final class Clawdtop {
     }
 
     private boolean inCorner; // sitting in the corner, watching your full-screen game
+    private final java.util.List<Object[]> reminders = new java.util.ArrayList<>(); // {due ms, what}
+    private long focusUntil;    // the focus timer runs out then (0: off)
+
+    /** Reminders that are due, and the focus timer running out. */
+    private void checkReminders() {
+        long now = System.currentTimeMillis();
+        for (java.util.Iterator<Object[]> it = reminders.iterator(); it.hasNext(); ) {
+            Object[] r = it.next();
+            if (now >= (Long) r[0] && pet.remind((String) r[1])) it.remove(); // (busy? he tells you in a moment)
+        }
+        if (focusUntil > 0 && now >= focusUntil) {
+            focusUntil = 0;
+            pet.focus(false, true);
+        }
+    }
+
+    private void focus(boolean on) {
+        focusUntil = on ? System.currentTimeMillis() + 25 * 60_000L : 0;
+        pet.focus(on, false);
+    }
     private final Piano yourPiano = new Piano();
 
     /** A MIDI file you dropped on him: read it (in the background), then he fetches it and plays it. */
@@ -220,6 +240,12 @@ public final class Clawdtop {
 
     /** Answers your question: math goes to Calculator (he doesn't trust himself); the rest, his brain. */
     private void answer(String question) {
+        Reminders.Reminder reminder = Reminders.parse(question);
+        if (reminder != null) {
+            reminders.add(new Object[] {System.currentTimeMillis() + reminder.inMs(), reminder.what()});
+            pet.say("Okay! I'll remind you in " + reminder.when() + ".");
+            return;
+        }
         MathHelp.Problem sum = MathHelp.parse(question);
         if (sum != null) {
             mathHelp(sum, 0);
@@ -479,6 +505,9 @@ public final class Clawdtop {
         JMenuItem joke = new JMenuItem("Tell me a joke");
         joke.addActionListener(e -> tellJoke());
         menu.add(joke);
+        JMenuItem focusItem = new JMenuItem(focusUntil > 0 ? "Stop the focus timer (" + Math.max(1, (focusUntil - System.currentTimeMillis()) / 60_000) + " min left)" : "Focus timer (25 min)");
+        focusItem.addActionListener(e -> focus(focusUntil == 0));
+        menu.add(focusItem);
         JMenuItem checkup = new JMenuItem("How's my computer?");
         checkup.addActionListener(e -> worker.execute(() -> {
             String report = Useful.checkup();
@@ -741,7 +770,7 @@ public final class Clawdtop {
         long now = System.currentTimeMillis();
         if (now - lastJokeAt < Jokes.gap(settings.jokes()) + jokeJitter) return;
         Pet.Mood m = pet.mood();
-        if (job != null || bubble.showing() || hidden || (m != Pet.Mood.IDLE && m != Pet.Mood.SIT)) return;
+        if (job != null || bubble.showing() || hidden || focusUntil > 0 || (m != Pet.Mood.IDLE && m != Pet.Mood.SIT)) return;
         tellJoke();
     }
 
@@ -1040,7 +1069,8 @@ public final class Clawdtop {
             pet.birthday(settings.name());
         }
         if (ticks % 300 == 150) checkTimes();
-        if (ticks % 900 == 450) remindMe(nowMs);
+        if (ticks % 900 == 450 && focusUntil == 0) remindMe(nowMs);
+        if (ticks % 15 == 7) checkReminders();
         if (ticks % 150 == 75) worker.execute(() -> {
             Power.criticalLevel(); // asked once, here in the background
             Power.State b = Power.now();
@@ -1079,7 +1109,7 @@ public final class Clawdtop {
         String kind = Tips.kind(front);
         if (java.util.Objects.equals(kind, lastKind)) return;
         lastKind = kind;
-        if (kind == null || !settings.tips() || hidden) return;
+        if (kind == null || !settings.tips() || hidden || focusUntil > 0) return;
         long now = System.currentTimeMillis();
         if (!Tips.urgent(front) && now - lastTipAt < pet.personality().tipGap()) return;
         String tip = tips.tipFor(front);
@@ -1269,6 +1299,8 @@ public final class Clawdtop {
                 smokeNotes++;
             });
             case "salute" -> pet.salute();
+            case "focus" -> focus(true);
+            case "remind" -> answer("remind me in 3 seconds to drink some water");
             case "clean" -> startCleaning();
             case "checkup" -> pet.say(Useful.checkup());
             case "pet" -> pet.petted();

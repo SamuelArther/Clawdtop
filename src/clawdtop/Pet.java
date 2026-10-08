@@ -98,7 +98,11 @@ public final class Pet {
         /** Veterans Day: a little flag, and a salute. */
         SALUTE,
         /** You dropped a MIDI file: he runs over, grabs it, and brings it back to play it. */
-        FETCH
+        FETCH,
+        /** Focus timer: headphones on, sitting quietly, not bothering you. */
+        FOCUS,
+        /** A reminder you asked for: hopping up and down so you notice. */
+        REMIND
     }
 
     private boolean canJuggle, canWave;
@@ -261,6 +265,11 @@ public final class Pet {
             case BLUSH -> { if (!hovered && moodFor > nextChange) set(Mood.IDLE, idleTime()); }
             case BOOPED, STRETCH -> { if (moodFor > nextChange) set(Mood.IDLE, idleTime()); }
             case SALUTE -> { if (moodFor > nextChange) set(Mood.IDLE, idleTime()); }
+            case FOCUS -> { }
+            case REMIND -> {
+                if ((moodFor / 700) != ((moodFor - ms) / 700) && moodFor < 2800) wants = Beep.TIP;
+                if (moodFor > nextChange) set(Mood.IDLE, idleTime());
+            }
             case FETCH -> {
                 if (moodFor > nextChange) {
                     Piano.Song next = fetched;
@@ -890,7 +899,7 @@ public final class Pet {
     /** Busy with something that shouldn't be cut short: a job, coding, a ride, a fall, moving house... */
     private boolean busy() {
         return switch (mood) {
-            case WORK, PEEK, PACK, CODING, SORRY, MADE, CARPET, LAUNCHPAD, ROCKET, DUCKS, THINK, PIANO, FETCH, RIDE, FALL, DIZZY, SHAKE, WALK, CARRY, UNPACK, BIRTHDAY,
+            case WORK, PEEK, PACK, CODING, SORRY, MADE, CARPET, LAUNCHPAD, ROCKET, DUCKS, THINK, PIANO, FETCH, FOCUS, RIDE, FALL, DIZZY, SHAKE, WALK, CARRY, UNPACK, BIRTHDAY,
                     GOODBYE, FREAKOUT -> true;
             default -> false;
         };
@@ -933,6 +942,31 @@ public final class Pet {
 
     public boolean pianoPressing() {
         return mood == Mood.PIANO && moodFor - noteAt < 140;
+    }
+
+    /** Focus timer on (headphones on, quiet) or off ("Time for a break!" and a stretch, if it ran out by itself). */
+    public void focus(boolean on, boolean finished) {
+        if (on) {
+            line = "Focus mode! I'll be quiet.";
+            set(Mood.FOCUS, Long.MAX_VALUE);
+        } else if (mood == Mood.FOCUS) {
+            if (finished) {
+                line = "Time for a break! You did great.\nStand up, stretch, get some water.";
+                wants = Beep.HAPPY;
+                set(Mood.STRETCH, 1800);
+            } else {
+                set(Mood.IDLE, idleTime());
+            }
+        }
+    }
+
+    /** A reminder you asked for. Returns false if he's in the middle of something (it waits a moment). */
+    public boolean remind(String what) {
+        if (busy() && mood != Mood.FOCUS) return false;
+        line = "Reminder: " + what + "!";
+        wants = Beep.HORN;
+        set(Mood.REMIND, 3500);
+        return true;
     }
 
     private Piano.Song fetched;
@@ -1163,6 +1197,8 @@ public final class Pet {
     public float lift() {
         if (mood == Mood.HAPPY) return (float) Math.abs(Math.sin(time / 130.0)) * 3;
         if (mood == Mood.LISTEN || mood == Mood.PIANO) return 0;
+        if (mood == Mood.REMIND) return moodFor < 2800 ? (float) Math.abs(Math.sin(moodFor / 110.0)) * 2.5f : 0; // hop hop hop
+        if (mood == Mood.FOCUS) return 0;
         if (mood == Mood.HICCUP) return moodFor % 1000 < 180 && moodFor < 3000 ? 1.5f : 0; // a little jump with each hic
         if (mood == Mood.STRETCH) return (float) Math.sin(Math.min(1, moodFor / 600.0) * Math.PI / 2) * (moodFor < 1400 ? 1.5f : 0);
         if (mood == Mood.FREAKOUT) return (float) Math.abs(Math.sin(time / 60.0)) * (nextChange == Long.MAX_VALUE ? 3 : 1.5f); // jumping about

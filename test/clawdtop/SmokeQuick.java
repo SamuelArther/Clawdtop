@@ -1,0 +1,40 @@
+package clawdtop;
+
+import javax.imageio.ImageIO;
+import javax.swing.SwingUtilities;
+import java.awt.GraphicsEnvironment;
+import java.awt.Rectangle;
+import java.awt.Robot;
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+/**
+ * A quick screen test: SmokeQuick folder "action|seconds|name" ... runs each of his smoke actions, waits, and takes a
+ * screenshot (cropped round him) named after it.
+ */
+public final class SmokeQuick {
+    public static void main(String[] args) throws Exception {
+        File out = new File(args[0]);
+        out.mkdirs();
+        Path home = Files.createTempDirectory("clawdtop-smoke");
+        System.setProperty("clawdtop.home", home.toString());
+        Files.writeString(home.resolve("settings.properties"), "met=true\nname=Tester\nbeeps=false\ntips=false\nmetDate=2026-10-08\n");
+        Clawdtop[] clawd = new Clawdtop[1];
+        SwingUtilities.invokeAndWait(() -> {
+            clawd[0] = new Clawdtop();
+            clawd[0].start();
+        });
+        Robot robot = new Robot();
+        Rectangle all = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration().getBounds();
+        robot.mouseMove(all.width / 3, all.height / 3);
+        Thread.sleep(3000);
+        for (int i = 1; i < args.length; i++) {
+            String[] step = args[i].split("\\|");
+            if (!step[0].isEmpty()) SwingUtilities.invokeAndWait(() -> clawd[0].smoke(step[0]));
+            Thread.sleep((long) (Double.parseDouble(step[1]) * 1000));
+            ImageIO.write(robot.createScreenCapture(all), "png", new File(out, String.format("%02d %s.png", i, step[2])));
+        }
+        System.exit(0);
+    }
+}

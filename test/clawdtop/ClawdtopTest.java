@@ -578,6 +578,21 @@ public class ClawdtopTest {
         for (int i = 0; i < 60; i++) pianist.tick(33, 0, 0, false, false);
         save(pianist, Path.of("build", "frames").resolve("playing the piano.png"));
 
+        // ---- Reminders and the focus timer ----
+        Reminders.Reminder oven = Reminders.parse("Remind me in 10 minutes to check the oven.");
+        check("remind me in 10 minutes to...", oven.inMs() + " " + oven.when() + " / " + oven.what(), "600000 10 minutes / check the oven");
+        Reminders.Reminder cat = Reminders.parse("remind me to feed my cat in half an hour");
+        check("remind me to... in half an hour (and it's your cat now)", cat.when() + " / " + cat.what(), "30 minutes / feed your cat");
+        check("timers", Reminders.parse("set a timer for 5 minutes").when() + " / " + Reminders.parse("two hour timer").when() + " / " + Reminders.parse("in 90 seconds remind me to stir").when(),
+                "5 minutes / 2 hours / 1 minute");
+        check("but not just anything", Reminders.parse("what's the time") + " " + Reminders.parse("remind me in 400 hours to sleep"), "null null");
+        Pet focused = new Pet(2);
+        focused.focus(true, false);
+        for (int i = 0; i < 30; i++) focused.tick(33, 0, 0, false, false);
+        save(focused, Path.of("build", "frames").resolve("focus timer.png"));
+        check("focus: headphones on, quiet, and not interrupted", focused.mood() + " " + focused.busyNow(), "FOCUS true");
+        check("a reminder still gets through", focused.remind("drink some water") + " " + focused.takeLine(), "true Reminder: drink some water!");
+
         // ---- No tomfoolery ----
         Settings calm = Settings.load();
         calm.set("serious", "true");
