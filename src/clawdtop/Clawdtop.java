@@ -174,6 +174,102 @@ public final class Clawdtop {
         canvas.addMouseMotionListener(mouse);
     }
 
+    private final Ask askBox = new Ask();
+    private final Brain brain = new Brain();
+    private boolean thinking;
+
+    /** Answers your question: math goes to Calculator (he doesn't trust himself); the rest, his brain. */
+    private void answer(String question) {
+        MathHelp.Problem sum = MathHelp.parse(question);
+        if (sum != null) {
+            mathHelp(sum, 0);
+            return;
+        }
+        if (thinking) return;
+        thinking = true;
+        String model = Brain.model(settings.choice("brain"));
+        pet.think(true);
+        pet.say("Hmm, let me think...");
+        Thread t = new Thread(() -> {
+            String problem = !brain.running() ? "no ollama" : !brain.has(model) ? "no brain" : null;
+            String reply = problem == null
+                    ? brain.ask(question, model, settings.personality(), settings.on("kidFriendly"), settings.name()) : null;
+            SwingUtilities.invokeLater(() -> {
+                thinking = false;
+                pet.think(false);
+                if ("no ollama".equals(problem)) {
+                    bubble.ask("I need my brain first! It's a free app called Ollama.\nWant me to open its download page?",
+                            new String[] {"Open it", "Not now"}, c -> {
+                                if (c == 0) Useful.browse(Brain.DOWNLOAD_PAGE);
+                            }, window.getBounds(), screenBounds());
+                } else if ("no brain".equals(problem)) {
+                    bubble.ask("My brain isn't downloaded yet (" + Brain.downloadSize(settings.choice("brain")) + ", just once).\nDownload it now?",
+                            new String[] {"Download", "Not now"}, c -> {
+                                if (c == 0) downloadBrain(model, question);
+                            }, window.getBounds(), screenBounds());
+                } else if (reply == null) {
+                    pet.say("Hmm... my brain froze. Try again?");
+                } else {
+                    pet.say(Brain.wrap(reply, 46));
+                }
+            });
+        }, "clawd-brain");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    /** Downloads his brain (a few minutes), then answers the question you asked. */
+    private void downloadBrain(String model, String question) {
+        pet.say("Downloading my brain... this takes a few minutes.\nI'll answer as soon as it's done!");
+        Thread t = new Thread(() -> {
+            boolean ok = brain.download(model);
+            SwingUtilities.invokeLater(() -> {
+                if (ok) answer(question);
+                else pet.say("The download didn't work. Is the internet on?");
+            });
+        }, "clawd-brain-download");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    /**
+     * A math question: he doesn't trust himself, so he opens Calculator, says which buttons to press, and watches it.
+     * Right: "Good job!". Wrong: "Not quite entered right..." (and he watches for another go, up to three).
+     */
+    private void mathHelp(MathHelp.Problem sum, int tries) {
+        if (tries == 0) {
+            pet.say("I wouldn't trust myself to answer right.....\nLet's ask Calculator! Press:\n" + sum.buttons());
+            Useful.open("calc");
+        }
+        Thread t = new Thread(() -> {
+            String result = "TIMEOUT";
+            try {
+                String encoded = java.util.Base64.getEncoder().encodeToString(MathHelp.watcherScript().getBytes(java.nio.charset.StandardCharsets.UTF_16LE));
+                Process p = new ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+                        "-EncodedCommand", encoded).redirectErrorStream(true).start();
+                for (String line : new String(p.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).split("\\R")) {
+                    if (line.startsWith("DONE|") || line.equals("CLOSED") || line.equals("TIMEOUT")) result = line;
+                }
+            } catch (IOException e) {
+                result = "TIMEOUT";
+            }
+            String got = result;
+            SwingUtilities.invokeLater(() -> {
+                if (!got.startsWith("DONE|")) return; // closed it, or gave up: that's fine
+                double shown = MathHelp.shown(got.substring(got.lastIndexOf('|') + 1));
+                if (sum.right(shown)) {
+                    pet.say("Good job!");
+                    pet.ask("happy");
+                } else {
+                    pet.say("Not quite entered right...\nTry: " + sum.buttons());
+                    if (tries < 2) mathHelp(sum, tries + 1);
+                }
+            });
+        }, "clawd-calculator");
+        t.setDaemon(true);
+        t.start();
+    }
+
     private java.util.List<String> games;          // your game library (looked up once, in the background)
     private boolean lookingAtGames;
 
@@ -315,6 +411,11 @@ public final class Clawdtop {
             JMenuItem make = new JMenuItem("Make something!");
             make.addActionListener(e -> makeSomething());
             menu.add(make);
+        }
+        if (settings.on("askMe") && job == null) {
+            JMenuItem ask = new JMenuItem("Ask me a question...");
+            ask.addActionListener(e -> askBox.show("Ask me anything!", window.getBounds(), screenBounds(), this::answer));
+            menu.add(ask);
         }
         JMenuItem joke = new JMenuItem("Tell me a joke");
         joke.addActionListener(e -> tellJoke());

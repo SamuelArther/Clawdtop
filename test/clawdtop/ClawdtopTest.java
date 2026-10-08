@@ -443,6 +443,35 @@ public class ClawdtopTest {
         find(hello.panel(), javax.swing.JTextField.class).setText("Samuel's Laptop");
         click(hello.panel(), "Next");
         check("and calls your computer what you said", fresh.home(), "Samuel's Laptop");
+        snapshot(hello.panel(), frames0.resolve("welcome 3d kid-friendly.png"));
+        click(hello.panel(), "Regular");
+        check("kid-friendly answers, or regular", Settings.load().on("kidFriendly"), false);
+
+        // ---- Ask me a question: math goes to Calculator, the rest to his brain ----
+        MathHelp.Problem sum = MathHelp.parse("What's 12 times 7?");
+        check("a math question is spotted", sum.buttons() + " = " + sum.leftToRight(), "1 2 × 7 = = 84.0");
+        check("all sorts of ways of asking", MathHelp.parse("how much is 45 + 19 x 2").buttons() + " / " + MathHelp.parse("100 divided by 8").buttons()
+                + " / " + MathHelp.parse("3.5-1.25").buttons(), "4 5 + 1 9 × 2 = / 1 0 0 ÷ 8 = / 3 . 5 - 1 . 2 5 =");
+        check("but not everything with a number in it", MathHelp.parse("how old is the moon") + " " + MathHelp.parse("what is 7") + " "
+                + MathHelp.parse("who won in 2010"), "null null null");
+        MathHelp.Problem mixed = MathHelp.parse("45 + 19 * 2");
+        check("either way of working it out counts (Calculator's standard mode goes left to right)", mixed.right(128) + " " + mixed.right(83) + " " + mixed.right(84), "true true false");
+        check("he reads Calculator's display", MathHelp.shown("Display is 1,234.5") + " " + MathHelp.shown("Display is -7") + " " + MathHelp.shown("nope"), "1234.5 -7.0 NaN");
+        check("JSON both ways", Brain.content("{\"model\":\"x\",\"message\":{\"role\":\"assistant\",\"content\":\"Hi \\\"there\\\"!\\nCrabs \\u0026 code.\"},\"done\":true}")
+                + "|" + Brain.json("a \"b\"\n"), "Hi \"there\"!\nCrabs & code.|\"a \\\"b\\\"\\n\"");
+        check("his answers never have bad words (even if the model slips)", Brain.clean("Well, **damn**, that's a shitty bug 🦀"), "Well, beep, that's a beep bug");
+        check("long answers wrap for his bubble", Brain.wrap("The quick brown fox jumps over the lazy dog again", 20), "The quick brown fox\njumps over the lazy\ndog again");
+        check("he answers in his own personality, kid-friendly or not", Brain.systemPrompt(Pet.Personality.BOUNCY, true, "Sam").contains("exclamation")
+                && Brain.systemPrompt(Pet.Personality.BOUNCY, true, "Sam").contains("kid") && !Brain.systemPrompt(Pet.Personality.CHILL, false, "").contains("kids")
+                && Brain.systemPrompt(Pet.Personality.CHILL, false, "").contains("Never use swear words"), true);
+        check("brains stay small", Brain.model("Normal") + " " + Brain.model("Tiny") + " " + Brain.model("Smart"), "qwen2.5:1.5b qwen2.5:0.5b gemma3:1b");
+        Ask askBox = new Ask();
+        String[] askedFor = {null};
+        askBox.show("Ask me anything!", new java.awt.Rectangle(1800, 1000, 63, 45), new java.awt.Rectangle(0, 0, 1920, 1080), q -> askedFor[0] = q);
+        askBox.field().setText("  why is the sky blue?  ");
+        snapshot(askBox.panel(), frames0.resolve("ask me a question.png"));
+        click(askBox.panel(), "Ask");
+        check("you type a question and he gets it", askedFor[0], "why is the sky blue?");
         snapshot(hello.panel(), frames0.resolve("welcome 4 beeps.png"));
         click(hello.panel(), "Shh, no beeps");
         check("beeps off if you say so", fresh.sounds(), false);

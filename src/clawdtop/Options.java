@@ -76,6 +76,10 @@ final class Options {
             Option.on("Screen", "nameTag", "Name tag under him", false),
             Option.on("Screen", "pointsTag", "Show his points when you hover", false),
             Option.number("Screen", "nudge", "Nudge up or down (pixels)", 0, -40, 40),
+            // His brain (Ask me a question, through Ollama on this PC)
+            Option.on("Brain", "askMe", "\"Ask me a question\" in his menu", true),
+            Option.on("Brain", "kidFriendly", "Kid-friendly answers (extra gentle; never any bad words either way)", true),
+            Option.pick("Brain", "brain", "Brain size (all under 2 GB of memory)", "Normal", "Tiny", "Normal", "Smart"),
             // Being useful
             Option.on("Useful", "water", "Reminds you to drink water (every hour)", false),
             Option.on("Useful", "stretch", "Reminds you to stretch (every 2 hours)", false),

@@ -80,7 +80,9 @@ public final class Pet {
         /** Riding his rocket all over the screen (until it crashes). */
         ROCKET,
         /** duck.py: a duck fell from the sky! He loves it. He makes MORE. And more. (Click him to stop it.) */
-        DUCKS
+        DUCKS,
+        /** Thinking about your question: laptop out, typing away. */
+        THINK
     }
 
     private boolean canJuggle, canWave;
@@ -239,7 +241,7 @@ public final class Pet {
                     doneCoding();
                 }
             }
-            case CARPET, ROCKET -> { }
+            case CARPET, ROCKET, THINK -> { }
             case DUCKS -> {
                 if (moodFor >= DUCK_SURPRISE + 400 && !sang) {
                     sang = true;
@@ -809,10 +811,19 @@ public final class Pet {
     /** Busy with something that shouldn't be cut short: a job, coding, a ride, a fall, moving house... */
     private boolean busy() {
         return switch (mood) {
-            case WORK, PEEK, PACK, CODING, SORRY, MADE, CARPET, LAUNCHPAD, ROCKET, DUCKS, RIDE, FALL, DIZZY, SHAKE, WALK, CARRY, UNPACK, BIRTHDAY,
+            case WORK, PEEK, PACK, CODING, SORRY, MADE, CARPET, LAUNCHPAD, ROCKET, DUCKS, THINK, RIDE, FALL, DIZZY, SHAKE, WALK, CARRY, UNPACK, BIRTHDAY,
                     GOODBYE, FREAKOUT -> true;
             default -> false;
         };
+    }
+
+    /** Thinking about your question (laptop out), or done thinking (it goes away). */
+    public void think(boolean on) {
+        if (on && (mood == Mood.IDLE || mood == Mood.SIT || mood == Mood.LIE || mood == Mood.HAPPY || mood == Mood.LOVED)) {
+            set(Mood.THINK, Long.MAX_VALUE);
+        } else if (!on && mood == Mood.THINK) {
+            set(Mood.PACK, Sprite.PUT_AWAY);
+        }
     }
 
     /** Whether he's in the middle of something (a job, coding, a ride...) and shouldn't be interrupted. */

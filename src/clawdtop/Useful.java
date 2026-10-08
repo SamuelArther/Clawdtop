@@ -114,6 +114,15 @@ final class Useful {
             {"Recycle Bin", "shell:RecycleBinFolder"}, {"Task Manager", "taskmgr"}, {"Calculator", "calc"},
             {"Notepad", "notepad"}, {"Settings", "ms-settings:"}, {"Snipping Tool", "ms-screenclip:"}};
 
+    /** Opens a web page in your browser. */
+    static void browse(String url) {
+        try {
+            java.awt.Desktop.getDesktop().browse(java.net.URI.create(url));
+        } catch (Exception e) {
+            // no browser?
+        }
+    }
+
     /** Opens one of those. */
     static void open(String what) {
         try {

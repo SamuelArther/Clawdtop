@@ -234,7 +234,7 @@ final class Welcome {
         Runnable next = () -> {
             settings.setHome(home.getText().isBlank() ? settings.suggestedHome() : home.getText());
             beep.accept(Pet.Beep.HAPPY);
-            askBeeps();
+            askKidFriendly();
         };
         home.addActionListener(e -> next.run());
         show(new String[] {"And what should I call this computer?", "It's my new home!"}, home, button("Next", next));
@@ -258,6 +258,20 @@ final class Welcome {
                 button("Move in!", next));
         home.selectAll();
         home.requestFocusInWindow();
+    }
+
+    /** Kid-friendly mode, for his answers when you ask him things. He never says bad words either way. */
+    void askKidFriendly() {
+        show(new String[] {"Kid-friendly mode?", "You can ask me questions. I never say bad words either way.",
+                "Kid-friendly keeps my answers extra gentle."}, null,
+                button("Kid-friendly", () -> {
+                    settings.set("kidFriendly", "true");
+                    askBeeps();
+                }),
+                button("Regular", () -> {
+                    settings.set("kidFriendly", "false");
+                    askBeeps();
+                }));
     }
 
     void askBeeps() {

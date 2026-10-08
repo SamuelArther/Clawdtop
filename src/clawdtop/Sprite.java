@@ -190,7 +190,8 @@ public final class Sprite {
     }
 
     private static void drawBody(Graphics2D g, Pet pet, int unit, Pet.Mood mood) {
-        if (mood == Pet.Mood.WORK || mood == Pet.Mood.PACK || mood == Pet.Mood.CODING || (mood == Pet.Mood.DUCKS && pet.duckSpam())) {
+        if (mood == Pet.Mood.WORK || mood == Pet.Mood.PACK || mood == Pet.Mood.CODING || mood == Pet.Mood.THINK
+                || (mood == Pet.Mood.DUCKS && pet.duckSpam())) {
             drawAtLaptop(g, pet, unit, mood);
             return;
         }
