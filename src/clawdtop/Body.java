@@ -281,6 +281,14 @@ public final class Body {
         set(State.FALL);
     }
 
+    /** Shoots him out of his box at (fromX, fromY): see launch. (His body hasn't been anywhere yet, the first time.) */
+    public void launchFrom(double fromX, double fromY, double sideways) {
+        x = fromX;
+        y = fromY;
+        angle = 0;
+        launch(sideways);
+    }
+
     private long awayFor;
 
     /** Stomps off to x (off the edge of the screen), stays away for ms, then walks back home. */

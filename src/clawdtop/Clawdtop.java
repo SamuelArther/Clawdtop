@@ -1105,7 +1105,7 @@ public final class Clawdtop {
                 new Box(settings.unit(), (int) Math.round(homeX), (int) Math.round(groundY), () -> {
                 boxed = false;
                 window.setVisible(true);
-                body.launch((Math.random() < 0.5 ? -1 : 1) * (150 + Math.random() * 250));
+                body.launchFrom(homeX, groundY, (Math.random() < 0.5 ? -1 : 1) * (150 + Math.random() * 250)); // out of the box, not from the corner
                 if (settings.sounds()) beeps.play(Pet.Beep.WHEE);
                 greetWhenHome = true;
                 }).show();
@@ -1167,11 +1167,38 @@ public final class Clawdtop {
                 pet.carpetGone(riding);
             }
             default -> {
+                if (action.startsWith("welcome click ") && welcome != null) {
+                    for (javax.swing.JButton b : smokeFind(welcome.panel(), javax.swing.JButton.class)) {
+                        if (b.getText().equals(action.substring(14))) {
+                            b.doClick();
+                            return;
+                        }
+                    }
+                    throw new IllegalStateException("no button " + action.substring(14));
+                }
+                if (action.startsWith("welcome type ") && welcome != null) {
+                    smokeFind(welcome.panel(), javax.swing.JTextField.class).get(0).setText(action.substring(13));
+                    return;
+                }
                 if (action.startsWith("make ")) pet.create(Creation.find(action.substring(5)));
                 else if (action.startsWith("mood ")) pet.ask(action.substring(5));
                 else if (action.startsWith("say ")) pet.say(action.substring(4));
             }
         }
+    }
+
+    private static <T> java.util.List<T> smokeFind(java.awt.Container in, Class<T> kind) {
+        java.util.List<T> found = new java.util.ArrayList<>();
+        for (java.awt.Component c : in.getComponents()) {
+            if (kind.isInstance(c)) found.add(kind.cast(c));
+            if (c instanceof java.awt.Container inner) found.addAll(smokeFind(inner, kind));
+        }
+        return found;
+    }
+
+    /** For the screen test: where his home spot is on the screen {x, ground y}, and how big a unit is. */
+    double[] smokeHome() {
+        return new double[] {homeX, groundY, settings.unit()};
     }
 
     /** For the screen test: whether he's back to just hanging out at home. */
