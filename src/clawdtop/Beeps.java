@@ -43,6 +43,8 @@ public final class Beeps {
             case WHEE -> new double[][] {{1320, 40}, {1570, 40}, {1860, 40}, {2220, 90}};
             case OOF -> new double[][] {{660, 70}, {0, 20}, {520, 140}};
             case AWW -> new double[][] {{880, 120}, {740, 180}};
+            case ACHOO -> new double[][] {{1600, 30}, {2600, 70}, {900, 60}};
+            case CLAP -> new double[][] {{3200, 15}, {0, 10}, {2800, 20}};
             case PANIC -> new double[][] {{2400, 40}, {1900, 40}, {2400, 40}, {1900, 40}, {2400, 40}, {1900, 40}, {2400, 40}, {1900, 60}};
         };
         int total = 0;

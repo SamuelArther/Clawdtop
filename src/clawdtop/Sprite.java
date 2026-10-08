@@ -34,6 +34,22 @@ public final class Sprite {
         Pet.Mood mood = pet.mood();
         body = pet.color();
         hand = new Color(body.getRed() * 83 / 100, body.getGreen() * 77 / 100, body.getBlue() * 74 / 100); // a shade darker, so his hands show in front of him
+        if (mood == Pet.Mood.SPIN) {
+            // spun round by a zooming cursor: once all the way round
+            Graphics2D spun = (Graphics2D) g.create();
+            spun.rotate(Math.min(1, pet.moodTime() / 600.0) * Math.PI * 2, WIDTH * unit / 2.0, (GROUND - 5) * unit);
+            drawBody(spun, pet, unit, mood);
+            spun.dispose();
+            return;
+        }
+        if (mood == Pet.Mood.SNEEZE && pet.moodTime() >= 700 && pet.moodTime() < 900) {
+            // the ACHOO jolt
+            Graphics2D jolt = (Graphics2D) g.create();
+            jolt.translate(0, unit);
+            drawBody(jolt, pet, unit, mood);
+            jolt.dispose();
+            return;
+        }
         if (mood == Pet.Mood.DANCE) {
             // dancing: swaying side to side
             Graphics2D sway = (Graphics2D) g.create();
@@ -116,7 +132,7 @@ public final class Sprite {
             // a couple of sweat drops
             box(g, unit, LEFT + 13.5, top - 1.5 + (pet.time() / 90 % 3) * 0.5, 0.6, 1, new Color(140, 200, 255));
             box(g, unit, LEFT - 1, top - 0.5 + (pet.time() / 110 % 3) * 0.5, 0.6, 1, new Color(140, 200, 255));
-        } else if (mood == Pet.Mood.HAPPY || mood == Pet.Mood.RIDE || mood == Pet.Mood.FALL) {
+        } else if (mood == Pet.Mood.HAPPY || mood == Pet.Mood.RIDE || mood == Pet.Mood.FALL || mood == Pet.Mood.PARTY) {
             box(g, unit, LEFT - 2, top - 1, 1, 3, body);
             box(g, unit, LEFT - 1, top + 1, 1, 1, body);
             box(g, unit, LEFT + 14, top - 1, 1, 3, body);
@@ -204,6 +220,38 @@ public final class Sprite {
         }
 
         drawHat(g, unit, pet.hat(), top);
+
+        // A fly buzzing round him, and his hands clapping at it at the end
+        double[] fly = pet.fly();
+        if (fly != null) {
+            box(g, unit, fly[0], fly[1], 0.7, 0.7, new Color(30, 30, 30));
+            boolean wing = (pet.time() / 40) % 2 == 0;
+            box(g, unit, fly[0] - 0.3, fly[1] - (wing ? 0.4 : 0.2), 0.5, 0.3, new Color(200, 220, 255, 170));
+            box(g, unit, fly[0] + 0.5, fly[1] - (wing ? 0.2 : 0.4), 0.5, 0.3, new Color(200, 220, 255, 170));
+        }
+        if (mood == Pet.Mood.FLY && pet.moodTime() >= 4200 && pet.moodTime() < 4700) {
+            box(g, unit, LEFT + 5, top - 2, 1, 1, hand);   // clap!
+            box(g, unit, LEFT + 6.2, top - 2, 1, 1, hand);
+        }
+
+        // Sneeze spray
+        if (mood == Pet.Mood.SNEEZE && pet.moodTime() >= 700) {
+            double t = (pet.moodTime() - 700) / 600.0;
+            for (int i = 0; i < 6; i++) {
+                box(g, unit, LEFT + 6 + (i - 2.5) * (1 + t * 3), top + 5 - t * 2 + (i % 2) * 0.5, 0.5, 0.5,
+                        new Color(200, 230, 255, (int) Math.max(0, 200 * (1 - t))));
+            }
+        }
+
+        // Confetti!
+        if (mood == Pet.Mood.PARTY) {
+            Color[] colors = {new Color(255, 214, 102), new Color(120, 220, 255), new Color(255, 120, 170), new Color(140, 230, 140)};
+            for (int i = 0; i < 14; i++) {
+                double t = (pet.moodTime() / 1400.0 + i * 0.13) % 1;
+                double x = (i * 7.3) % WIDTH + Math.sin(t * 8 + i) * 0.8;
+                box(g, unit, x, -1 + t * (GROUND + 1), 0.6, 0.6, colors[i % colors.length]);
+            }
+        }
 
         // Petted: little hearts float up
         if (mood == Pet.Mood.LOVED) {

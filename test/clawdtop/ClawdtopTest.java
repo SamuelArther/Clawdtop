@@ -232,6 +232,35 @@ public class ClawdtopTest {
         }
         check("way too many clicks: he stomps off the screen, stays away a while, then walks back", huffSeen, "AWAY>OUT>WALK>HOME");
 
+        // ---- Little things: sneezes, flies, spins, parties ----
+        Pet funny = new Pet(15);
+        funny.takeBeep();
+        String funnySeen = "";
+        java.util.Set<String> lines = new java.util.HashSet<>();
+        for (int i = 0; i < 3 * 60 * 60 * 30 && !(funnySeen.contains("FLY") && lines.size() >= 3); i++) { // up to 3 hours of him standing around
+            funny.tick(33, 0, 0, true, false);
+            String l = funny.takeLine();
+            if (l != null) lines.add(l);
+            if (funny.mood() == Pet.Mood.SNEEZE && !funnySeen.contains("SNEEZE")) funnySeen += " SNEEZE";
+            if (funny.mood() == Pet.Mood.FLY && !funnySeen.contains("FLY")) {
+                funnySeen += " FLY";
+                for (int k = 0; k < 60; k++) funny.tick(33, 0, 0, true, false);
+                save(funny, Path.of("build", "frames").resolve("a fly.png"));
+            }
+        }
+        check("left alone a while, he sneezes and a fly comes by", funnySeen.contains("SNEEZE") && funnySeen.contains("FLY"), true);
+        check("ACHOO, and the fly gets caught or gets away", lines.contains("ACHOO!") && (lines.contains("Got it!") || lines.contains("...it got away.")), true);
+        Pet spinner = new Pet(16);
+        spinner.takeBeep();
+        spinner.spin();
+        check("the cursor zooming past spins him round", spinner.mood() + " " + spinner.takeLine(), "SPIN Whoa!");
+        spinner.party("It's FRIDAY!!");
+        for (int i = 0; i < 20; i++) spinner.tick(33, 0, 0, false, false);
+        check("Friday afternoon: confetti", spinner.mood(), Pet.Mood.PARTY);
+        save(spinner, Path.of("build", "frames").resolve("confetti.png"));
+        Settings onceOnly = Settings.load();
+        check("once-a-day things only happen once", onceOnly.once("monday:test") + " " + onceOnly.once("monday:test"), "true false");
+
         // ---- Jokes ----
         Jokes jk = new Jokes(1);
         java.util.Set<String> heard = new java.util.HashSet<>();

@@ -281,6 +281,53 @@ public final class Clawdtop {
     private final java.util.ArrayDeque<Long> clicks = new java.util.ArrayDeque<>();
     private boolean huffed;      // stomped off: say something when he's back
     private Boolean capsWasOn;
+    private Power.State battery;
+    private Point zoomFrom;
+    private long zoomAt;
+
+    /** The cursor zooming right past him, really fast: he spins round. */
+    private void checkZoom(Point mouse) {
+        long now = System.currentTimeMillis();
+        if (zoomFrom != null) {
+            double speed = zoomFrom.distance(mouse) / Math.max(1, now - zoomAt) * 1000; // px a second
+            Rectangle near = window.getBounds();
+            near.grow(40, 40);
+            if (speed > 4000 && near.contains(mouse)) pet.spin();
+        }
+        zoomFrom = mouse;
+        zoomAt = now;
+    }
+
+    /** Things that happen at certain times: late at night, Monday mornings, Friday afternoons, and friendship days. */
+    private void checkTimes() {
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        java.time.LocalDate today = now.toLocalDate();
+        int hour = now.getHour();
+        if ((hour >= 23 || hour < 4) && settings.once("late:" + (hour < 4 ? today.minusDays(1) : today))) {
+            pet.say("It's late... maybe bed soon?");
+        } else if (now.getDayOfWeek() == java.time.DayOfWeek.MONDAY && hour >= 6 && hour < 12 && settings.once("monday:" + today)) {
+            pet.say("Ugh. Monday.");
+        } else if (now.getDayOfWeek() == java.time.DayOfWeek.FRIDAY && hour >= 15 && settings.once("friday:" + today)) {
+            pet.party("It's FRIDAY!!");
+        }
+        long days = java.time.temporal.ChronoUnit.DAYS.between(settings.metDate(), today);
+        for (long milestone : new long[] {1, 7, 30, 100, 365, 500, 1000}) {
+            if (days == milestone && settings.once("friends:" + milestone)) {
+                pet.party("We've been friends for " + milestone + (milestone == 1 ? " day" : " days") + "!");
+                settings.earn((int) Math.min(50, milestone));
+            }
+        }
+    }
+
+    /** The laptop battery: low makes him tired, plugging in perks him up. */
+    private void checkBattery(Power.State now) {
+        if (now == null) return;
+        if (battery != null) {
+            if (!now.pluggedIn() && now.percent() <= 15 && battery.percent() > 15) pet.say("My battery's low... and so is yours.");
+            if (now.pluggedIn() && !battery.pluggedIn()) pet.say("Ahh. Power.");
+        }
+        battery = now;
+    }
 
     /** Clicked lots of times in a row: he gets grumpy, and with even more, stomps off for a bit. */
     private boolean clickedTooMuch() {
@@ -536,6 +583,12 @@ public final class Clawdtop {
         earnPoints(mouse, moved);
         if (ticks % 30 == 0) maybeJoke();
         if (ticks % 10 == 0) checkCapsLock();
+        if (ticks % 300 == 150) checkTimes();
+        if (ticks % 150 == 75) worker.execute(() -> {
+            Power.State b = Power.now();
+            SwingUtilities.invokeLater(() -> checkBattery(b));
+        });
+        checkZoom(mouse);
         holdPet();
         if (huffed && body.state() == Body.State.HOME) {
             huffed = false;

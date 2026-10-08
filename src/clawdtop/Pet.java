@@ -50,10 +50,19 @@ public final class Pet {
         /** Caps Lock went on: hands over his ears. */
         YELLED,
         /** Clicked too many times: grumpy eyebrows. */
-        ANNOYED
+        ANNOYED,
+        /** Ah... ah... ACHOO! */
+        SNEEZE,
+        /** A fly buzzes round him: his eyes follow it, then he claps at it. */
+        FLY,
+        /** The cursor zoomed past so fast he spun round. */
+        SPIN,
+        /** A celebration: confetti! */
+        PARTY
     }
 
     private boolean canJuggle, canWave;
+    private boolean sneezed, clapped, caught;
     private String hat = "";
 
     static final long GOODBYE_PAUSE = 2800;  // standing there sadly after saying bye
@@ -112,7 +121,7 @@ public final class Pet {
     private long talkLength;       // how long this beep's mouth moving lasts
 
     /** A little sound he makes. */
-    public enum Beep { HELLO, HAPPY, CLICKED, YAWN, WAKE, TIP, WHEE, OOF, PANIC, AWW }
+    public enum Beep { HELLO, HAPPY, CLICKED, YAWN, WAKE, TIP, WHEE, OOF, PANIC, AWW, ACHOO, CLAP }
 
     public Pet(long seed) {
         random = new Random(seed);
@@ -144,7 +153,24 @@ public final class Pet {
         switch (mood) {
             case RIDE, FALL, DIZZY, SHAKE, WALK, WORK, PEEK -> { } // his body or his job decides these (see follow and job)
             case GOODBYE -> { }
-            case SAD, LOVED, JUGGLE, DANCE, WAVE, YELLED, ANNOYED -> { if (moodFor > nextChange) set(Mood.IDLE, idleTime()); }
+            case SAD, LOVED, JUGGLE, DANCE, WAVE, YELLED, ANNOYED, SPIN, PARTY -> { if (moodFor > nextChange) set(Mood.IDLE, idleTime()); }
+            case SNEEZE -> {
+                if (moodFor >= 700 && !sneezed) {
+                    sneezed = true;
+                    wants = Beep.ACHOO;
+                    line = "ACHOO!";
+                }
+                if (moodFor > nextChange) set(Mood.IDLE, idleTime());
+            }
+            case FLY -> {
+                if (moodFor >= 4200 && !clapped) {
+                    clapped = true;
+                    wants = Beep.CLAP;
+                    caught = random.nextBoolean();
+                    line = caught ? "Got it!" : "...it got away.";
+                }
+                if (moodFor > nextChange) set(Mood.IDLE, idleTime());
+            }
             case FREAKOUT -> {
                 if (moodFor > nextChange) {
                     set(Mood.IDLE, idleTime());
@@ -153,7 +179,14 @@ public final class Pet {
                 }
             }
             case IDLE -> {
-                if (canJuggle && moodFor > 8000 && random.nextInt(2700) == 0) {
+                if (moodFor > 8000 && random.nextInt(6000) == 0) {
+                    sneezed = false;
+                    line = "Ah... ah...";
+                    set(Mood.SNEEZE, 1300);
+                } else if (moodFor > 8000 && random.nextInt(9000) == 0) {
+                    clapped = false;
+                    set(Mood.FLY, 5200); // a fly!
+                } else if (canJuggle && moodFor > 8000 && random.nextInt(2700) == 0) {
                     set(Mood.JUGGLE, 4500); // bored: a little juggling
                 } else if (canWave && moodFor > 6000 && random.nextInt(3600) == 0) {
                     wants = Beep.HELLO;
@@ -198,9 +231,14 @@ public final class Pet {
             blinkIn = 2500 + random.nextInt(4500);
         }
 
-        // Eyes follow the cursor, easing over so they don't jump
+        // Eyes follow the cursor (or a fly!), easing over so they don't jump
         float wantX = (float) Math.max(-1, Math.min(1, dx / 200));
         float wantY = (float) Math.max(-1, Math.min(1, dy / 200));
+        double[] fly = fly();
+        if (fly != null) {
+            wantX = (float) Math.max(-1, Math.min(1, (fly[0] - 10.5) / 5));
+            wantY = (float) Math.max(-1, Math.min(1, (fly[1] - 6) / 4));
+        }
         if (mood == Mood.SLEEP) wantX = wantY = 0;
         float ease = Math.min(1, ms / 120f);
         lookX += (wantX - lookX) * ease;
@@ -279,6 +317,35 @@ public final class Pet {
         wants = Beep.OOF;
         line = says;
         set(Mood.ANNOYED, 3000);
+    }
+
+    /** The cursor zoomed right past him: he spins round. */
+    public void spin() {
+        if (mood != Mood.IDLE && mood != Mood.SIT) return;
+        line = "Whoa!";
+        wants = Beep.WHEE;
+        set(Mood.SPIN, 900);
+    }
+
+    /** Something to celebrate: confetti, a happy beep, and what he says. */
+    public void party(String says) {
+        line = says;
+        wants = Beep.HAPPY;
+        set(Mood.PARTY, 3500);
+    }
+
+    /** Says something in his bubble (with a little chirp). */
+    public void say(String says) {
+        line = says;
+        wants = Beep.TIP;
+    }
+
+    /** Where the fly is right now (in his pixels, from his drawing's top-left), while one buzzes round him. */
+    public double[] fly() {
+        if (mood != Mood.FLY) return null;
+        double t = moodFor / 1000.0;
+        if (moodFor >= 4200) return caught ? null : new double[] {10.5 + (moodFor - 4200) / 60.0, 1 - (moodFor - 4200) / 150.0};
+        return new double[] {10.5 + Math.sin(t * 2.3) * 8 + Math.sin(t * 7.1) * 1.5, 2 + Math.cos(t * 3.1) * 2 + Math.sin(t * 9) * 0.8};
     }
 
     /** Dances (a trick from the shop). */

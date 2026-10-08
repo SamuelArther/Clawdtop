@@ -102,7 +102,31 @@ public final class Settings {
 
     public void setMet() {
         values.setProperty("met", "true");
+        if (!values.containsKey("metDate")) values.setProperty("metDate", java.time.LocalDate.now().toString());
         save();
+    }
+
+    /** The day you met (today if it's not known). */
+    public java.time.LocalDate metDate() {
+        try {
+            return java.time.LocalDate.parse(values.getProperty("metDate"));
+        } catch (Exception e) {
+            return java.time.LocalDate.now();
+        }
+    }
+
+    /** Whether something once-only (like "monday:2026-10-12") has happened; marks it as happened. */
+    public boolean once(String what) {
+        String done = values.getProperty("once", "");
+        if (java.util.Arrays.asList(done.split(",")).contains(what)) return false;
+        // keep the list short: only the last 20
+        java.util.List<String> list = new java.util.ArrayList<>(java.util.Arrays.asList(done.split(",")));
+        list.removeIf(String::isBlank);
+        list.add(what);
+        while (list.size() > 20) list.remove(0);
+        values.setProperty("once", String.join(",", list));
+        save();
+        return true;
     }
 
     public Pet.Personality personality() {
