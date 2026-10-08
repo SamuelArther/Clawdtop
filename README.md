@@ -51,7 +51,7 @@ Once he's run, any new terminal knows the `clawd` command:
 | `clawd controlpanel` | a little menu to change his name, spot, size, beeps, tips and starting with Windows |
 | `clawd uninstall` | removes him: stops him, takes out the command and his settings |
 
-It's a `clawd.cmd` in `%LOCALAPPDATA%\Clawdtopin`, put on your own (user) PATH; nothing system-wide changes.
+It's a `clawd.cmd` in `%LOCALAPPDATA%\Clawdtop\bin`, put on your own (user) PATH; nothing system-wide changes.
 Changes from the control panel reach him within a couple of seconds.
 
 ## How he works
