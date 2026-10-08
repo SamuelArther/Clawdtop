@@ -38,6 +38,8 @@ jobs:
       fail-fast: false
       matrix:
         model: ['qwen2.5:1.5b', 'gemma3:1b', 'llama3.2:1b']
+    # (it downloads a lot: only when asked for, or when a commit is about his brain)
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, 'brain')
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
