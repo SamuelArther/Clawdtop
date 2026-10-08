@@ -65,6 +65,26 @@ public final class Settings {
         save();
     }
 
+    /** Your name, as you told him when you first met (or "" before then). */
+    public String name() {
+        return values.getProperty("name", "").strip();
+    }
+
+    public void setName(String name) {
+        values.setProperty("name", name.strip());
+        save();
+    }
+
+    /** Whether you've met (he said hi and you told him your name), so he doesn't introduce himself again. */
+    public boolean met() {
+        return "true".equals(values.getProperty("met"));
+    }
+
+    public void setMet() {
+        values.setProperty("met", "true");
+        save();
+    }
+
     /** "Small", "Normal" or "Big". */
     public String size() {
         String size = values.getProperty("size", "Normal");
@@ -85,7 +105,20 @@ public final class Settings {
         };
     }
 
-    /** Where he was dragged to along the taskbar, or -1 for above the clock. */
+    /** Where he sits when he hasn't been dragged: one of Welcome.SPOTS. */
+    public String spot() {
+        String spot = values.getProperty("spot", Welcome.SPOTS[0]);
+        return java.util.Arrays.asList(Welcome.SPOTS).contains(spot) ? spot : Welcome.SPOTS[0];
+    }
+
+    /** Picks one of Welcome.SPOTS (and forgets where he was dragged). */
+    public void setSpot(String spot) {
+        values.setProperty("spot", spot);
+        values.setProperty("x", "-1");
+        save();
+    }
+
+    /** Where he was dragged to along the taskbar, or -1 for his spot. */
     public int x() {
         try {
             return Integer.parseInt(values.getProperty("x", "-1"));

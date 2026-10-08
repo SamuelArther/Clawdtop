@@ -96,7 +96,11 @@ public final class Clawdtop {
         int w = window.getWidth();
         int h = window.getHeight();
         int bottom = usable.y + usable.height; // the taskbar's top when it's at the bottom of the screen
-        int x = settings.x() >= 0 ? settings.x() : screen.x + screen.width - 64 - w / 2; // the clock is in the corner
+        int x = settings.x() >= 0 ? settings.x() : switch (settings.spot()) {
+            case "In the middle" -> screen.x + screen.width / 2 - w / 2;
+            case "On the left" -> screen.x + 70;
+            default -> screen.x + screen.width - 64 - w / 2; // above the clock, in the corner
+        };
         x = Math.max(screen.x, Math.min(screen.x + screen.width - w, x));
         window.setLocation(x, bottom - h + settings.unit()); // his feet just touch the taskbar
         homeX = x + Sprite.feetX() * settings.unit();
@@ -249,12 +253,14 @@ public final class Clawdtop {
             menu.add(item);
         }
         menu.addSeparator();
-        JMenuItem back = new JMenuItem("Back above the clock");
-        back.addActionListener(e -> {
-            settings.setX(-1);
-            place();
-        });
-        menu.add(back);
+        for (String spot : Welcome.SPOTS) {
+            JMenuItem item = new JMenuItem("Sit " + Character.toLowerCase(spot.charAt(0)) + spot.substring(1).replace("On the", "on the"));
+            item.addActionListener(e -> {
+                settings.setSpot(spot);
+                place();
+            });
+            menu.add(item);
+        }
         JMenuItem bye = new JMenuItem("Bye, Clawd");
         bye.addActionListener(e -> System.exit(0));
         menu.add(bye);
@@ -309,6 +315,7 @@ public final class Clawdtop {
         if (beep != null && settings.sounds()) beeps.play(beep);
         bubble.tick();
         if (bubble.showing()) bubble.follow(window.getBounds(), screenBounds());
+        if (welcome != null && welcome.showing()) welcome.follow(window.getBounds(), screenBounds());
         canvas.repaint();
     }
 
@@ -330,9 +337,22 @@ public final class Clawdtop {
         pet.speak();
     }
 
+    private Welcome welcome;
+
     private void start() {
         window.setVisible(true);
         new Timer(FRAME_MS, e -> tick()).start();
+        if (!settings.met()) {
+            // The first time: he's all excited to meet you
+            welcome = new Welcome(settings, this::place, b -> {
+                if (settings.sounds()) beeps.play(b);
+            });
+            pet.poke();
+            pet.takeBeep();
+            welcome.start(window.getBounds(), screenBounds());
+        } else if (!settings.name().isEmpty()) {
+            bubble.show("Hi again, " + settings.name() + "!", window.getBounds(), screenBounds());
+        }
     }
 
     public static void main(String[] args) throws IOException {

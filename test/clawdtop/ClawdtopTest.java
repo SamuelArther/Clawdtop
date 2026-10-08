@@ -159,6 +159,33 @@ public class ClawdtopTest {
         check("the Windows startup script runs Java with no window", Startup.script("C:\\Java\\bin\\javaw.exe", "C:\\Clawdtop\\Clawdtop.jar"),
                 "Set shell = CreateObject(\"WScript.Shell\")\r\nshell.Run \"\"\"C:\\Java\\bin\\javaw.exe\"\" --enable-native-access=ALL-UNNAMED -jar \"\"C:\\Clawdtop\\Clawdtop.jar\"\"\", 0, False\r\n");
 
+        // ---- Meeting him the first time ----
+        Files.deleteIfExists(home.resolve("settings.properties"));
+        Settings fresh = Settings.load();
+        check("before you meet, he doesn't know you", fresh.met() + " '" + fresh.name() + "' " + fresh.spot(), "false '' Above the clock");
+        java.util.List<Pet.Beep> chirps = new java.util.ArrayList<>();
+        int[] movedCount = {0};
+        Welcome hello = new Welcome(fresh, () -> movedCount[0]++, chirps::add);
+        hello.start(new java.awt.Rectangle(1800, 1000, 63, 45), new java.awt.Rectangle(0, 0, 1920, 1080));
+        Path frames0 = Path.of("build", "frames");
+        Files.createDirectories(frames0);
+        snapshot(hello.panel(), frames0.resolve("welcome 1 name.png"));
+        javax.swing.JTextField nameBox = find(hello.panel(), javax.swing.JTextField.class);
+        nameBox.setText("  Samuel  ");
+        click(hello.panel(), "Next");
+        check("he learns your name", fresh.name(), "Samuel");
+        snapshot(hello.panel(), frames0.resolve("welcome 2 where.png"));
+        click(hello.panel(), "In the middle");
+        check("and where you want him", fresh.spot() + " " + movedCount[0], "In the middle 1");
+        snapshot(hello.panel(), frames0.resolve("welcome 3 beeps.png"));
+        click(hello.panel(), "Shh, no beeps");
+        check("beeps off if you say so", fresh.sounds(), false);
+        click(hello.panel(), "Not now");
+        snapshot(hello.panel(), frames0.resolve("welcome 4 done.png"));
+        Settings later = Settings.load();
+        check("and remembers you met, for next time", later.met() + " " + later.name() + " " + later.spot(), "true Samuel In the middle");
+        check("he chirps along, starting with hello", chirps.get(0), Pet.Beep.HELLO);
+
         // ---- Cleaning a folder (on a pretend mini PC) ----
         CleanerTest.run();
 
@@ -239,6 +266,49 @@ public class ClawdtopTest {
 
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         System.exit(failures == 0 ? 0 : 1);
+    }
+
+    /** Lays out a Swing panel with no window and saves a picture of it. */
+    static void snapshot(javax.swing.JComponent panel, Path file) throws Exception {
+        java.awt.Dimension size = panel.getPreferredSize();
+        panel.setSize(size);
+        layout(panel);
+        BufferedImage image = new BufferedImage(size.width, size.height, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = image.createGraphics();
+        g.setColor(new java.awt.Color(32, 32, 36));
+        g.fillRect(0, 0, size.width, size.height);
+        panel.printAll(g);
+        g.dispose();
+        ImageIO.write(image, "png", file.toFile());
+    }
+
+    static void layout(java.awt.Container c) {
+        c.doLayout();
+        for (java.awt.Component child : c.getComponents()) if (child instanceof java.awt.Container cc) layout(cc);
+    }
+
+    static <T> T find(java.awt.Container c, Class<T> kind) {
+        for (java.awt.Component child : c.getComponents()) {
+            if (kind.isInstance(child)) return kind.cast(child);
+            if (child instanceof java.awt.Container cc) {
+                T found = find(cc, kind);
+                if (found != null) return found;
+            }
+        }
+        return null;
+    }
+
+    static void click(java.awt.Container c, String label) {
+        for (java.awt.Component child : c.getComponents()) {
+            if (child instanceof javax.swing.JButton b && b.getText().equals(label)) {
+                b.doClick();
+                return;
+            }
+            if (child instanceof java.awt.Container cc && !(child instanceof javax.swing.JButton)) {
+                int before = cc.getComponentCount();
+                click(cc, label);
+            }
+        }
     }
 
     /** One picture, 8 screen pixels to his pixel, on a taskbar-gray background so the see-through parts show. */
