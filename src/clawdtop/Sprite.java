@@ -71,6 +71,15 @@ public final class Sprite {
                 box(g, unit, eyeX, eyeY, 1, 2, EYE);
             }
         }
+        // Mouth: only while he beeps, flapping open and shut between his eyes
+        if (pet.talking()) {
+            if (pet.mouthOpen()) {
+                box(g, unit, LEFT + 6, top + 4.5, 1, 1.5, EYE);
+            } else {
+                box(g, unit, LEFT + 5.5, top + 5, 2, 0.5, EYE);
+            }
+        }
+
         if (pet.eyesLit() && !pet.eyesShut()) {
             // a little twinkle above his head
             int phase = (int) (pet.time() / 150 % 4);

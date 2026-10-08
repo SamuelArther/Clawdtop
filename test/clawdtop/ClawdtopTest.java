@@ -89,6 +89,11 @@ public class ClawdtopTest {
         check("Run box tips list commands", tips.tipFor(run).contains("%temp%"), true);
         pet.speak();
         check("he chirps when he has a tip", pet.takeBeep(), Pet.Beep.TIP);
+        check("and his mouth moves while he beeps", pet.talking() + " " + pet.mouthOpen(), "true true");
+        pet.tick(80, 0, 0, false, false);
+        check("flapping shut and open", pet.mouthOpen(), false);
+        for (int i = 0; i < 20; i++) pet.tick(33, 0, 0, false, false);
+        check("then it's gone when he's quiet", pet.talking(), false);
 
         // ---- Settings and starting with Windows ----
         Settings s = Settings.load();
@@ -109,7 +114,12 @@ public class ClawdtopTest {
         Files.createDirectories(frames);
         Pet model = new Pet(3);
         model.takeBeep();
+        for (int i = 0; i < 20; i++) model.tick(33, 0, 0, false, false); // done saying hello
         save(model, frames.resolve("idle.png"));
+        model.speak();
+        model.takeBeep();
+        save(model, frames.resolve("talking.png"));
+        for (int i = 0; i < 20; i++) model.tick(33, 0, 0, false, false);
         model.tick(33, 300, -50, true, false);
         for (int i = 0; i < 20; i++) model.tick(33, 300, -50, false, false);
         save(model, frames.resolve("looking right.png"));

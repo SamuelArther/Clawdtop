@@ -32,6 +32,8 @@ public final class Pet {
     private boolean devApp;        // a dev app is in front
     private float lookX, lookY;    // where his eyes point, -1 to 1 each way
     private Beep wants;            // a sound he wants to make (the window plays it)
+    private long talking;          // ms left of moving his mouth along with a beep
+    private long talkLength;       // how long this beep's mouth moving lasts
 
     /** A little sound he makes. */
     public enum Beep { HELLO, HAPPY, CLICKED, YAWN, WAKE, TIP }
@@ -79,6 +81,8 @@ public final class Pet {
             case HAPPY -> { if (moodFor > nextChange) set(Mood.IDLE, idleTime()); }
             case SLEEP -> { }
         }
+
+        if (talking > 0) talking -= ms;
 
         // Blinking (not while asleep, his eyes are shut anyway)
         if (blinking > 0) {
@@ -162,6 +166,19 @@ public final class Pet {
     public Beep takeBeep() {
         Beep b = wants;
         wants = null;
+        if (b != null) talking = talkLength = b == Beep.YAWN ? 600 : 380; // his mouth moves while he beeps
         return b;
+    }
+
+    /** Whether he's beeping right now, so his mouth shows. */
+    public boolean talking() {
+        return talking > 0;
+    }
+
+    /** While talking: whether his mouth is open (it flaps open and shut with the beeps; a yawn is one big open). */
+    public boolean mouthOpen() {
+        if (talking <= 0) return false;
+        if (mood == Mood.SLEEP || mood == Mood.LIE) return true;
+        return (talkLength - talking) / 70 % 2 == 0;
     }
 }
