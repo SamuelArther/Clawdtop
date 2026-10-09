@@ -1387,7 +1387,7 @@ final class CreationList {
             ...I can't reach my keyboard. Deleting tiny mode.
             clawd.scale = 0.1;
             ---
-            fidget_spinner | spin.py | SPIN | yes | 0
+            fidget_spinner | fidget_spinner.py | SPIN | yes | 0
             Coding a fidget spinner.
             Spinning! So relaxing!
             ...I made myself the spinner. Stopping. Deleting.

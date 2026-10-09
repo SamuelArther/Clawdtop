@@ -214,7 +214,12 @@ final class Piano {
         int x = Math.max(screen.x + 4, Math.min(screen.x + screen.width - size.width - 4, clawd.x + clawd.width / 2 - size.width + 40));
         window.setLocation(x, Math.max(screen.y + 4, clawd.y - size.height - 4));
         window.showAndFocus(panel);
-        new javax.swing.Timer(60, e -> panel.repaint()).start();
+        javax.swing.Timer redraw = new javax.swing.Timer(60, null);
+        redraw.addActionListener(e -> { // (stops once the piano's closed)
+            if (window.isVisible()) panel.repaint();
+            else redraw.stop();
+        });
+        redraw.start();
     }
 
     /** Where the first white key is on the screen (for the screen test), or null. */

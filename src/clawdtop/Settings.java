@@ -347,6 +347,7 @@ public final class Settings {
 
     /** Adds Clawd Points (for something you did together). */
     public void earn(int points) {
+        if (!on("earnPoints")) return; // (points turned off)
         setPoints(points() + points);
     }
 

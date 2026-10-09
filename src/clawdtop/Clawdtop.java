@@ -254,6 +254,7 @@ public final class Clawdtop {
 
     /** Reminders that are due, and the focus timer running out. */
     private void checkReminders() {
+        if (hidden) return; // (watching a video: they wait till you're back, nothing gets lost)
         long now = System.currentTimeMillis();
         for (java.util.Iterator<Object[]> it = reminders.iterator(); it.hasNext(); ) {
             Object[] r = it.next();
@@ -279,6 +280,8 @@ public final class Clawdtop {
     private java.io.File sequencerFile;
 
     /** Plays a whole MIDI file while he plays it on his piano (null stops it). */
+    private int midiRound; // which MIDI start is the current one (an older one still loading gets closed)
+
     private void playMidi(java.io.File file) {
         if (java.util.Objects.equals(file, sequencerFile)) return;
         if (sequencer != null) {
@@ -287,7 +290,8 @@ public final class Clawdtop {
             sequencer = null;
         }
         sequencerFile = file;
-        if (file == null || !mayBeep()) return;
+        int round = ++midiRound;
+        if (file == null) return;
         worker.execute(() -> {
             try {
                 javax.sound.midi.Sequencer s = javax.sound.midi.MidiSystem.getSequencer();
@@ -295,8 +299,8 @@ public final class Clawdtop {
                 s.setSequence(javax.sound.midi.MidiSystem.getSequence(file));
                 s.start();
                 SwingUtilities.invokeLater(() -> {
-                    if (java.util.Objects.equals(file, sequencerFile)) sequencer = s;
-                    else s.close(); // already stopped
+                    if (round == midiRound) sequencer = s;
+                    else s.close(); // already stopped (or a newer one started)
                 });
             } catch (Exception noMidi) {
                 // no sound for it, then (he still plays along)
@@ -343,7 +347,7 @@ public final class Clawdtop {
                 if (song == null) pet.say("I tried, but I can't read that music.");
                 else if (!pet.fetch(song)) pet.say("Ooh, music! Give me a sec, I'm busy.");
                 else {
-                    if (settings.on("earnPoints")) settings.earn(Shop.MIDI);
+                    earnFun(Shop.MIDI);
                     Diary.write("Somebody gave me music: " + song.name().replaceFirst("^your ", "") + ". I played it on my piano!");
                 }
             });
@@ -454,9 +458,13 @@ public final class Clawdtop {
     }
 
     /** A game of tic-tac-toe against him. */
+    private TicTacToe game; // the game on the go, if there is one
+
     private void ticTacToe() {
+        if (game != null && game.showing()) return;
         pet.say("You're X. I'm O. Good luck. (You'll need it.)");
-        new TicTacToe(new java.util.Random()).show(head(), screenBounds(), result -> {
+        game = new TicTacToe(new java.util.Random());
+        game.show(head(), screenBounds(), result -> {
             String[] lines = switch (result) {
                 case "you" -> new String[] {"Nooo! Best of three?", "You won?! I demand a rematch.", "Okay, you're good at this."};
                 case "clawd" -> new String[] {"Crab victory!", "I win! Crabs are great at corners.", "Ha! Good game though."};
@@ -467,7 +475,7 @@ public final class Clawdtop {
             String score = you == him ? "We're tied, " + you + " to " + him + "." : you > him ? "You're winning, " + you + " to " + him + "." : "I'm winning, " + him + " to " + you + ".";
             pet.say(lines[new java.util.Random().nextInt(lines.length)] + "\n" + score + (ties > 0 ? " (" + ties + (ties == 1 ? " tie)" : " ties)") : ""));
             if (result.equals("you")) pet.ask("happy");
-            if (settings.on("earnPoints")) settings.earn(Shop.GAME);
+            earnFun(Shop.GAME);
             Diary.write(switch (result) {
                 case "you" -> "Lost at tic-tac-toe. Rematch pending.";
                 case "clawd" -> "Won at tic-tac-toe. Undefeated crab.";
@@ -624,7 +632,7 @@ public final class Clawdtop {
 
     /** Things he codes: the file fills in as he types; then what he made does its thing (or gets deleted). */
     private void creations() {
-        if (pet.takeWantsToCreate() && job == null && body.state() == Body.State.HOME) makeSomething();
+        if (pet.takeWantsToCreate() && job == null && body.state() == Body.State.HOME && !hidden && !inCorner) makeSomething();
         Creation typing = pet.coding();
         if (typing != null && ticks % 20 == 0) writeCreation(typing, pet.codingProgress());
         Creation made = pet.takeMade();
@@ -638,8 +646,8 @@ public final class Clawdtop {
                     body.flyCarpet();
                 }
                 case ROCKET -> body.rocketRide();
-                case POPUP -> Useful.popup(made.file(), made.done());
-                case DUCKS -> dropDuck(); // the first one, from the middle of the screen
+                case POPUP -> { if (!hidden && !inCorner) Useful.popup(made.file(), made.done()); } // (never over your game)
+                case DUCKS -> { if (!hidden && !inCorner) dropDuck(); } // the first one, from the middle of the screen
                 default -> { }
             }
         }
@@ -747,7 +755,7 @@ public final class Clawdtop {
             for (Piano.Song song : Piano.SONGS) {
                 JMenuItem item = new JMenuItem(song.name());
                 item.addActionListener(e -> {
-                    if (pet.playPiano(song) && settings.on("earnPoints")) settings.earn(Shop.SONG);
+                    if (pet.playPiano(song)) earnFun(Shop.SONG);
                 });
                 piano.add(item);
             }
@@ -786,13 +794,13 @@ public final class Clawdtop {
                 });
                 JMenuItem rock = new JMenuItem(inst == Piano.Instrument.DRUMS ? "Play me a beat!" : "Play me something!");
                 rock.addActionListener(e -> {
-                    if (pet.play(inst, null) && settings.on("earnPoints")) settings.earn(Shop.SONG);
+                    if (pet.play(inst, null)) earnFun(Shop.SONG);
                 });
                 menuFor.add(rock);
                 for (Piano.Song song : inst == Piano.Instrument.DRUMS ? Piano.BEATS : Piano.SONGS) {
                     JMenuItem item = new JMenuItem(song.name().substring(0, 1).toUpperCase(java.util.Locale.ROOT) + song.name().substring(1));
                     item.addActionListener(e -> {
-                        if (pet.play(inst, song) && settings.on("earnPoints")) settings.earn(Shop.SONG);
+                        if (pet.play(inst, song)) earnFun(Shop.SONG);
                     });
                     menuFor.add(item);
                 }
@@ -803,7 +811,7 @@ public final class Clawdtop {
                 if (pet.lap()) {
                     body.runLap();
                     Diary.write("Ran a lap around the whole screen. Up the walls and everything. Personal best!");
-                    if (settings.on("earnPoints")) settings.earn(Shop.LAP);
+                    earnFun(Shop.LAP);
                 }
             });
             fun.add(lap);
@@ -910,7 +918,6 @@ public final class Clawdtop {
 
     /** Clawd Points for time together, rides, jobs done, and petting (rubbing the mouse back and forth over him). */
     private void earnPoints(Point mouse, boolean moved) {
-        if (!settings.on("earnPoints")) return;
         if (moved) activeFor += FRAME_MS;
         if (activeFor >= 5 * 60_000) {
             activeFor = 0;
@@ -919,7 +926,11 @@ public final class Clawdtop {
         Body.State state = body.state();
         if (state == Body.State.RIDE && lastBody != Body.State.RIDE) {
             settings.earn(Shop.RIDE);
-            if (settings.once("diary-ride:" + java.time.LocalDate.now() + ":" + java.time.LocalTime.now().getHour())) Diary.write("Rode the cursor around. Wheee!");
+            int hourNow = java.time.LocalTime.now().getHour();
+            if (hourNow != rideDiaryHour) { // (once an hour, at most)
+                rideDiaryHour = hourNow;
+                Diary.write("Rode the cursor around. Wheee!");
+            }
         }
         if (state == Body.State.DIZZY && lastBody == Body.State.FALL && !movingOut) Diary.write("Landed on my head. Saw stars. I'm fine.");
         lastBody = state;
@@ -948,6 +959,22 @@ public final class Clawdtop {
     }
 
     private int lastRubX;
+    private int rideDiaryHour = -1;
+    private int funToday;                  // points from games and songs today (there's a limit, so it's not a points farm)
+    private java.time.LocalDate funDay;
+
+    /** Points for playing (songs, games, laps): up to 60 a day. */
+    private void earnFun(int points) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        if (!today.equals(funDay)) {
+            funDay = today;
+            funToday = 0;
+        }
+        int give = Math.min(points, 60 - funToday);
+        if (give <= 0) return;
+        funToday += give;
+        settings.earn(give);
+    }
     private static final long HOLD_TO_PET = 500;
     private long rightHeldSince;   // the right button is held down on him: petting
 
@@ -1469,7 +1496,7 @@ public final class Clawdtop {
                 double x = found == null ? -1 : s.x + found.centerX() / scale;
                 if (found == null || x < s.x || x > s.x + s.width || body.state() != Body.State.HOME) {
                     endTackle(); // no icon to tackle (or he got busy): there it is anyway
-                    bubble.hide();
+                    if (!bubble.asking()) bubble.hide();
                     return;
                 }
                 body.tackle(x);
@@ -1488,7 +1515,9 @@ public final class Clawdtop {
     }
 
     private void offerUpdate(Updater.Release release, int tries) {
-        if ((pet.busyNow() || bubble.asking() || body.state() != Body.State.HOME) && tries < 40) { // in a bit
+        if (tries >= 40) return; // never found a good moment: there's always tomorrow
+        if (pet.busyNow() || bubble.asking() || body.state() != Body.State.HOME || hidden || inCorner || boxed || farewell || movingOut
+                || focusUntil > 0 || pet.focusing()) { // in a bit
             javax.swing.Timer later = new javax.swing.Timer(15_000, e -> offerUpdate(release, tries + 1));
             later.setRepeats(false);
             later.start();
@@ -1745,7 +1774,7 @@ public final class Clawdtop {
         wasPlaying = playingNow;
         int note = pet.takeNote();
         if (note > 0 && mayBeep() && pet.playingMidi() == null) beeps.play(pet.instrument(), note, pet.noteLength());
-        playMidi(pet.playingMidi());
+        playMidi(mayBeep() ? pet.playingMidi() : null); // (muted, quiet hours or hidden: the song stops)
         Pet.Beep beep = pet.takeBeep();
         if (beep != null && mayBeep()) beeps.play(beep);
         // what he says (not while he's hidden for your video, and never over a question he's asking you)
@@ -1773,7 +1802,7 @@ public final class Clawdtop {
         String kind = Tips.kind(front);
         if (java.util.Objects.equals(kind, lastKind)) return;
         lastKind = kind;
-        if (kind == null || !settings.tips() || hidden || focusUntil > 0) return;
+        if (kind == null || !settings.tips() || hidden || focusUntil > 0 || bubble.asking()) return;
         long now = System.currentTimeMillis();
         if (!Tips.urgent(front) && now - lastTipAt < pet.personality().tipGap()) return;
         String tip = tips.tipFor(front);

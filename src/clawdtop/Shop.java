@@ -63,6 +63,7 @@ final class Shop {
         settings.own(item.id());
         if (item.kind() == Kind.HAT) settings.setWearing("hat", item.id());
         if (item.kind() == Kind.HUT) settings.setWearing("hut", item.id());
+        if (item.kind() == Kind.SHIRT) settings.setWearing("shirt", item.id());
         return true;
     }
 }

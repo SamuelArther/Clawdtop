@@ -23,6 +23,11 @@ final class TicTacToe {
     private final TypingWindow window = java.awt.GraphicsEnvironment.isHeadless() ? null : new TypingWindow();
     private Consumer<String> over = r -> { };
 
+    /** Whether the board is up. */
+    boolean showing() {
+        return window != null && window.isVisible();
+    }
+
     TicTacToe(Random random) {
         this.random = random;
         java.util.Arrays.fill(board, ' ');
@@ -98,7 +103,7 @@ final class TicTacToe {
             @Override
             public void mousePressed(MouseEvent e) {
                 if (e.getY() < TOP && e.getX() > panel.getWidth() - 26) {
-                    window.setVisible(false);
+                    window.dispose(); // (closed: let it go)
                     return;
                 }
                 int col = (e.getX() - PAD) / CELL, row = (e.getY() - TOP) / CELL;
@@ -107,7 +112,7 @@ final class TicTacToe {
                 panel.repaint();
                 if (r != ' ') {
                     over.accept(r == 'X' ? "you" : r == 'O' ? "clawd" : "tie");
-                    javax.swing.Timer close = new javax.swing.Timer(1800, x -> window.setVisible(false));
+                    javax.swing.Timer close = new javax.swing.Timer(1800, x -> window.dispose());
                     close.setRepeats(false);
                     close.start();
                 }
