@@ -76,7 +76,11 @@ final class OptionsWindow {
             list.add(row(o, settings, changed));
         }
         JTabbedPane tabs = new JTabbedPane();
-        for (var g : groups.entrySet()) {
+        // (the handiest groups first: what he does for you, your privacy and his brain, then the fun stuff)
+        java.util.List<String> first = java.util.List.of("Useful", "Privacy", "Brain", "Antics", "Reactions");
+        java.util.List<Map.Entry<String, JPanel>> ordered = new java.util.ArrayList<>(groups.entrySet());
+        ordered.sort(java.util.Comparator.comparingInt(g -> first.contains(g.getKey()) ? first.indexOf(g.getKey()) : first.size()));
+        for (var g : ordered) {
             JPanel holder = new JPanel(new BorderLayout());
             holder.add(g.getValue(), BorderLayout.NORTH); // (rows at the top, not stretched)
             JScrollPane scroll = new JScrollPane(holder);

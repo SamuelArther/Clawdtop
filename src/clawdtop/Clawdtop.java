@@ -2337,7 +2337,7 @@ public final class Clawdtop {
                     entry = new JMenuItem(item.name() + " (learned!)");
                     entry.setEnabled(false);
                 } else {
-                    entry = new JMenuItem(item.name() + " - " + item.price() + " points: " + item.about());
+                    entry = new JMenuItem(item.name() + " - " + item.price() + " Clawd Points: " + item.about());
                     entry.setEnabled(settings.points() >= item.price());
                     entry.addActionListener(e -> {
                         if (Shop.buy(settings, item)) {
