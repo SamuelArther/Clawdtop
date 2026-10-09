@@ -1,7 +1,6 @@
-Fix: his typing box says the right thing.
+Fix: you can actually see his coffee now.
 
-- Adding a to-do, sticking up a note or finding a file now shows its own hint and button ("Add it", "Stick it up", "Find it"), not the "ask me a question" examples.
-- The ask box's examples now show the newer things he can do.
+- In keep-awake mode his mug was a tiny white speck. Now it's a proper orange mug with a stripe, a handle and steam, outlined so it shows up on light and dark wallpapers.
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 

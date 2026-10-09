@@ -923,15 +923,21 @@ public final class Sprite {
 
     /** His mug of coffee on the floor beside him, steaming (he's keeping your computer awake). */
     private static void drawCoffee(Graphics2D g, Pet pet, int unit) {
-        Color mug = new Color(250, 246, 238), coffee = new Color(110, 66, 40), steam = new Color(255, 255, 255, 150);
-        double mx = LEFT - 3.6, my = GROUND - 2.6;
-        box(g, unit, mx, my, 2.4, 2.6, mug);
-        box(g, unit, mx + 2.4, my + 0.6, 0.6, 1.2, mug); // the handle
-        box(g, unit, mx + 0.3, my + 0.2, 1.8, 0.5, coffee);
-        long t = pet.time() / 300;
+        Color edge = new Color(70, 60, 55), mug = new Color(215, 119, 87), band = new Color(250, 246, 238), coffee = new Color(90, 52, 30),
+                steam = new Color(235, 235, 235, 200);
+        double mx = LEFT - 4.6, my = GROUND - 3.6;
+        box(g, unit, mx - 0.3, my - 0.3, 3.6, 3.9, edge); // (an outline, so it shows up on any background)
+        box(g, unit, mx + 3.3, my + 0.5, 1.2, 2.0, edge);
+        box(g, unit, mx, my, 3.0, 3.3, mug);             // his orange mug
+        box(g, unit, mx, my + 1.4, 3.0, 0.6, band);      // with a white stripe
+        box(g, unit, mx + 3.0, my + 0.8, 0.9, 0.4, mug); // the handle
+        box(g, unit, mx + 3.5, my + 0.8, 0.4, 1.4, mug);
+        box(g, unit, mx + 3.0, my + 1.8, 0.9, 0.4, mug);
+        box(g, unit, mx + 0.3, my, 2.4, 0.5, coffee);    // the coffee in it
+        long t = pet.time() / 280;
         for (int i = 0; i < 2; i++) { // two wisps of steam, drifting up
             double up = (t + i * 2) % 4;
-            box(g, unit, mx + 0.5 + i * 1.0 + (up % 2 == 0 ? 0 : 0.3), my - 0.8 - up * 0.6, 0.4, 0.5, steam);
+            box(g, unit, mx + 0.6 + i * 1.2 + (up % 2 == 0 ? 0 : 0.4), my - 1.0 - up * 0.7, 0.5, 0.6, steam);
         }
     }
 
