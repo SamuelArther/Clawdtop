@@ -281,6 +281,7 @@ public final class Clawdtop {
         long soonest = Long.MAX_VALUE;
         for (Object[] r : reminders) if ("time's up".equals(r[1]) || "time's up!".equals(r[1])) soonest = Math.min(soonest, (Long) r[0]);
         if (breathUntil > now) pet.clock(breathUntil - now, false); // (counting a breath)
+        else if (eyeBreakUntil > now) pet.clock(eyeBreakUntil - now, false); // (counting an eye break)
         else if (soonest != Long.MAX_VALUE) pet.clock(soonest - now, false);
         else if (stopwatchFrom > 0) pet.clock(now - stopwatchFrom, true);
         else pet.clock(-1, false);
@@ -1191,7 +1192,9 @@ public final class Clawdtop {
         }
         long step = Math.min(nowMs - lastScreenTick, 5_000);
         lastScreenTick = nowMs;
-        if (nowMs - lastMoved < 5 * 60_000 && step > 0) screenMsToday += step;
+        boolean active = nowMs - lastMoved < 5 * 60_000 && step > 0;
+        if (active) screenMsToday += step;
+        eyeBreaks(Math.max(0, step), active);
         if (nowMs - screenSavedAt > 5 * 60_000) {
             screenSavedAt = nowMs;
             settings.setText("screen." + today, String.valueOf(screenMsToday));
@@ -1215,6 +1218,24 @@ public final class Clawdtop {
     }
 
     private boolean awakeWanted; // (what you last asked for: starting takes a moment, and you might change your mind)
+
+    // ---- Eye breaks (20-20-20: every 20 minutes, look at something 20 feet away for 20 seconds) ----
+    private long eyesUsedMs, eyeBreakUntil;
+
+    /** Counts your time on the computer (a break of 5 minutes or more starts the count over), and calls an eye break. */
+    private void eyeBreaks(long step, boolean active) {
+        if (!settings.on("eyes")) return;
+        if (!active) {
+            if (System.currentTimeMillis() - lastMoved > 5 * 60_000) eyesUsedMs = 0; // (you took a break already)
+            return;
+        }
+        eyesUsedMs += step;
+        if (eyesUsedMs < 20 * 60_000 || pet.busyNow() || bubble.showing() || hidden || inCorner) return;
+        eyesUsedMs = 0;
+        eyeBreakUntil = System.currentTimeMillis() + 20_000;
+        pet.say("Eye break! Look at something far away (out a window is great)\nfor 20 seconds. I'll count.");
+        later(20_500, () -> pet.say("Done! Your eyes say thanks."));
+    }
 
     /** Keeps the computer awake (he holds his coffee), or stops. */
     private void keepAwake(boolean on) {
@@ -2210,6 +2231,15 @@ public final class Clawdtop {
             greetings.add(() -> { if (pet.morning(settings.name())) settings.once(morningKey); });
         }
         greetHoliday();
+        String summaryKey = "summary:" + java.time.LocalDate.now();
+        if (hourNow >= 5 && settings.on("summary") && !settings.seen(summaryKey)) {
+            String rundown = Helpers.rundown(java.time.LocalDate.now(), settings.todos(), settings.text("sticky"),
+                    Helpers.daysToBirthday(settings.birthday(), java.time.LocalDate.now()), settings.name());
+            if (rundown != null) greetings.add(() -> {
+                pet.say(rundown);
+                settings.once(summaryKey);
+            });
+        }
         settings.setLastSeen(System.currentTimeMillis());
         int year = java.time.LocalDate.now().getYear();
         if (settings.birthdayToday() && settings.on("birthday") && settings.once("birthday:" + year)) {
@@ -3362,6 +3392,14 @@ public final class Clawdtop {
                     "Can Clawd see your screen?", "(test) He takes a quick look at how bright your screen is.");
             case "yes" -> bubble.press(0);
             case "tidy" -> tidyDesktop();
+            case "eye break" -> {
+                eyesUsedMs = 20 * 60_000;
+                eyeBreaks(0, true);
+            }
+            case "rundown" -> {
+                String r = Helpers.rundown(java.time.LocalDate.now(), settings.todos(), settings.text("sticky"), Helpers.daysToBirthday(settings.birthday(), java.time.LocalDate.now()), settings.name());
+                if (r != null) pet.say(r);
+            }
             case "quiz answer right" -> { // (the screen test: types the right answer into the quiz box)
                 String shown = askBox.panel().getComponentCount() > 0 && askBox.panel().getComponent(0) instanceof javax.swing.JLabel l ? l.getText() : "";
                 java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d+) x (\\d+)").matcher(shown);

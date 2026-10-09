@@ -735,6 +735,12 @@ public class ClawdtopTest {
         check("jam starts", jammer.jamAgain(new Piano.Song("test jam", new int[] {60, 62}, new double[] {1, 1}, 400, new java.io.File("test_jam.mid"), 2000)) + " " + jammer.jamming(), "true true");
         jammer.stopPiano();
         check("jam stops", jammer.jamming() + " " + jammer.mood(), "false IDLE");
+        // the morning rundown
+        java.time.LocalDate rundownDay = java.time.LocalDate.of(2026, 10, 9);
+        check("days to birthday", Helpers.daysToBirthday("10-12", rundownDay) + " " + Helpers.daysToBirthday("10-08", rundownDay) + " " + Helpers.daysToBirthday("", rundownDay), "3 364 -1");
+        check("rundown", Helpers.rundown(rundownDay, List.of("homework", "dishes"), "Dentist at 4", 3, "Sam"),
+                "Here's your day, Sam! It's Friday, October 9.\n- 2 things on your to-do list (first up: homework)\n- Your note says: Dentist at 4\n- 3 days till your birthday!");
+        check("no rundown with nothing to say", Helpers.rundown(rundownDay, List.of(), "", 200, "Sam"), null);
         // the desktop: reading icon spots (Windows' script and Finder say the same shape), sorting files for Neat
         Desktop.Layout desk = Desktop.read("DESKTOP|/home/me/Desktop\nskin|177,2\nmy song.mid|2427,1032\nnot an icon\n");
         check("desktop read", desk.folder().getFileName() + " " + desk.icons(), "Desktop [Icon[name=skin, x=177, y=2], Icon[name=my song.mid, x=2427, y=1032]]");
