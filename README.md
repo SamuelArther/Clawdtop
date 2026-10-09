@@ -75,8 +75,9 @@ when he starts, and asks before he updates.
   **Show me** and **Open it**. When a download finishes, he tells you, with the same buttons.
 - **Quick helpers you can ask for:** "clean my link" (takes the tracking junk off a link you copied), "make me a
   password", "what time is it in Tokyo", "count my words", "pizza or tacos?", "open the calculator", "save what I
-  copied" (a screenshot or text, into a file on your desktop), "how long have I been on the computer today?" and "keep
-  my computer awake" (he sets down a steaming mug until you say stop).
+  copied" (a screenshot or text, into a file on your desktop), "how long have I been on the computer today?", "keep
+  my computer awake" (he sets down a steaming mug until you say stop), "define curious" (if you let him look things up
+  online) and "what color is this?" (point at any color on your screen: he names it and copies its code).
 - **Your desktop:** drag a song file (.mid) near him on the desktop and he hops over, grabs it and plays it.
   **Tidy my desktop** (in Useful) tackles your files into a Neat folder, sorted by type, and can put them all back.
   Nothing is ever deleted.

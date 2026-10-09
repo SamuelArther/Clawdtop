@@ -689,7 +689,7 @@ public final class Clawdtop {
             pet.say("Things you can ask me:\nAny question (I'll think about it)\nMath, like \"what's 12 times 7\"\n"
                     + "\"remind me at 3pm to call Grandma\"\n\"set a timer for 5 minutes\"\n\"add homework to my list\"\n\"stick a note: dentist at 4\"\n"
                     + "\"find my essay\"\n\"what time is it in Tokyo\"\n\"clean my link\", \"make me a password\"\n\"keep my computer awake\"\n"
-                    + "\"quiz me on the 7 times table\", \"breathe with me\"\nMore fun stuff is in my menu!");
+                    + "\"quiz me on the 7 times table\", \"breathe with me\"\n\"define curious\", \"what color is this?\"\nMore fun stuff is in my menu!");
             return;
         }
         java.util.regex.Matcher singIt = java.util.regex.Pattern.compile("(?i)^\\W*(?:please |can you |could you |will you )?sing(?: me| us)?(?: a song| something| anything)?(?: called| named)?\\s*(.*?)\\W*$").matcher(question);
@@ -2257,6 +2257,9 @@ public final class Clawdtop {
             }
         });
         useful.add(noteItem);
+        JMenuItem colorItem = new JMenuItem("What color is this? (point at it)");
+        colorItem.addActionListener(e -> pickColor());
+        useful.add(colorItem);
         JMenuItem breatheItem = new JMenuItem("Breathe with me (1 minute)");
         breatheItem.addActionListener(e -> breathe());
         useful.add(breatheItem);
