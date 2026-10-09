@@ -278,11 +278,11 @@ public final class Cli {
         out.println("  Name:        " + (s.name().isEmpty() ? DIM + "(not told yet)" + RESET : s.name()));
         out.println("  Lives in:    " + (s.homeNamed() ? s.home() : DIM + "(this computer has no name yet)" + RESET));
         if (!s.oldHomes().isEmpty()) out.println("  Lived in:    " + String.join(", ", s.oldHomes()));
-        out.println("  Sits:        " + (s.x() >= 0 ? "where you dragged him" : s.spot().toLowerCase(Locale.ROOT)));
+        out.println("  Sits:        " + (s.x() != Settings.NO_X ? "where you dragged him" : Welcome.label(s.spot()).toLowerCase(Locale.ROOT)));
         out.println("  Size:        " + s.size().toLowerCase(Locale.ROOT));
         out.println("  Beeps:       " + onOff(s.sounds()));
         out.println("  Tips:        " + onOff(s.tips()));
-        out.println("  " + (Platform.WINDOWS ? "With Windows:" : "At login:   ") + " " + onOff(Startup.on()));
+        out.println("  " + "Startup:    " + " " + onOff(Startup.on()) + (Platform.WINDOWS ? " (with Windows)" : " (at login)"));
         out.println("  Version:     " + Updater.VERSION);
     }
 
@@ -302,7 +302,7 @@ public final class Cli {
             hello(ORANGE + "Clawd's control panel" + RESET + (on ? "" : DIM + "  (he isn't running: clawd start)" + RESET));
             out.println();
             out.println("   1  Name                " + (s.name().isEmpty() ? DIM + "(none)" + RESET : s.name()));
-            out.println("   2  Where he sits       " + (s.x() >= 0 ? "where you dragged him" : s.spot()));
+            out.println("   2  Where he sits       " + (s.x() != Settings.NO_X ? "where you dragged him" : Welcome.label(s.spot())));
             out.println("   3  Size                " + s.size());
             out.println("   4  Personality         " + s.personality().shown());
             out.println("   5  Color               " + colorName(s.color()));
@@ -329,7 +329,7 @@ public final class Cli {
                     if (name != null) s.setName(name.length() > 24 ? name.substring(0, 24) : name);
                 }
                 case "2" -> {
-                    int i = choose(Welcome.SPOTS);
+                    int i = choose(java.util.Arrays.stream(Welcome.SPOTS).map(Welcome::label).toArray(String[]::new)); // (a Mac's names for them)
                     if (i >= 0) s.setSpot(Welcome.SPOTS[i]);
                 }
                 case "3" -> s.setSize(switch (s.size()) {

@@ -1,7 +1,8 @@
-Polish: his options window, and a few words.
+Polish: the clawd command's control panel.
 
-- All the options opens on the Useful tab (download alerts, the morning rundown, eye breaks, reminders), then Privacy and Brain, with the fun stuff after.
-- The shop and options say "Clawd Points" everywhere, and setup's look-things-up question reads more naturally.
+- "clawd status" and the control panel say "where you dragged him" correctly for a spot on a monitor to the left of your main one.
+- On a Mac the spot choices there are named like in setup ("On the right" instead of "Above the clock").
+- The status lines all line up ("Startup: on (with Windows)").
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 
