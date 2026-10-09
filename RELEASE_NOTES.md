@@ -1,7 +1,7 @@
-Fix: his speech bubbles no longer cover your sticky note.
+Fix: his typing box says the right thing.
 
-- When he talks, the note slides out from under his bubble, then glides back when he's done.
-- If there's no room on the left (he's at the screen's edge), it goes to the other side.
+- Adding a to-do, sticking up a note or finding a file now shows its own hint and button ("Add it", "Stick it up", "Find it"), not the "ask me a question" examples.
+- The ask box's examples now show the newer things he can do.
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 

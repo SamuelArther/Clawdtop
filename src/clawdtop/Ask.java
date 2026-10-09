@@ -66,13 +66,18 @@ final class Ask {
 
     /** Shows the box above Clawd; asked gets your question (not called if you close it). */
     void show(String prompt, Rectangle clawd, Rectangle screen, Consumer<String> asked) {
+        show(prompt, "Try: \"what's 12 times 7\", \"remind me at 3pm to call Grandma\", \"find my essay\"", "Ask", clawd, screen, asked);
+    }
+
+    /** The same, for something else he wants typed (a to-do, a note...): its own little hint and button. */
+    void show(String prompt, String hintText, String okText, Rectangle clawd, Rectangle screen, Consumer<String> asked) {
         panel.removeAll();
         JLabel label = new JLabel(prompt);
         label.setFont(Bubble.FIRST_LINE.deriveFont(15f));
         label.setForeground(INK);
         label.setAlignmentX(Component.LEFT_ALIGNMENT);
         panel.add(label);
-        JLabel hint = new JLabel("Try: \"what's 12 times 7\", \"remind me in 10 minutes to stretch\", \"start a stopwatch\"");
+        JLabel hint = new JLabel(hintText);
         hint.setFont(Bubble.FONT.deriveFont(11f));
         hint.setForeground(new Color(130, 120, 110));
         hint.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -95,7 +100,7 @@ final class Ask {
         row.setOpaque(false);
         row.setAlignmentX(Component.LEFT_ALIGNMENT);
         row.add(button("Never mind", this::hide));
-        row.add(button("Ask", go));
+        row.add(button(okText, go));
         panel.add(row);
         panel.revalidate();
         Dimension size = panel.getPreferredSize();

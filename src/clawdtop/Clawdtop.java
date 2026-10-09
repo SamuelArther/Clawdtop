@@ -1866,13 +1866,13 @@ public final class Clawdtop {
         }
         if (!settings.todos().isEmpty()) todoMenu.addSeparator();
         JMenuItem addOne = new JMenuItem("Add something...");
-        addOne.addActionListener(e -> askBox.show("What do you need to do?", head(), screenBounds(), this::addTodo));
+        addOne.addActionListener(e -> askBox.show("What do you need to do?", "Like \"homework\" or \"call Grandma\"", "Add it", head(), screenBounds(), this::addTodo));
         todoMenu.add(addOne);
         useful.add(todoMenu);
         JMenuItem noteItem = new JMenuItem(settings.text("sticky").isEmpty() ? "Stick up a note..." : "Take down the sticky note");
         noteItem.addActionListener(e -> {
             if (settings.text("sticky").isEmpty()) {
-                askBox.show("What should the note say?", head(), screenBounds(), text -> {
+                askBox.show("What should the note say?", "Like \"dentist at 4\" (click the note when you're done with it)", "Stick it up", head(), screenBounds(), text -> {
                     if (text.isBlank()) return;
                     stickNote(Brain.noBadWords(text));
                     pet.say("Stuck it up! Click the note when you're done with it.");
@@ -1884,7 +1884,7 @@ public final class Clawdtop {
         });
         useful.add(noteItem);
         JMenuItem findItem = new JMenuItem("Find a file...");
-        findItem.addActionListener(e -> askBox.show("What's the file called? (Part of the name is fine.)", head(), screenBounds(), text -> {
+        findItem.addActionListener(e -> askBox.show("What's the file called?", "Part of the name is fine, like \"essay\" or \"birthday\"", "Find it", head(), screenBounds(), text -> {
             java.util.List<String> words = FindFile.wordsIn("find my " + text);
             if (words != null) findFile(words);
         }));
