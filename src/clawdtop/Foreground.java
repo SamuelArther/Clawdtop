@@ -148,11 +148,12 @@ public final class Foreground {
         if (handle == 0) return null;
         try {
             Process p = new ProcessBuilder("powershell", "-NoProfile", "-NonInteractive", "-Command",
-                    "(New-Object -ComObject Shell.Application).Windows() | Where-Object { $_.HWND -eq " + handle
+                    "[Console]::OutputEncoding = [Text.Encoding]::UTF8; " // (so folders like "Música" come through right)
+                            + "(New-Object -ComObject Shell.Application).Windows() | Where-Object { $_.HWND -eq " + handle
                             + " } | ForEach-Object { $_.Document.Folder.Self.Path } | Select-Object -First 1")
                     .redirectErrorStream(true).start();
             String out = new String(p.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).strip();
-            p.waitFor();
+            if (!p.waitFor(10, java.util.concurrent.TimeUnit.SECONDS)) p.destroyForcibly();
             if (out.isEmpty() || out.startsWith("::") || out.contains("\n")) return null; // "This PC" and other non-folders
             Path folder = Path.of(out);
             return java.nio.file.Files.isDirectory(folder) ? folder : null;

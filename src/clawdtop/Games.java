@@ -24,7 +24,7 @@ final class Games {
     /** Names that aren't really games (tools and bits the launchers install too). */
     private static final Pattern NOT_A_GAME = Pattern.compile(
             "(?i).*(redistributable|digital ownership|dlc|proton|steam linux runtime|steamworks|sdk|dedicated server|soundtrack|benchmark|"
-                    + "ea app|ea desktop|origin|riot client|ubisoft connect|launcher|directx|vc\\+\\+|easyanticheat|battleye|gamesave).*");
+                    + "ea app|ea desktop|^origin$|riot client|ubisoft connect|launcher|directx|vc\\+\\+|easyanticheat|battleye|gamesave).*");
 
     /** Everything he can find, sorted, no repeats. Slow-ish (it looks round the disk): not on the drawing thread. */
     static List<String> find() {

@@ -293,7 +293,7 @@ public final class Cli {
             out.println("  11  All the options     " + DIM + "(" + Options.ALL.size() + " of them!)" + RESET);
             out.println("  12  His home's name     " + (s.homeNamed() ? s.home() : DIM + "(none)" + RESET));
             out.println("  13  No tomfoolery       " + onOff(s.serious()) + DIM + "  (serious mode: no silly stuff)" + RESET);
-            out.println("  14  Start with Windows  " + onOff(Startup.on()));
+            out.println("  14  " + (Platform.WINDOWS ? "Start with Windows  " : "Start at login      ") + onOff(Startup.on()));
             out.println("  15  " + (on ? "Stop him" : "Start him"));
             out.println("   0  Done");
             out.print("\nPick a number: ");
@@ -525,7 +525,7 @@ public final class Cli {
 
     private void uninstall() throws IOException {
         hello("Remove Clawd from this computer?");
-        out.print("\nThis stops him, stops him starting with Windows, removes the clawd command, and forgets his settings. Sure? (y/N) ");
+        out.print("\nThis stops him, stops him starting by himself, removes the clawd command, and forgets his settings. Sure? (y/N) ");
         out.flush();
         String answer = in.readLine();
         if (answer == null || !answer.strip().toLowerCase(Locale.ROOT).startsWith("y")) {

@@ -19,4 +19,15 @@ if not exist "%JAVAW%" (
   pause
   exit /b 1
 )
+set "JAVA_EXE=%JAVAW:javaw.exe=java.exe%"
+set JMAJOR=0
+for /f "tokens=3" %%v in ('call "%JAVA_EXE%" -version 2^>^&1 ^| findstr /i "version"') do set "JV=%%~v"
+for /f "delims=." %%m in ("%JV%") do set JMAJOR=%%m
+if %JMAJOR% LSS 22 (
+  echo The Java on this computer is too old for Clawd. He needs Java 22 or newer.
+  echo Opening the free download page: get the latest "JRE" for Windows, install it, then run this again.
+  start "" "https://adoptium.net/temurin/releases/?os=windows&package=jre"
+  pause
+  exit /b 1
+)
 start "" "%JAVAW%" --enable-native-access=ALL-UNNAMED -jar "%JAR%"

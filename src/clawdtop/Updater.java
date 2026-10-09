@@ -150,14 +150,21 @@ final class Updater {
                 // go ahead anyway
             }
         });
+        Path temp = jar.resolveSibling(jar.getFileName() + ".tmp");
         for (int tries = 0; tries < 20; tries++) { // Windows can hold on to the old file for a moment
             try {
-                Files.copy(fresh, jar, StandardCopyOption.REPLACE_EXISTING);
+                Files.copy(fresh, temp, StandardCopyOption.REPLACE_EXISTING); // copied next to it first, then swapped in whole
+                try {
+                    Files.move(temp, jar, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+                } catch (java.nio.file.AtomicMoveNotSupportedException notHere) {
+                    Files.move(temp, jar, StandardCopyOption.REPLACE_EXISTING);
+                }
                 break;
             } catch (IOException busy) {
                 Thread.sleep(500);
             }
         }
+        Files.deleteIfExists(temp);
         new ProcessBuilder(Install.javaw().toString(), "--enable-native-access=ALL-UNNAMED", "-jar", jar.toString()).start();
     }
 }

@@ -49,6 +49,12 @@ final class Install {
      */
     static String script(Path java, Path jar, Path copy) {
         Path console = java.getFileName().toString().equalsIgnoreCase("javaw.exe") ? java.resolveSibling("java.exe") : java;
+        boolean plain = (console.toString() + jar + copy).chars().allMatch(c -> c < 128);
+        if (!plain) { // a name like "José" in a path: cmd reads batch files in the old code page, so switch to UTF-8 and back
+            return "@echo off\r\nfor /f \"tokens=2 delims=:.\" %%c in ('chcp') do set CLAWD_CP=%%c\r\nchcp 65001 >nul\r\n\"" + console
+                    + "\" --enable-native-access=ALL-UNNAMED -Dclawdtop.jar=\"" + jar + "\" -cp \"" + copy
+                    + "\" clawdtop.Cli %* & chcp %CLAWD_CP% >nul & exit /b\r\n";
+        }
         return "@echo off\r\n\"" + console + "\" --enable-native-access=ALL-UNNAMED -Dclawdtop.jar=\"" + jar + "\" -cp \"" + copy
                 + "\" clawdtop.Cli %* & exit /b\r\n"; // (exit on the same line: clawd uninstall can delete this file mid-run)
     }
@@ -66,6 +72,7 @@ final class Install {
 
     /** Makes sure the clawd command is there and points at this jar (quietly; called each time he starts). */
     static void ensureCommand() {
+        Startup.refresh(); // ("start with Windows" still pointing at the right Java and jar?)
         Path jar = jar();
         Path folder = commandFolder();
         if (!Platform.WINDOWS) {

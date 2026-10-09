@@ -46,13 +46,19 @@ final class Transfer {
             mover = new ServerSocket(movePort, 4, on);
             Thread answer = new Thread(() -> {
                 byte[] buffer = new byte[256];
-                while (open) {
+                int wrong = 0;
+                while (open && wrong < 50) {
                     try {
                         DatagramPacket p = new DatagramPacket(buffer, buffer.length);
                         finder.receive(p);
-                        String asked = new String(p.getData(), 0, p.getLength(), StandardCharsets.UTF_8).strip();
-                        if (asked.equals("CLAWDTOP-FIND " + code)) {
-                            byte[] here = "CLAWDTOP-HERE".getBytes(StandardCharsets.UTF_8);
+                        String[] asked = new String(p.getData(), 0, p.getLength(), StandardCharsets.UTF_8).strip().split(" ");
+                        // "CLAWDTOP-FIND <nonce> <proof>": the other computer knows the code (without saying it out loud)
+                        if (asked.length == 3 && asked[0].equals("CLAWDTOP-FIND")) {
+                            if (!asked[2].equals(proof(code, "find:" + asked[1]))) {
+                                wrong++;
+                                continue;
+                            }
+                            byte[] here = ("CLAWDTOP-HERE " + proof(code, "here:" + asked[1])).getBytes(StandardCharsets.UTF_8);
                             finder.send(new DatagramPacket(here, here.length, p.getAddress(), p.getPort()));
                         }
                     } catch (IOException e) {
@@ -63,7 +69,12 @@ final class Transfer {
             answer.setDaemon(true);
             answer.start();
             Thread take = new Thread(() -> {
+                int wrong = 0;
                 while (open) {
+                    if (wrong >= 5) { // someone's guessing codes: no more tries (start the move again for a new code)
+                        close();
+                        return;
+                    }
                     try (Socket s = mover.accept()) {
                         s.setSoTimeout(10_000);
                         BufferedReader in = new BufferedReader(new InputStreamReader(s.getInputStream(), StandardCharsets.UTF_8));
@@ -72,6 +83,7 @@ final class Transfer {
                         String token = in.readLine();
                         if (!("CLAWDTOP-MOVE " + code).equals(hello) || SaveToken.read(token) == null) {
                             out.println("NO");
+                            wrong++;
                             continue;
                         }
                         out.println("OK");
@@ -108,7 +120,8 @@ final class Transfer {
         try (DatagramSocket s = new DatagramSocket()) {
             s.setBroadcast(true);
             s.setSoTimeout(500);
-            byte[] ask = ("CLAWDTOP-FIND " + code).getBytes(StandardCharsets.UTF_8);
+            String nonce = Long.toHexString(new java.security.SecureRandom().nextLong());
+            byte[] ask = ("CLAWDTOP-FIND " + nonce + " " + proof(code, "find:" + nonce)).getBytes(StandardCharsets.UTF_8);
             long until = System.currentTimeMillis() + waitMs;
             while (System.currentTimeMillis() < until) {
                 for (String where : new String[] {"255.255.255.255", "127.0.0.1"}) {
@@ -122,7 +135,8 @@ final class Transfer {
                     byte[] buffer = new byte[64];
                     DatagramPacket reply = new DatagramPacket(buffer, buffer.length);
                     s.receive(reply);
-                    if (new String(buffer, 0, reply.getLength(), StandardCharsets.UTF_8).strip().equals("CLAWDTOP-HERE")) {
+                    // only the computer that knows the code can answer like this
+                    if (new String(buffer, 0, reply.getLength(), StandardCharsets.UTF_8).strip().equals("CLAWDTOP-HERE " + proof(code, "here:" + nonce))) {
                         return reply.getAddress();
                     }
                 } catch (SocketTimeoutException again) {
@@ -133,6 +147,17 @@ final class Transfer {
             return null;
         }
         return null;
+    }
+
+    /** Proof of knowing the code, for this message (an HMAC of it, keyed with the code), without sending the code itself. */
+    static String proof(String code, String message) {
+        try {
+            javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
+            mac.init(new javax.crypto.spec.SecretKeySpec(("clawdtop-move:" + code).getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            return java.util.HexFormat.of().formatHex(mac.doFinal(message.getBytes(StandardCharsets.UTF_8))).substring(0, 24);
+        } catch (java.security.GeneralSecurityException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     /** Sends the save token to the new computer. True if it took it. */
