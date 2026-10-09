@@ -72,7 +72,30 @@ final class Welcome {
             window.setContentPane(panel);
             window.setAlwaysOnTop(true);
             window.setType(java.awt.Window.Type.UTILITY);
+            // a way out: Escape (or closing the window) skips the rest of the questions, with the usual answers
+            window.onClose(this::skipRest);
+            window.getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(javax.swing.KeyStroke.getKeyStroke("ESCAPE"), "skip");
+            window.getRootPane().getActionMap().put("skip", new javax.swing.AbstractAction() {
+                @Override
+                public void actionPerformed(java.awt.event.ActionEvent e) {
+                    skipRest();
+                }
+            });
         }
+    }
+
+    private boolean atEnd; // showing "All set!"
+
+    /** Escape or closing the window: the questions you haven't answered get their usual answers, and he's ready. */
+    void skipRest() {
+        if (waiting != null) waiting.close();
+        waiting = null;
+        if (atEnd) { // (on the last page: same as OK)
+            if (window != null) window.dispose();
+            finished.run();
+            return;
+        }
+        done();
     }
 
     /** Runs when you've finished meeting him (his box shows up then). */
@@ -338,6 +361,7 @@ final class Welcome {
     }
 
     void done() {
+        atEnd = true;
         String who = settings.name().isEmpty() ? "" : " " + settings.name();
         settings.setMet();
         if (movedIn) { // he walks in with his boxes: no box to open
@@ -353,6 +377,7 @@ final class Welcome {
         }
         show(lines.toArray(new String[0]), null,
                 button("OK!", () -> {
+                    atEnd = false; // (once)
                     if (window != null) window.dispose();
                     finished.run();
                 }));
