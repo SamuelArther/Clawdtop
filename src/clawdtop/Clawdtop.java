@@ -388,7 +388,10 @@ public final class Clawdtop {
                 case "clawd" -> new String[] {"Crab victory!", "I win! Crabs are great at corners.", "Ha! Good game though."};
                 default -> new String[] {"A tie! Great minds think alike.", "Nobody wins. Everybody's happy?"};
             };
-            pet.say(lines[new java.util.Random().nextInt(lines.length)]);
+            settings.addOne("ttt-" + result);
+            int you = settings.count("ttt-you"), him = settings.count("ttt-clawd"), ties = settings.count("ttt-tie");
+            String score = you == him ? "We're tied, " + you + " to " + him + "." : you > him ? "You're winning, " + you + " to " + him + "." : "I'm winning, " + him + " to " + you + ".";
+            pet.say(lines[new java.util.Random().nextInt(lines.length)] + "\n" + score + (ties > 0 ? " (" + ties + (ties == 1 ? " tie)" : " ties)") : ""));
             if (result.equals("you")) pet.ask("happy");
             if (settings.on("earnPoints")) settings.earn(Shop.GAME);
             Diary.write(switch (result) {

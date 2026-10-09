@@ -108,6 +108,22 @@ public final class Settings {
     }
 
     /** Changes an option. */
+    /** A running count he keeps (tic-tac-toe wins and so on), and adding one to it. */
+    public int count(String key) {
+        try {
+            return Integer.parseInt(values.getProperty("count." + key, "0"));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    public int addOne(String key) {
+        int n = count(key) + 1;
+        values.setProperty("count." + key, String.valueOf(n));
+        save();
+        return n;
+    }
+
     public void set(String key, String value) {
         Options.find(key);
         values.setProperty("opt." + key, value);
