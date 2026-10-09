@@ -1,8 +1,8 @@
-Fix: moving computers, options, and the brain (fixes to 4.3-4.8).
+New: drop pictures and zips on him.
 
-- Moving: the old computer only lets him go after you say yes on the new one. Saying no there now leaves him safely on the old computer (before, he could end up on neither). And one mistyped code no longer blocks the right one for a minute.
-- The options window always saves to his current settings, and options like his spot and "no tomfoolery" take effect right away.
-- "clawd ask" in the terminal also asks before downloading his brain, and two downloads at once can't trip over each other.
+- Drop a picture on him and he offers a smaller copy, for emailing or texting (like 4 MB down to 300 KB). It goes right next to the original, which stays as it is. If it's already small, he says so.
+- Drop a .zip file on him and he unzips it into a new folder next to it, safely (nothing inside can end up anywhere else), with a Show me button.
+- Plus all the fixes from 4.1 to 4.9.
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 
