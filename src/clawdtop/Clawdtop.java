@@ -128,6 +128,7 @@ public final class Clawdtop {
                 if (SwingUtilities.isLeftMouseButton(e) && body.state() == Body.State.FLY) {
                     body.knockOff(); // poof, no more carpet
                     pet.carpetGone(riding);
+                    Diary.write("Somebody clicked my flying carpet away. Mid-air. Rude.");
                     return;
                 }
                 if (SwingUtilities.isRightMouseButton(e)) rightHeldSince = System.currentTimeMillis();
@@ -237,12 +238,16 @@ public final class Clawdtop {
         long now = System.currentTimeMillis();
         for (java.util.Iterator<Object[]> it = reminders.iterator(); it.hasNext(); ) {
             Object[] r = it.next();
-            if (now >= (Long) r[0] && pet.remind((String) r[1])) it.remove(); // (busy? he tells you in a moment)
+            if (now >= (Long) r[0] && pet.remind((String) r[1])) {
+                it.remove(); // (busy? he tells you in a moment)
+                Diary.write("Reminded you: " + r[1]);
+            }
         }
         if (focusUntil > 0 && now >= focusUntil) {
             focusUntil = 0;
             pet.focus(false, true);
             if (settings.on("earnPoints")) settings.earn(Shop.FOCUS);
+            Diary.write("Kept quiet for a whole focus timer. You did great.");
         }
     }
 
@@ -290,7 +295,10 @@ public final class Clawdtop {
             SwingUtilities.invokeLater(() -> {
                 if (song == null) pet.say("I tried, but I can't read that music.");
                 else if (!pet.fetch(song)) pet.say("Ooh, music! Give me a sec, I'm busy.");
-                else if (settings.on("earnPoints")) settings.earn(Shop.MIDI);
+                else {
+                    if (settings.on("earnPoints")) settings.earn(Shop.MIDI);
+                    Diary.write("Somebody gave me music: " + song.name().replaceFirst("^your ", "") + ". I played it on my piano!");
+                }
             });
         });
     }
@@ -471,6 +479,7 @@ public final class Clawdtop {
         if (typing != null && ticks % 20 == 0) writeCreation(typing, pet.codingProgress());
         Creation made = pet.takeMade();
         if (made != null && settings.on("earnPoints")) settings.earn(Shop.MADE);
+        if (made != null) Diary.write("Coded " + made.file() + ". " + made.done());
         if (made != null) {
             writeCreation(made, 1);
             switch (made.effect()) {
@@ -495,6 +504,7 @@ public final class Clawdtop {
         }
         Creation gone = pet.takeDeleted();
         if (gone != null && gone.effect() == Creation.Effect.DUCKS) ducks.poof();
+        if (gone != null) Diary.write("Deleted " + gone.file() + ". It never happened. (" + gone.after() + ")");
         if (gone != null) worker.execute(() -> {
             try {
                 java.nio.file.Files.deleteIfExists(Settings.creations().resolve(gone.savedAs()));
@@ -620,6 +630,7 @@ public final class Clawdtop {
             lap.addActionListener(e -> {
                 if (pet.lap()) {
                     body.runLap();
+                    Diary.write("Ran a lap around the whole screen. Up the walls and everything. Personal best!");
                     if (settings.on("earnPoints")) settings.earn(Shop.LAP);
                 }
             });
@@ -731,7 +742,11 @@ public final class Clawdtop {
             settings.earn(Shop.TIME);
         }
         Body.State state = body.state();
-        if (state == Body.State.RIDE && lastBody != Body.State.RIDE) settings.earn(Shop.RIDE);
+        if (state == Body.State.RIDE && lastBody != Body.State.RIDE) {
+            settings.earn(Shop.RIDE);
+            if (settings.once("diary-ride:" + java.time.LocalDate.now() + ":" + java.time.LocalTime.now().getHour())) Diary.write("Rode the cursor around. Wheee!");
+        }
+        if (state == Body.State.DIZZY && lastBody == Body.State.FALL && !movingOut) Diary.write("Landed on my head. Saw stars. I'm fine.");
         lastBody = state;
         if (job != null && job.step() == CleanJob.Step.DONE && job.stepTimeIsNew()) settings.earn(Shop.JOB);
         // Petting: the mouse rubbing back and forth over him
@@ -802,6 +817,7 @@ public final class Clawdtop {
         Holidays.Holiday holiday = Holidays.on(todayNow);
         if (holiday != null && settings.on("holidays") && !settings.seen(holiday.id() + ":" + todayNow.getYear())
                 && pet.celebrate(holiday.line(), holiday.show())) {
+            Diary.write(holiday.line().split("\n")[0]);
             settings.once(holiday.id() + ":" + todayNow.getYear());
         }
         long gap = System.currentTimeMillis() - settings.lastSeen();
@@ -1208,6 +1224,7 @@ public final class Clawdtop {
             creations();
             if (body.takeBoom()) {
                 pet.boom();
+                Diary.write("My rocket exploded. I knew there was a bug in the code.");
                 explosion.start(body.x(), body.y() - 7 * unit); // round the middle of his rocket
                 showFx();
             }

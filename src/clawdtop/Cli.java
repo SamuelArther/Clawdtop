@@ -87,6 +87,12 @@ public final class Cli {
             case "move" -> move();
             case "creations", "made" -> creations();
             case "ask" -> ask();
+            case "diary" -> {
+                java.util.List<String> lines = Diary.read(3);
+                hello("Clawd's diary");
+                if (lines.isEmpty()) out.println("\n  Nothing yet! Spend some time with me and check back.");
+                else for (String l : lines) out.println(l.endsWith(":") ? ORANGE + l + RESET : l);
+            }
             case "joke" -> out.println(new Jokes(System.nanoTime()).next());
             case "help", "-h", "--help", "/?" -> help();
             default -> {
@@ -116,6 +122,7 @@ public final class Cli {
         out.println("  clawd creations      the little programs he's coded");
         out.println("  clawd ask \"...\"      ask him something, right here in the terminal");
         out.println("  clawd joke           a joke");
+        out.println("  clawd diary          what he got up to lately, in his own words");
         out.println("  clawd uninstall      remove Clawd from this computer");
     }
 

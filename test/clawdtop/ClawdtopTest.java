@@ -585,6 +585,12 @@ public class ClawdtopTest {
         for (int i = 0; i < 60; i++) pianist.tick(33, 0, 0, false, false);
         save(pianist, Path.of("build", "frames").resolve("playing the piano.png"));
 
+        // ---- His diary ----
+        Diary.write("Coded carpet.py. I made a flying carpet!!");
+        Diary.write("Landed on my head. Saw stars. I'm fine.");
+        String diary = cli("diary");
+        check("clawd diary tells what he got up to today", diary.contains("Dear diary, today:") && diary.contains("Saw stars"), true);
+
         // ---- Holidays ----
         check("Easter is worked out right", Holidays.easter(2026) + " " + Holidays.easter(2027) + " " + Holidays.easter(2030), "2026-04-05 2027-03-28 2030-04-21");
         check("special days", Holidays.on(java.time.LocalDate.of(2026, 12, 25)).id() + " " + Holidays.on(java.time.LocalDate.of(2026, 11, 26)).id() + " "
