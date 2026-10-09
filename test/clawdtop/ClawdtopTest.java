@@ -340,6 +340,16 @@ public class ClawdtopTest {
 
         // ---- All the options ----
         Files.deleteIfExists(home.resolve("settings.properties"));
+        Settings spots = Settings.load();
+        spots.setAppSpot(Settings.appKey("Chrome.exe"), 300);
+        spots.setAppSpot(Settings.windowKey("YouTube - Google Chrome"), 700);
+        check("a spot for an app, and one for just one tab", Settings.load().appSpotKey("chrome.exe", "Docs - Google Chrome") + " "
+                + Settings.load().appSpotKey("chrome.exe", "YouTube - Google Chrome") + " " + Settings.load().appSpotKey("Code.exe", "x") + " "
+                + Settings.load().appSpot(Settings.windowKey("YouTube - Google Chrome")), "app:chrome.exe window:YouTube - Google Chrome null 700");
+        spots.forgetAppSpot(Settings.appKey("chrome.exe"));
+        check("and forgetting one", Settings.load().appSpotKey("chrome.exe", "Docs"), null);
+        check("apps get friendly names", Clawdtop.appName(new Foreground.Front("chrome.exe", "", "Docs - Google Chrome")) + ", "
+                + Clawdtop.appName(new Foreground.Front("notepad.exe", "", "")), "Google Chrome, Notepad");
         Settings knobs = Settings.load();
         check("there are a LOT of options", Options.ALL.size() >= 40, true);
         check("options start at their defaults", knobs.on("sneezes") + " " + knobs.choice("voice") + " " + knobs.number("volume"), "true Normal 5");
@@ -493,9 +503,9 @@ public class ClawdtopTest {
         check("he chirps along, starting with hello", chirps.get(0), Pet.Beep.HELLO);
 
         // ---- The clawd command ----
-        if (Platform.WINDOWS) check("clawd.cmd runs the command part of Clawdtop with console Java",
-                Install.script(Path.of("C:\\Java\\bin\\javaw.exe"), Path.of("C:\\Clawdtop\\build\\Clawdtop.jar")),
-                "@echo off\r\n\"C:\\Java\\bin\\java.exe\" --enable-native-access=ALL-UNNAMED -cp \"C:\\Clawdtop\\build\\Clawdtop.jar\" clawdtop.Cli %*\r\n");
+        if (Platform.WINDOWS) check("clawd.cmd runs the command part of Clawdtop with console Java, from its own copy of the jar",
+                Install.script(Path.of("C:\\Java\\bin\\javaw.exe"), Path.of("C:\\Clawdtop\\build\\Clawdtop.jar"), Path.of("C:\\bin\\clawd-command.jar")),
+                "@echo off\r\n\"C:\\Java\\bin\\java.exe\" --enable-native-access=ALL-UNNAMED -Dclawdtop.jar=\"C:\\Clawdtop\\build\\Clawdtop.jar\" -cp \"C:\\bin\\clawd-command.jar\" clawdtop.Cli %*\r\n");
         String userPath = "%USERPROFILE%\\bin;C:\\Tools;C:\\Users\\me\\AppData\\Local\\Clawdtop\\bin";
         check("finds its folder on your PATH (any capitals)", Install.hasEntry(userPath, "c:\\users\\me\\appdata\\local\\clawdtop\\bin")
                 + " " + Install.hasEntry("C:\\Tools", "C:\\Users\\me\\AppData\\Local\\Clawdtop\\bin"), "true false");

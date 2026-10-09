@@ -368,6 +368,11 @@ public final class Body {
         set(State.AWAY);
     }
 
+    /** His home moved (like a spot you gave him for the app in front): he walks over instead of popping there. */
+    public void walkHome() {
+        if (state == State.HOME) set(State.WALK);
+    }
+
     /** Walks in from x (off the side of the screen) to home: arriving at a new computer. */
     public void walkIn(double fromX) {
         x = fromX;

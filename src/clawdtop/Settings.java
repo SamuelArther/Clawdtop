@@ -464,6 +464,40 @@ public final class Settings {
         save();
     }
 
+    /** Spots you gave him for an app ("app:chrome.exe") or just one window or tab ("window:" and its title). */
+    static String appKey(String app) {
+        return "app:" + app.toLowerCase(java.util.Locale.ROOT);
+    }
+
+    static String windowKey(String title) {
+        return "window:" + title;
+    }
+
+    /** The spot to use while this window's in front: its own one first, then its app's (null: his usual spot). */
+    public String appSpotKey(String app, String title) {
+        if (title != null && !title.isBlank() && values.containsKey("spotFor." + windowKey(title))) return windowKey(title);
+        if (app != null && !app.isBlank() && values.containsKey("spotFor." + appKey(app))) return appKey(app);
+        return null;
+    }
+
+    public int appSpot(String key) {
+        try {
+            return Integer.parseInt(values.getProperty("spotFor." + key, "-1"));
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
+    public void setAppSpot(String key, int x) {
+        values.setProperty("spotFor." + key, String.valueOf(x));
+        save();
+    }
+
+    public void forgetAppSpot(String key) {
+        values.remove("spotFor." + key);
+        save();
+    }
+
     /** Where he was dragged to along the taskbar, or -1 for his spot. */
     public int x() {
         try {

@@ -18,6 +18,8 @@ final class Install {
 
     /** Clawdtop.jar, if that's what's running (not while he's being worked on from loose classes). */
     static Path jar() {
+        String real = System.getProperty("clawdtop.jar"); // (the clawd command runs from its own copy: this is the real one)
+        if (real != null && !real.isBlank()) return Path.of(real);
         try {
             Path p = Path.of(Install.class.getProtectionDomain().getCodeSource().getLocation().toURI());
             return p.toString().endsWith(".jar") ? p : null;
@@ -41,10 +43,25 @@ final class Install {
         return local == null ? null : Path.of(local, "Clawdtop", "bin");
     }
 
-    /** The text of clawd.cmd: runs the command part of Clawdtop with this Java and this jar. */
-    static String script(Path java, Path jar) {
+    /**
+     * The text of clawd.cmd: runs the command part of Clawdtop with this Java, from its own copy of the jar (so a clawd
+     * command left open in a terminal never holds on to the real one and stops it being rebuilt or updated).
+     */
+    static String script(Path java, Path jar, Path copy) {
         Path console = java.getFileName().toString().equalsIgnoreCase("javaw.exe") ? java.resolveSibling("java.exe") : java;
-        return "@echo off\r\n\"" + console + "\" --enable-native-access=ALL-UNNAMED -cp \"" + jar + "\" clawdtop.Cli %*\r\n";
+        return "@echo off\r\n\"" + console + "\" --enable-native-access=ALL-UNNAMED -Dclawdtop.jar=\"" + jar + "\" -cp \"" + copy
+                + "\" clawdtop.Cli %*\r\n";
+    }
+
+    /** The clawd command's own copy of the jar, freshened whenever he starts (unless a clawd command has it open). */
+    private static void copyJar(Path jar, Path copy) {
+        try {
+            if (Files.exists(copy) && Files.size(copy) == Files.size(jar)
+                    && Files.getLastModifiedTime(copy).equals(Files.getLastModifiedTime(jar))) return;
+            Files.copy(jar, copy, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.COPY_ATTRIBUTES);
+        } catch (IOException inUse) {
+            // a clawd command is open right now: next time
+        }
     }
 
     /** Makes sure the clawd command is there and points at this jar (quietly; called each time he starts). */
@@ -59,7 +76,9 @@ final class Install {
         try {
             Files.createDirectories(folder);
             Path cmd = folder.resolve("clawd.cmd");
-            String text = script(java(), jar);
+            Path copy = folder.resolve("clawd-command.jar");
+            copyJar(jar, copy);
+            String text = script(java(), jar, copy);
             if (!Files.exists(cmd) || !Files.readString(cmd).equals(text)) Files.writeString(cmd, text, StandardCharsets.UTF_8);
             String path = userPath();
             if (path != null && !hasEntry(path, folder.toString())) {
@@ -80,6 +99,7 @@ final class Install {
         if (folder == null) return;
         try {
             Files.deleteIfExists(folder.resolve("clawd.cmd"));
+            Files.deleteIfExists(folder.resolve("clawd-command.jar"));
             Files.deleteIfExists(folder);
             Files.deleteIfExists(folder.getParent());
         } catch (IOException e) {

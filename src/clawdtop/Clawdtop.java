@@ -109,7 +109,7 @@ public final class Clawdtop {
         int w = window.getWidth();
         int h = window.getHeight();
         int bottom = usable.y + usable.height; // the taskbar's top when it's at the bottom of the screen
-        int x = settings.x() >= 0 ? settings.x() : switch (settings.spot()) {
+        int x = appSpotX != null ? appSpotX : settings.x() >= 0 ? settings.x() : switch (settings.spot()) {
             case "In the middle" -> screen.x + screen.width / 2 - w / 2;
             case "On the left" -> screen.x + 70;
             default -> screen.x + screen.width - 64 - w / 2; // above the clock, in the corner
@@ -161,7 +161,13 @@ public final class Clawdtop {
                 boolean moved = Math.abs(e.getXOnScreen() - dragFrom) > 3;
                 dragFrom = Integer.MIN_VALUE;
                 if (moved) {
-                    settings.setX(window.getX());
+                    if (appSpotKey != null) { // moving his spot for the app in front
+                        settings.setAppSpot(appSpotKey, window.getX());
+                        appSpotX = window.getX();
+                    } else {
+                        if (xBeforeDrag == Integer.MIN_VALUE) xBeforeDrag = settings.x(); // (in case this was for an app)
+                        settings.setX(window.getX());
+                    }
                     place(); // this is home now (or he'd jump straight back to where he was)
                 } else if (pet.sleepy()) {
                     pet.poke(); // just wakes him up
@@ -1202,10 +1208,81 @@ public final class Clawdtop {
             });
             menu.add(item);
         }
+        // A spot just for the app (or the one window or tab) you're in: drag him there first, then pick one of these
+        Foreground.Front f = lastFront;
+        if (!f.app().isEmpty()) {
+            menu.addSeparator();
+            String app = appName(f);
+            JMenuItem forApp = new JMenuItem("Sit here when " + app + " is in front");
+            forApp.addActionListener(e -> rememberSpot(Settings.appKey(f.app()), app));
+            menu.add(forApp);
+            if (!f.title().isBlank() && !f.title().equals(app)) {
+                String t = f.title().length() > 40 ? f.title().substring(0, 40) + "..." : f.title();
+                JMenuItem forWindow = new JMenuItem("Sit here for just this window or tab: \"" + t + "\"");
+                forWindow.addActionListener(e -> rememberSpot(Settings.windowKey(f.title()), "this one"));
+                menu.add(forWindow);
+            }
+            if (appSpotKey != null) {
+                JMenuItem forget = new JMenuItem("Forget this spot (back to his usual one)");
+                forget.addActionListener(e -> {
+                    settings.forgetAppSpot(appSpotKey);
+                    appSpotKey = null;
+                    appSpotX = null;
+                    place();
+                    body.walkHome();
+                    pet.say("Okay, back to my usual spot.");
+                });
+                menu.add(forget);
+            }
+            menu.addSeparator();
+        }
         JMenuItem bye = new JMenuItem("Bye, Clawd");
         bye.addActionListener(e -> System.exit(0));
         menu.add(bye);
         return menu;
+    }
+
+    private Integer appSpotX;   // where he sits for the window in front (null: his usual spot)
+    private String appSpotKey;  // which of your saved spots that is
+    private Foreground.Front lastFront = Foreground.Front.UNKNOWN; // the last real window in front (not his, not the taskbar)
+    private int xBeforeDrag = Integer.MIN_VALUE; // his usual spot before you last dragged him (if that drag was for an app)
+
+    /** Spots you gave him for an app, or just one window or tab: he walks over when it's in front, and back after. */
+    private void followAppSpot(Foreground.Front front) {
+        String cls = front.windowClass();
+        if (front.app().isEmpty() || cls.equals("Shell_TrayWnd") || cls.equals("Shell_SecondaryTrayWnd")
+                || cls.startsWith("NotifyIconOverflow") || cls.equals("TopLevelWindowForOverflowXamlIsland")
+                || java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow() != null) return; // the taskbar, or him
+        if (!front.app().equals(lastFront.app()) || !front.title().equals(lastFront.title())) xBeforeDrag = Integer.MIN_VALUE;
+        lastFront = front;
+        String key = settings.appSpotKey(front.app(), front.title());
+        if (java.util.Objects.equals(key, appSpotKey)) return;
+        if (body.state() != Body.State.HOME || job != null || inCorner || dragFrom != Integer.MIN_VALUE || pet.busyNow()) return; // in a bit
+        appSpotKey = key;
+        appSpotX = key == null ? null : settings.appSpot(key);
+        place();
+        body.walkHome();
+    }
+
+    /** Remembers where he is now as his spot for an app, or for one window or tab. */
+    private void rememberSpot(String key, String name) {
+        int x = window.getX();
+        settings.setAppSpot(key, x);
+        if (appSpotKey == null && xBeforeDrag != Integer.MIN_VALUE) settings.setX(xBeforeDrag); // that drag was for this, not his usual spot
+        xBeforeDrag = Integer.MIN_VALUE;
+        appSpotKey = key;
+        appSpotX = x;
+        place();
+        pet.say(name.equals("this one") ? "Got it! This is my spot for this one." : "Got it! I'll sit here when " + name + " is in front.");
+    }
+
+    /** A friendly name for the app in front ("Google Chrome", not "chrome.exe"). */
+    static String appName(Foreground.Front f) {
+        String t = f.title();
+        int dash = t.lastIndexOf(" - ");
+        if (dash >= 0 && t.length() - dash - 3 > 1 && t.length() - dash - 3 < 30) return t.substring(dash + 3).strip();
+        String a = f.app().replaceAll("(?i)\\.exe$", "");
+        return a.isEmpty() ? "this app" : Character.toUpperCase(a.charAt(0)) + a.substring(1);
     }
 
     /**
@@ -1237,6 +1314,7 @@ public final class Clawdtop {
             app = front.app();
             devApp = Foreground.isDevApp(app);
             if (job == null) maybeTip(front);
+            followAppSpot(front);
             if (Games.launcher(app) && !hidden) admireGames("launcher");
             DisplayMode mode = window.getGraphicsConfiguration().getDevice().getDisplayMode();
             boolean fullScreen = job == null && !devApp && Foreground.fullScreen(mode.getWidth(), mode.getHeight());
