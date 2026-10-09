@@ -3572,6 +3572,13 @@ public final class Clawdtop {
         useItems();
         showSticky(); // (the note you stuck up last time)
         if (settings.met()) cameBack(0);
+        // just updated? He says so once, and how to see what's new (not on a brand-new install: that's setup's job)
+        String lastVersion = settings.text("version");
+        if (settings.met() && !Updater.VERSION.equals(lastVersion)) {
+            greetings.add(() -> pet.say("New me! I'm Clawdtop " + Updater.VERSION + " now.\nI can keep a to-do list, stick up notes, find your files,\n"
+                    + "remind you at a time, and lots more.\nType \"help\" in my ask box (double-click me) to see it all!"));
+        }
+        if (!Updater.VERSION.equals(lastVersion)) settings.setText("version", Updater.VERSION);
         welcomeStarted = !settings.met();
         new Timer(FRAME_MS, e -> tick()).start();
         if (!settings.met()) {
