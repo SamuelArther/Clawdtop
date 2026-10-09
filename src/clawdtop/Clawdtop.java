@@ -526,14 +526,30 @@ public final class Clawdtop {
     private java.util.List<String> games;          // your game library (looked up once, in the background)
     private boolean lookingAtGames;
 
-    /** Says something nice about your games, at most once a day for each reason (a launcher's open, or just because). */
+    private final java.util.Set<String> gamesMentioned = new java.util.HashSet<>(); // so it's a different game each time
+    private long lastAdmired;     // when he last said something about your games
+    private int admiredToday;
+    private java.time.LocalDate admiredOn;
+
+    /**
+     * Says something nice about your games: while a launcher's open, a different game every couple of minutes (up to 8
+     * a day); otherwise now and then, once a day.
+     */
     private void admireGames(String why) {
         if (!settings.on("games") || job != null || lookingAtGames || pet.busyNow()) return;
-        String key = "games:" + why + ":" + java.time.LocalDate.now();
-        if (settings.seen(key)) return;
+        long now = System.currentTimeMillis();
+        java.time.LocalDate today = java.time.LocalDate.now();
+        if (!today.equals(admiredOn)) {
+            admiredOn = today;
+            admiredToday = 0;
+        }
+        String key = "games:" + why + ":" + today;
+        if (why.equals("launcher") ? admiredToday >= 8 || now - lastAdmired < 150_000 : settings.seen(key)) return;
         if (games != null) {
-            String nice = Games.compliment(games, new java.util.Random());
-            settings.once(key);
+            String nice = Games.compliment(games, new java.util.Random(), gamesMentioned);
+            if (!why.equals("launcher")) settings.once(key);
+            lastAdmired = now;
+            admiredToday++;
             if (nice != null) pet.say(nice);
             return;
         }
@@ -1285,6 +1301,89 @@ public final class Clawdtop {
         return a.isEmpty() ? "this app" : Character.toUpperCase(a.charAt(0)) + a.substring(1);
     }
 
+    // ---- The taskbar tackle: open an app and he charges its taskbar icon; when he hits it, it pops open and BOOM ----
+    private static final String[] TACKLE_YELLS = {"AAAAAAAH!", "WORTH IT!", "Got it open for youuuuu!", "Nailed iiiiit!"};
+    private static final String[] TACKLE_SPOTS = {"Ooh! Something's opening! I'll get it!", "Wait wait wait, let me open that!",
+            "I got this one!", "Hold on! That's my job!"};
+    private volatile long tackleWindow;      // the app window he's hiding till he gets to its icon (0: none)
+    private volatile long tackleStyle = -1;  // its style, to put back
+    private long tackleUntil;                // never hidden longer than this, whatever happens
+    private long lastFrontWindow;
+    private final java.util.Set<Long> seenPrograms = new java.util.HashSet<>();
+
+    /** A new app just opened in front? Hide it, and off he goes to its taskbar icon. */
+    private void watchForLaunch() {
+        if (!WindowTricks.available()) return;
+        long now = System.currentTimeMillis();
+        if (tackleWindow != 0) {
+            if (now > tackleUntil || (body.state() != Body.State.TACKLE && now > tackleUntil - 5000)) endTackle(); // something went wrong: just open it
+            return;
+        }
+        long front = WindowTricks.front();
+        if (front == lastFrontWindow) return;
+        lastFrontWindow = front;
+        if (front == 0 || !settings.on("tackle") || settings.serious() || hidden || boxed) return;
+        if (body.state() != Body.State.HOME || job != null || pet.busyNow() || inCorner || dragFrom != Integer.MIN_VALUE) return;
+        long pid = WindowTricks.processOf(front);
+        long me = ProcessHandle.current().pid();
+        if (pid == 0 || pid == me || !seenPrograms.add(pid)) return; // (each program only the once)
+        ProcessHandle program = ProcessHandle.of(pid).orElse(null);
+        if (program == null) return;
+        java.time.Instant started = program.info().startInstant().orElse(null);
+        if (started == null || java.time.Duration.between(started, java.time.Instant.now()).toMillis() > 8000) return; // not just opened
+        if (program.parent().map(p -> p.pid() == me).orElse(false) || now - Useful.lastOpened < 10_000) return; // he opened it himself
+        if (!WindowTricks.appWindow(front)) return;
+        String exe = program.info().command().map(c -> Path.of(c).getFileName().toString()).orElse("");
+        String title = Foreground.front().title();
+        long style = WindowTricks.vanish(front);
+        if (style < 0) return;
+        tackleWindow = front;
+        tackleStyle = style;
+        tackleUntil = now + 7000;
+        Thread.ofPlatform().daemon().start(() -> { // (and in case he's stuck somehow: it's back in 8 seconds regardless)
+            try {
+                Thread.sleep(8000);
+            } catch (InterruptedException ignored) {
+                // then now
+            }
+            if (tackleWindow == front) SwingUtilities.invokeLater(this::endTackle);
+        });
+        pet.say(TACKLE_SPOTS[new java.util.Random().nextInt(TACKLE_SPOTS.length)]);
+        Thread.ofPlatform().daemon().name("taskbar").start(() -> {
+            WindowTricks.TaskbarButton button = null;
+            try {
+                String encoded = java.util.Base64.getEncoder().encodeToString(WindowTricks.taskbarScript().getBytes(java.nio.charset.StandardCharsets.UTF_16LE));
+                Process p = new ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+                        "-WindowStyle", "Hidden", "-EncodedCommand", encoded).redirectErrorStream(true).start();
+                String out = new String(p.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+                button = WindowTricks.buttonFor(WindowTricks.parseTaskbar(out), exe, title);
+            } catch (Exception noTaskbar) {
+                // then no tackle
+            }
+            WindowTricks.TaskbarButton found = button;
+            SwingUtilities.invokeLater(() -> {
+                if (tackleWindow != front) return;
+                Rectangle s = window.getGraphicsConfiguration().getBounds();
+                double scale = window.getGraphicsConfiguration().getDefaultTransform().getScaleX();
+                double x = found == null ? -1 : s.x + found.centerX() / scale;
+                if (found == null || x < s.x || x > s.x + s.width || body.state() != Body.State.HOME) {
+                    endTackle(); // no icon to tackle (or he got busy): there it is anyway
+                    return;
+                }
+                body.tackle(x);
+            });
+        });
+    }
+
+    /** Puts the app's window back, all at once. */
+    private void endTackle() {
+        long w = tackleWindow;
+        if (w == 0) return;
+        tackleWindow = 0;
+        WindowTricks.reveal(w, tackleStyle);
+        tackleStyle = -1;
+    }
+
     /**
      * His menus: a click anywhere else closes them. (He never takes the focus from what you're doing, so Swing can't
      * tell you clicked away on its own: we watch the mouse buttons instead.)
@@ -1307,6 +1406,7 @@ public final class Clawdtop {
         boolean moved = !mouse.equals(lastMouse);
         lastMouse = mouse;
         closeMenuOnClickAway(mouse);
+        watchForLaunch();
 
         // Twice a second: what's in front (a coding app makes him happy; a full-screen game or video hides him)
         if (ticks % 15 == 0) {
@@ -1419,6 +1519,15 @@ public final class Clawdtop {
             pet.follow(body.state());
             creations();
             if (body.takeMissed()) pet.say("Missed! ...I meant to do that.");
+            if (body.takeTackled()) {
+                endTackle(); // POP: there it is
+                explosion.start(body.x(), groundY - 2 * unit);
+                showFx();
+                Rectangle s = window.getGraphicsConfiguration().getBounds();
+                body.launchFrom(body.x(), groundY, body.x() > s.x + s.width / 2.0 ? -550 : 550);
+                pet.say(TACKLE_YELLS[new java.util.Random().nextInt(TACKLE_YELLS.length)]);
+                Diary.write("Tackled a taskbar icon. It exploded. Worth it.");
+            }
             if (body.takeBoom()) {
                 pet.boom();
                 Diary.write("My rocket exploded. I knew there was a bug in the code.");
@@ -1588,6 +1697,10 @@ public final class Clawdtop {
     }
 
     void start() {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> { // never leave an app see-through
+            long w = tackleWindow;
+            if (w != 0) WindowTricks.reveal(w, tackleStyle);
+        }));
         try {
             java.nio.file.Files.createDirectories(songsFolder().resolve("veterans")); // so you can see where songs go
         } catch (IOException ignored) {

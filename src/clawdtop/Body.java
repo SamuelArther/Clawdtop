@@ -8,7 +8,7 @@ import java.util.ArrayDeque;
  * screen pixels for the point between his feet. No windows here, so it can be tested on its own.
  */
 public final class Body {
-    public enum State { HOME, HOP_ON, RIDE, FALL, DIZZY, SHAKE, WALK, HOP_TO, PERCH, AWAY, OUT, FLY, ROCKET, LAP }
+    public enum State { HOME, HOP_ON, RIDE, FALL, DIZZY, SHAKE, WALK, HOP_TO, PERCH, AWAY, OUT, FLY, ROCKET, LAP, TACKLE }
 
     static final double GRAVITY = 2600;      // px/s², a quick, cartoony fall
     static final double WALK_SPEED = 140;    // px/s
@@ -25,6 +25,27 @@ public final class Body {
 
     private double ceiling = Double.NaN;
     static final double LAP_SPEED = 900; // px/s: as fast as he can
+    static final double TACKLE_SPEED = 800; // px/s: charging at a taskbar icon
+    static final long DIVE_TIME = 380;      // the flying dive onto it
+    private boolean diving, tackled;
+    private long diveFor;
+    private double diveFromX;
+
+    /** Charges along the taskbar at x (an app's icon) and dives onto it, head first. */
+    public void tackle(double x) {
+        if (state != State.HOME && state != State.WALK) return;
+        targetX = x;
+        diving = false;
+        tackled = false;
+        set(State.TACKLE);
+    }
+
+    /** Whether he just landed on the icon (once): then it's BOOM, and off he goes. */
+    public boolean takeTackled() {
+        boolean t = tackled;
+        tackled = false;
+        return t;
+    }
     private double unitPx = 4;            // how big his pixels are on the screen (for running up walls)
 
     /** How many screen pixels one of his pixels is. */
@@ -236,6 +257,28 @@ public final class Body {
                     vx = (x > (left + right) / 2 ? -1 : 1) * 900; // flung back across the screen
                     vy = -1200;
                     set(State.FALL);
+                }
+            }
+            case TACKLE -> {
+                double side = Math.signum(targetX - x);
+                if (!diving) {
+                    y = groundY;
+                    angle = 0;
+                    double step = TACKLE_SPEED * dt;
+                    if (Math.abs(targetX - x) <= Math.max(step, 7 * unitPx)) { // close enough: DIVE
+                        diving = true;
+                        diveFor = 0;
+                        diveFromX = x;
+                    } else {
+                        x += side * step;
+                    }
+                } else if (diveFor < DIVE_TIME) {
+                    diveFor += ms;
+                    double t = Math.min(1, diveFor / (double) DIVE_TIME);
+                    x = diveFromX + (targetX - diveFromX) * t;
+                    y = groundY - Math.sin(t * Math.PI) * 9 * unitPx + t * t * 4 * unitPx; // up, over, and down onto it
+                    angle = (targetX >= diveFromX ? 1 : -1) * t * Math.PI / 2;               // head first
+                    if (t >= 1) tackled = true;
                 }
             }
             case LAP -> {

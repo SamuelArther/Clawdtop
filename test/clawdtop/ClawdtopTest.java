@@ -560,6 +560,31 @@ public class ClawdtopTest {
             allNice &= kind != null && !kind.contains("%");
         }
         check("and always has something nice to say", allNice + " " + Games.compliment(java.util.List.of(), new java.util.Random()), "true null");
+        java.util.List<String> lots = java.util.List.of("Among Us", "Garry's Mod", "Geometry Dash", "Minecraft", "Minecraft for Windows", "Terraria");
+        java.util.Set<String> mentioned = new java.util.HashSet<>();
+        java.util.Random r6 = new java.util.Random(6);
+        for (int i = 0; i < 12; i++) Games.compliment(lots, r6, mentioned);
+        mentioned.remove("#count");
+        check("he goes through all your games, not just one", mentioned.size() >= 4, true);
+        java.util.List<WindowTricks.TaskbarButton> bar = java.util.List.of(
+                new WindowTricks.TaskbarButton("Firefox pinned", "Appid: 308046B0AF4A39CB", 952, 1504, 88, 96),
+                new WindowTricks.TaskbarButton("VLC media player pinned", "Appid: {6D80}\\VideoLAN\\VLC\\vlc.exe", 1128, 1504, 88, 96),
+                new WindowTricks.TaskbarButton("Steam pinned", "Appid: {7C5A}\\Steam\\Steam.exe", 1480, 1504, 88, 96),
+                new WindowTricks.TaskbarButton("Terminal - 1 running window pinned", "Appid: Microsoft.WindowsTerminal_8wekyb3d8bbwe!App", 1656, 1504, 88, 96),
+                new WindowTricks.TaskbarButton("Steam - 1 running window", "Appid: Valve.Steam.Client", 1744, 1504, 88, 96));
+        check("the tackle finds each app's taskbar icon", WindowTricks.buttonFor(bar, "firefox.exe", "Mozilla Firefox").x() + " "
+                + WindowTricks.buttonFor(bar, "vlc.exe", "VLC").x() + " " + WindowTricks.buttonFor(bar, "steam.exe", "Steam").x() + " "
+                + WindowTricks.buttonFor(bar, "WindowsTerminal.exe", "PowerShell").x() + " " + WindowTricks.buttonFor(bar, "notepad.exe", "Untitled - Notepad"),
+                "952 1128 1744 1656 null");
+        Body tackler = new Body();
+        for (int i = 0; i < 5; i++) tackler.tick(33, 0, 0, 1000, 800, 48, 0, 2000);
+        tackler.tackle(400);
+        boolean hit = false;
+        for (int i = 0; i < 200 && !hit; i++) {
+            tackler.tick(33, 0, 0, 1000, 800, 48, 0, 2000);
+            hit = tackler.takeTackled();
+        }
+        check("he charges the icon and dives onto it", hit + " " + (Math.abs(tackler.x() - 400) < 1), "true true");
         check("launchers count", Games.launcher("steam.exe") + " " + Games.launcher("EADesktop.exe") + " " + Games.launcher("notepad.exe"), "true true false");
 
         // ---- Being useful ----

@@ -134,8 +134,11 @@ final class Useful {
             {"Recycle Bin", "shell:RecycleBinFolder"}, {"Task Manager", "taskmgr"}, {"Calculator", "calc"},
             {"Notepad", "notepad"}, {"Settings", "ms-settings:"}, {"Snipping Tool", "ms-screenclip:"}};
 
+    static volatile long lastOpened; // when he last opened something himself (so he doesn't tackle his own)
+
     /** Opens a web page in your browser. */
     static void browse(String url) {
+        lastOpened = System.currentTimeMillis();
         try {
             java.awt.Desktop.getDesktop().browse(java.net.URI.create(url));
         } catch (Exception e) {
@@ -145,6 +148,7 @@ final class Useful {
 
     /** Opens one of those. */
     static void open(String what) {
+        lastOpened = System.currentTimeMillis();
         try {
             if (what.startsWith("folder:")) {
                 Path folder = Path.of(System.getProperty("user.home"), what.substring(7));

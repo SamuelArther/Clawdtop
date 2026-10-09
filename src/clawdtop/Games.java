@@ -205,6 +205,43 @@ final class Games {
 
     /** Something nice about your games, or null if he couldn't find any. */
     static String compliment(List<String> games, Random random) {
+        return compliment(games, random, new java.util.HashSet<>());
+    }
+
+    /**
+     * Something nice about one of your games, a different one each time: mentioned keeps track of the ones he's talked
+     * about already (and starts over once he's been through them all).
+     */
+    static String compliment(List<String> games, Random random, java.util.Set<String> mentioned) {
+        if (games.isEmpty()) return null;
+        if (!mentioned.contains("#count") && random.nextInt(5) == 0) {
+            mentioned.add("#count");
+            String c = COUNT[random.nextInt(COUNT.length)];
+            return c.contains("%d") ? String.format(c, games.size(), games.size()) : c;
+        }
+        List<String> fresh = new ArrayList<>();
+        for (String g : games) if (!mentioned.contains(g)) fresh.add(g);
+        if (fresh.isEmpty()) { // been through them all: round again
+            mentioned.removeIf(g -> !g.startsWith("#"));
+            fresh.addAll(games);
+        }
+        String game = fresh.get(random.nextInt(fresh.size()));
+        mentioned.add(game);
+        List<String> special = new ArrayList<>();
+        for (String[] s : SPECIAL) if (game.toLowerCase(Locale.ROOT).contains(s[0])) special.add(s[1]);
+        if (!special.isEmpty() && random.nextInt(3) > 0) return special.get(random.nextInt(special.size()));
+        if (fresh.size() >= 2 && random.nextInt(8) == 0) {
+            String other = fresh.get(random.nextInt(fresh.size()));
+            if (!other.equals(game)) {
+                mentioned.add(other);
+                return game + " AND " + other + "? You've got range.";
+            }
+        }
+        return String.format(ANY[random.nextInt(ANY.length)], game);
+    }
+
+    /** The old way: any game at all, each time. */
+    static String anyCompliment(List<String> games, Random random) {
         if (games.isEmpty()) return null;
         int roll = random.nextInt(10);
         if (roll < 3) {

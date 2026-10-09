@@ -575,7 +575,7 @@ public final class Pet {
         Mood want = switch (body) {
             case HOP_ON, RIDE -> Mood.RIDE;
             case FLY -> Mood.CARPET;
-            case LAP -> Mood.LAP;
+            case LAP, TACKLE -> Mood.LAP;
             case ROCKET -> Mood.ROCKET;
             case HOP_TO, PERCH -> Mood.IDLE;
             case FALL -> Mood.FALL;
