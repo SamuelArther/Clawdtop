@@ -31,7 +31,46 @@ public final class Cli {
     public static void main(String[] args) throws Exception {
         PrintStream out = new PrintStream(System.out, true, StandardCharsets.UTF_8);
         BufferedReader in = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
-        System.exit(new Cli(out, in).run(args.length == 0 ? "help" : args[0].toLowerCase(Locale.ROOT)));
+        Cli cli = new Cli(out, in);
+        if (args.length > 1) cli.words = String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length));
+        System.exit(cli.run(args.length == 0 ? "help" : args[0].toLowerCase(Locale.ROOT)));
+    }
+
+    String words = ""; // whatever came after the command (clawd ask why is the sky blue)
+
+    /** clawd ask: quick answers and math straight away; anything else, his brain (installing it first if it has to). */
+    private void ask() throws IOException {
+        String q = words.strip();
+        if (q.isEmpty()) {
+            out.print("Ask me anything: ");
+            out.flush();
+            String line = in.readLine();
+            q = line == null ? "" : line.strip();
+        }
+        if (q.isEmpty()) return;
+        String quick = QuickAnswers.answer(q, new java.util.Random());
+        if (quick != null) {
+            out.println(ORANGE + "Clawd: " + RESET + quick);
+            return;
+        }
+        MathHelp.Problem sum = MathHelp.parse(q);
+        if (sum != null) {
+            double v = sum.properly();
+            String shown = v == Math.rint(v) && Math.abs(v) < 1e15 ? String.valueOf((long) v) : String.valueOf(v);
+            out.println(ORANGE + "Clawd: " + RESET + "I wouldn't trust myself... but the computer says " + shown + ".");
+            return;
+        }
+        Settings s = Settings.load();
+        Brain brain = new Brain();
+        String model = Brain.model(s.choice("brain"));
+        if (!brain.running() || !brain.has(model)) {
+            out.println(DIM + "(getting my brain ready first...)" + RESET);
+            if (!BrainInstall.ensure(brain, model, note -> out.println(DIM + note.replace("\n", " ") + RESET))) return;
+        }
+        WebSearch.Found found = s.on("webSearch") ? WebSearch.lookUp(q) : null;
+        out.println(DIM + "(thinking...)" + RESET);
+        String reply = brain.ask(q, model, s.personality(), s.on("kidFriendly"), s.name(), found);
+        out.println(ORANGE + "Clawd: " + RESET + (reply == null ? "Hmm... my brain froze. Try again?" : reply));
     }
 
     int run(String command) throws IOException {
@@ -47,6 +86,8 @@ public final class Cli {
             case "uninstall" -> uninstall();
             case "move" -> move();
             case "creations", "made" -> creations();
+            case "ask" -> ask();
+            case "joke" -> out.println(new Jokes(System.nanoTime()).next());
             case "help", "-h", "--help", "/?" -> help();
             default -> {
                 out.println("I don't know \"" + command + "\". Here's what I can do:");
@@ -73,6 +114,8 @@ public final class Cli {
         out.println("  clawd controlpanel   change his settings");
         out.println("  clawd move           move Clawd to another computer on your wifi");
         out.println("  clawd creations      the little programs he's coded");
+        out.println("  clawd ask \"...\"      ask him something, right here in the terminal");
+        out.println("  clawd joke           a joke");
         out.println("  clawd uninstall      remove Clawd from this computer");
     }
 

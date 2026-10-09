@@ -498,6 +498,7 @@ public class ClawdtopTest {
         check("and takes only its own folder back out, leaving %VARIABLES% as they were",
                 Install.withoutEntry(userPath, "C:\\Users\\me\\AppData\\Local\\Clawdtop\\bin"), "%USERPROFILE%\\bin;C:\\Tools");
         check("clawd help", cli("help").contains("clawd controlpanel"), true);
+        check("clawd ask, right in the terminal", cli("ask", "flip a coin").contains("*flip*") + " " + cli("ask", "what's 6 times 7").contains("42"), "true true");
         check("clawd status says who he knows", cli("status").contains("Name:        Samuel"), true);
         check("and where he lives", cli("status").contains("Lives in:    Samuel's Laptop"), true);
         check("an unknown command says what he can do", cli("dance").contains("I don't know \"dance\""), true);
