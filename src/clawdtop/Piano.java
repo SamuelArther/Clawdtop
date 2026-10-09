@@ -21,6 +21,15 @@ import java.util.function.IntConsumer;
  * the white keys and W E T Y U for the black ones).
  */
 final class Piano {
+    /** The service songs, by file name (songs/veterans/navy.mid and so on), so he says the real title. */
+    static final java.util.Map<String, String> SERVICE_SONGS = java.util.Map.of(
+            "army", "The Army Goes Rolling Along",
+            "navy", "Anchors Aweigh",
+            "marines", "The Marines' Hymn",
+            "airforce", "The U.S. Air Force",
+            "coastguard", "Semper Paratus",
+            "spaceforce", "Semper Supra");
+
     /** A song: its name, notes (MIDI numbers, 60 is middle C), and how many beats each one lasts. */
     record Song(String name, int[] notes, double[] beats, int beatMs, java.io.File midi, long fullMs) {
         Song(String name, int[] notes, double[] beats, int beatMs) {
@@ -130,6 +139,7 @@ final class Piano {
                 ms[i] = Math.max(60, Math.min(2000, (next - ticks.get(i)) * msPerTick));
             }
             String name = file.getName().replaceAll("(?i)\\.midi?$", "").replace('_', ' ');
+            name = SERVICE_SONGS.getOrDefault(name.toLowerCase(java.util.Locale.ROOT), name); // army.mid -> its real title
             return new Song("your " + (name.length() > 30 ? name.substring(0, 30) : name), notes, ms, 1, file, seq.getMicrosecondLength() / 1000);
         } catch (Exception notMidi) {
             return null;
