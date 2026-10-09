@@ -19,18 +19,18 @@ when he starts, and asks before he updates.
 - He talks in **little quiet beeps**, and now and then he has a **tip** for what you're doing, in a little speech
   bubble (all built in, nothing from the internet). Open the **Run box (Win + R)** and he shows handy commands
   (`%temp%`, `appwiz.cpl`, `msinfo32`...). VS Code, terminals, IntelliJ, File Explorer, Task Manager and browsers have
-  their own shortcuts. Click the bubble to close it, or turn tips off in his menu.
+  their own shortcuts. Click the bubble to close it, or turn tips off in his menu (Settings > Tips).
 - **Give him a ride:** hold your cursor on the taskbar's top edge right next to him and he hops on and rides along
   wherever you go. Bring him back down to the taskbar and stop, and he hops off and walks home. **Shake** the cursor
   and he flies off, lands head first, lies there seeing stars, flips back up and walks home to his perch.
   **Right-click** while he's riding and he just drops down (on his feet) and walks home.
-- **He can open your apps** (off at first: turn on "Tackles the taskbar icon" in his options). Start an app and its
+- **He can open your apps** (Windows only, off at first: turn on "Tackles the taskbar icon" in **Settings > All the options**). Start an app and its
   window stays invisible for a second while Clawd charges along the taskbar and tackles its icon: the app pops open,
   there's an explosion, and he goes flying.
 - **Calm by default:** lots of his sillier antics (sneezes, flies, hiccups, yelling about Caps Lock, random tunes and more) start off; turn any of them on in **Settings > All the options** (or `clawd controlpanel` in a terminal).
 - **Big surprises:** on his own he keeps to little things beside him. The big screen-wide surprises (his rocket, the
   flying carpet, the duck flood, pop-ups) happen when you pick **Make something!**, or on his own if you turn on "Big
-  surprises" in his options.
+  surprises" in **Settings > All the options**.
 - **Spots for each app:** drag him somewhere while an app is in front, double-click him, and pick **Settings > Sit here
   when ... is in front** (or just for that one window or tab). He walks over whenever you switch to it, and back after.
 - **Zoom past him** with the cursor and his eyes swirl while little birds fly round his head.
@@ -39,9 +39,10 @@ when he starts, and asks before he updates.
   goes: once for plain junk (temp files, Windows' thumbnail caches, unfinished downloads, Mac leftovers, empty
   folders), and one at a time for things that might matter (installers over a month old, exact "(1)" copies). For
   those, his two little hands peek over the top of the window, then he climbs up to ask. **Everything goes to the
-  Recycle Bin**, so you can always put it back, and he won't touch Windows, Program Files, your whole user folder or
+  Recycle Bin** (the Trash on a Mac), so you can always put it back, and he won't touch Windows, Program Files, your whole user folder or
   a whole drive.
-- **Personality:** Chill, Bouncy, Helpful or Sleepy, picked when you meet him (or in the control panel).
+- **Personality:** Chill, Bouncy, Helpful or Sleepy, picked when you meet him (or in the control panel: `clawd
+  controlpanel` in a terminal).
 - **Colors:** change his color in the control panel. He stays orange for a few seconds, then suddenly isn't, and
   freaks out about it (then decides he kinda likes it).
 - **He codes things.** Now and then he gets his laptop out (the same moves as Clawd's laptop animation in Claude Code)
@@ -68,6 +69,17 @@ when he starts, and asks before he updates.
   side and home, sweating more and more. **Music time:** headphones on, bobbing to the beat.
 - **His mini piano, guitar, bass and drums:** he plays songs (or makes one up), and you can play yours ("Let me play!":
   click the keys, or type A to K). **Drop a MIDI file on him** and he runs to get it and plays the whole thing.
+- **He sings and jams:** Fun > Sing a song (or "sing Stronger") sings a song file in his little beep voice. **Jam
+  sessions** (Fun > Jam session): he gets his laptop out, plugs cords into each instrument, records every part of a
+  jam track one by one, slams the button, and the whole band plays. Song files with "jam" in the name go in his
+  `songs/jams` folder; every other song file plays on his piano. Now and then he starts a jam session by himself, and
+  shows it to you when it's done.
+- **Movie and music buddy:** when a video or music is playing, he asks if he can watch or listen along. Say yes and
+  the computer's own permission box asks you to confirm (he never looks or listens without it, and it's in Settings >
+  All the options > Privacy). He settles in with popcorn and jumps (popcorn everywhere) at the sudden scary bits, or
+  bops along to music. Nothing is recorded or sent anywhere. (Listening is Windows and Linux only.)
+- **Rare moves:** once in a while he busts out the Club Penguin dance. If you told him you served in the military, he
+  salutes you the first time you log in each day.
 - **Useful bits:** "How's my computer?", an "Open..." menu for handy places, water and stretch reminders (off at
   first), a nudge when the computer's been on for a week, and a warning when a drive is nearly full.
 - **Your to-do list and sticky notes:** "add homework to my list", "what's on my list", "I finished my homework" (he
