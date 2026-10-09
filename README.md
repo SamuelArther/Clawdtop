@@ -21,9 +21,12 @@ for a newer version of himself when he starts, and asks before he updates.
   wherever you go. Bring him back down to the taskbar and stop, and he hops off and walks home. **Shake** the cursor
   and he flies off, lands head first, lies there seeing stars, flips back up and walks home to his perch.
   **Right-click** while he's riding and he just drops down (on his feet) and walks home.
-- **He opens your apps.** Start an app and its window stays invisible for a second while Clawd charges along the
-  taskbar and tackles its icon: the app pops open, there's an explosion, and he goes flying. (Turn it off in his
-  options if you'd rather he didn't.)
+- **He can open your apps** (off at first: turn on "Tackles the taskbar icon" in his options). Start an app and its
+  window stays invisible for a second while Clawd charges along the taskbar and tackles its icon: the app pops open,
+  there's an explosion, and he goes flying.
+- **Calm by default:** on his own he keeps to little things beside him. The big screen-wide surprises (his rocket, the
+  flying carpet, the duck flood, pop-ups) happen when you pick **Make something!**, or on his own if you turn on "Big
+  surprises" in his options.
 - **Spots for each app:** drag him somewhere while an app is in front, right-click, and pick **Sit here when ... is in
   front** (or just for that one window or tab). He walks over whenever you switch to it, and back after.
 - **Zoom past him** with the cursor and his eyes swirl while little birds fly round his head.

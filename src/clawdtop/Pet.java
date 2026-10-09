@@ -468,27 +468,27 @@ public final class Pet {
                     line = guilty.after(); // something went wrong earlier: own up and delete it
                     wants = Beep.AWW;
                     set(Mood.SORRY, 2200);
-                } else if (moodFor > 8000 && prefs.on("sneezes") && random.nextInt(6000) == 0) {
+                } else if (moodFor > 8000 && prefs.on("sneezes") && random.nextInt(12_000) == 0) {
                     sneezed = false;
                     line = "Ah... ah...";
                     set(Mood.SNEEZE, 1300);
-                } else if (moodFor > Math.min(20_000, nextChange * 2 / 3) && prefs.on("piano") && random.nextInt(40_000) == 0) {
+                } else if (moodFor > Math.min(20_000, nextChange * 2 / 3) && prefs.on("piano") && random.nextInt(90_000) == 0) {
                     playPiano(random.nextInt(3) == 0 ? null : Piano.SONGS[random.nextInt(Piano.SONGS.length)]); // a little tune, just because
-                } else if (moodFor > Math.min(15_000, nextChange / 2) && prefs.on("music") && random.nextInt(30_000) == 0) {
+                } else if (moodFor > Math.min(15_000, nextChange / 2) && prefs.on("music") && random.nextInt(70_000) == 0) {
                     vibe(); // feeling the music
-                } else if (moodFor > 10_000 && prefs.on("hiccups") && random.nextInt(30_000) == 0) {
+                } else if (moodFor > 10_000 && prefs.on("hiccups") && random.nextInt(60_000) == 0) {
                     line = "hic!";
                     wants = Beep.CLICKED;
                     set(Mood.HICCUP, 3600);
-                } else if (moodFor > Math.min(20_000, nextChange * 2 / 3) && prefs.on("creates") && random.nextInt(24_000) == 0) {
+                } else if (moodFor > Math.min(20_000, nextChange * 2 / 3) && prefs.on("creates") && random.nextInt(70_000) == 0) {
                     wantsToCreate = true; // feeling creative: the window picks what
-                } else if (moodFor > 8000 && prefs.on("flies") && random.nextInt(9000) == 0) {
+                } else if (moodFor > 8000 && prefs.on("flies") && random.nextInt(18_000) == 0) {
                     clapped = false;
                     set(Mood.FLY, 5200); // a fly!
-                } else if (canJuggle && moodFor > 8000 && random.nextInt(2700) == 0) {
+                } else if (canJuggle && moodFor > 8000 && random.nextInt(6000) == 0) {
                     dropped = false;
                     set(Mood.JUGGLE, 4500); // bored: a little juggling
-                } else if (canWave && moodFor > 6000 && random.nextInt(3600) == 0) {
+                } else if (canWave && moodFor > 6000 && random.nextInt(8000) == 0) {
                     wants = Beep.HELLO;
                     set(Mood.WAVE, 1400); // hi!
                 } else if (personality == Personality.BOUNCY && moodFor > 4000 && random.nextInt(900) == 0) {
@@ -1220,6 +1220,12 @@ public final class Pet {
         if (random.nextInt(3) == 0) line = "boop!";
         wants = Beep.CLICKED;
         set(Mood.BOOPED, 800);
+    }
+
+    /** The cursor's waiting beside him: a little hop with his arms up (ready? ready!) before he jumps on. */
+    public void readyToHop() {
+        if (mood != Mood.IDLE && mood != Mood.SIT && mood != Mood.LIE) return;
+        set(Mood.HAPPY, 600);
     }
 
     /** Good morning: a great big stretch (the first time you're on the computer each morning). */

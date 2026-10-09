@@ -594,6 +594,10 @@ public class ClawdtopTest {
             hit = tackler.takeTackled();
         }
         check("he charges the icon and dives onto it", hit + " " + (Math.abs(tackler.x() - 400) < 1), "true true");
+        boolean calm = true;
+        java.util.Random picks = new java.util.Random(5);
+        for (int i = 0; i < 500; i++) calm &= !Creation.pick(picks, java.util.Set.of(), "", false).big();
+        check("on his own, no big screen-wide surprises (unless you let him)", calm, true);
         check("versions compare like numbers", Updater.newer("1.0.10", "1.0.9") + " " + Updater.newer("v1.1", "1.0.0") + " "
                 + Updater.newer("1.0.0", "1.0.0") + " " + Updater.newer("0.9.9", "1.0.0"), "true true false false");
         Updater.Release rel = Updater.parse("{\"tag_name\":\"v1.2.0\",\"body\":\"Popcorn!\\nAnd more.\",\"assets\":[{\"browser_download_url\":"

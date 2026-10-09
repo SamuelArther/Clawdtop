@@ -416,6 +416,11 @@ public final class Body {
         set(State.AWAY);
     }
 
+    /** How close he is to hopping on the cursor waiting beside him (0: not at all, 1: hop!). */
+    public double hopReady() {
+        return state == State.HOME && hover > 0 ? Math.min(1, hover / (double) hoverToHop) : 0;
+    }
+
     /** Riding your cursor and you right-click: he lets go and drops down, landing on his feet, then walks home. */
     public void dropOff() {
         if (state != State.RIDE) return;

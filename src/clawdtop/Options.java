@@ -38,7 +38,8 @@ final class Options {
             Option.on("Antics", "blush", "Gets shy when the cursor rests on him", true),
             Option.on("Antics", "boop", "Goes cross-eyed when you swipe across his face (boop!)", true),
             Option.on("Antics", "morning", "A big good-morning stretch each day", true),
-            Option.on("Antics", "tackle", "Tackles the taskbar icon of apps you open (it pops open when he hits it)", true),
+            Option.on("Antics", "tackle", "Tackles the taskbar icon of apps you open (it pops open when he hits it)", false),
+            Option.on("Antics", "bigSurprises", "Big surprises on his own (a rocket, a flying carpet, a duck flood, pop-ups)", false),
             Option.on("Antics", "spins", "Seeing birds when the cursor zooms past", true),
             Option.on("Antics", "naps", "Sitting, lying down and napping", true),
             Option.on("Antics", "eyes", "Eyes follow your cursor", true),
@@ -68,7 +69,7 @@ final class Options {
             Option.on("Riding", "rides", "Hops onto your cursor", true),
             Option.on("Riding", "shakeOff", "Can be shaken off", true),
             Option.pick("Riding", "shakeHow", "How hard you have to shake", "Normal", "Gently", "Normal", "Really hard"),
-            Option.number("Riding", "hopWait", "Wait before hopping on (tenths of a second)", 5, 1, 30),
+            Option.number("Riding", "hopWait", "Wait before hopping on (tenths of a second)", 10, 1, 30),
             Option.pick("Riding", "walk", "Walking speed", "Normal", "Slow", "Normal", "Fast"),
             // His voice and bubble
             Option.pick("Voice", "voice", "Voice", "Normal", "Squeaky", "Normal", "Deep", "Robot", "Tiny"),

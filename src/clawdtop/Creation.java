@@ -149,9 +149,19 @@ record Creation(String id, String file, String starting, String done, String aft
      * anything but the last one.
      */
     static Creation pick(Random random, Set<String> madeBefore, String last) {
+        return pick(random, madeBefore, last, true);
+    }
+
+    /** Whether it takes over the screen (a ride round it, a flood of ducks, a pop-up window), not just next to him. */
+    boolean big() {
+        return effect == Effect.CARPET || effect == Effect.ROCKET || effect == Effect.POPUP || effect == Effect.DUCKS;
+    }
+
+    /** The same; big ones only if big is true (on his own, he keeps to little things beside him unless you let him). */
+    static Creation pick(Random random, Set<String> madeBefore, String last, boolean big) {
         List<Creation> fresh = new ArrayList<>();
-        for (Creation c : ALL) if (!madeBefore.contains(c.id())) fresh.add(c);
-        if (fresh.isEmpty()) for (Creation c : ALL) if (!c.id().equals(last)) fresh.add(c);
+        for (Creation c : ALL) if (!madeBefore.contains(c.id()) && (big || !c.big())) fresh.add(c);
+        if (fresh.isEmpty()) for (Creation c : ALL) if (!c.id().equals(last) && (big || !c.big())) fresh.add(c);
         return fresh.get(random.nextInt(fresh.size()));
     }
 }

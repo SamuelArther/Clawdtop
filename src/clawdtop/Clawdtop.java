@@ -53,6 +53,7 @@ public final class Clawdtop {
     private boolean wasPlaying; // on his piano (or guitar, or drums) last frame
     private boolean fxStill;    // the ducks and explosions overlay hasn't changed since it was last drawn
     private boolean rightWasDown; // the right mouse button, last frame
+    private boolean readyShown;   // he's shown he's about to hop on your cursor
     private String heldLine;      // something he wanted to say while he was asking you something
     private final Tips tips = new Tips();
     private final Bubble bubble = new Bubble();
@@ -636,13 +637,18 @@ public final class Clawdtop {
 
     /** Picks something for him to code (one he hasn't made before, if there are any left), and he gets to it. */
     private void makeSomething() {
-        Creation c = Creation.pick(new java.util.Random(), settings.made(), settings.lastMade());
+        makeSomething(true);
+    }
+
+    /** asked: you picked Make something (anything goes); otherwise it's his own idea (big ones only if you allow them). */
+    private void makeSomething(boolean asked) {
+        Creation c = Creation.pick(new java.util.Random(), settings.made(), settings.lastMade(), asked || settings.on("bigSurprises"));
         if (pet.create(c)) settings.addMade(c.id());
     }
 
     /** Things he codes: the file fills in as he types; then what he made does its thing (or gets deleted). */
     private void creations() {
-        if (pet.takeWantsToCreate() && job == null && body.state() == Body.State.HOME && !hidden && !inCorner) makeSomething();
+        if (pet.takeWantsToCreate() && job == null && body.state() == Body.State.HOME && !hidden && !inCorner) makeSomething(false);
         Creation typing = pet.coding();
         if (typing != null && ticks % 20 == 0) writeCreation(typing, pet.codingProgress());
         Creation made = pet.takeMade();
@@ -1717,6 +1723,13 @@ public final class Clawdtop {
             body.setUnit(unit);
             body.setMistakes(settings.on("mistakes"));
             if (moveOutPending && body.state() == Body.State.HOME) walkOffToMove();
+            // the cursor's waiting beside him: he gets ready (a little hop, arms up) before he jumps on, so it's no surprise
+            if (body.hopReady() > 0.35 && !readyShown) {
+                readyShown = true;
+                pet.readyToHop();
+            } else if (body.hopReady() == 0) {
+                readyShown = false;
+            }
             body.tick(FRAME_MS, mouse.x, mouse.y, homeX, groundY, 12 * unit, screen.x, screen.x + screen.width);
             pet.follow(body.state());
             creations();
