@@ -189,6 +189,27 @@ public final class Clawdtop {
         return new Rectangle(b.x + in.left, b.y + in.top, Math.max(1, b.width - in.left - in.right), Math.max(1, b.height - in.top - in.bottom));
     }
 
+    /**
+     * A point in Windows' real pixels (window and icon spots come that way) as Java's pixels, using the scaling of the
+     * monitor it's on: with two monitors at different scaling (100% and 150%), each has its own. On a Mac the spots come
+     * already multiplied by the main screen's scale (see Platform), so that's undone.
+     */
+    static java.awt.geom.Point2D.Double toJava(double px, double py) {
+        GraphicsEnvironment env = GraphicsEnvironment.getLocalGraphicsEnvironment();
+        if (!Platform.MAC) {
+            for (java.awt.GraphicsDevice d : env.getScreenDevices()) {
+                GraphicsConfiguration gc = d.getDefaultConfiguration();
+                Rectangle b = gc.getBounds();
+                double s = gc.getDefaultTransform().getScaleX();
+                if (px >= b.x && px < b.x + b.width * s && py >= b.y && py < b.y + b.height * s) { // (its corner stays put; its size is scaled)
+                    return new java.awt.geom.Point2D.Double(b.x + (px - b.x) / s, b.y + (py - b.y) / s);
+                }
+            }
+        }
+        double s = env.getDefaultScreenDevice().getDefaultConfiguration().getDefaultTransform().getScaleX();
+        return new java.awt.geom.Point2D.Double(px / s, py / s);
+    }
+
     /** The taskbar's top on the monitor at x (his home floor if that's his home monitor; groundY if x is on none). */
     private double floorUnder(double x) {
         for (java.awt.GraphicsDevice d : GraphicsEnvironment.getLocalGraphicsEnvironment().getScreenDevices()) {
@@ -467,8 +488,10 @@ public final class Clawdtop {
             Rectangle whole = window.getGraphicsConfiguration().getBounds();
             double scale = window.getGraphicsConfiguration().getDefaultTransform().getScaleX();
             int[] b = front.bounds(); // (real pixels: the video's window, which is what he watches)
-            if (b != null && b[2] > b[0]) eyes.lookAt(new Rectangle(whole.x + (int) (b[0] / scale), whole.y + (int) (b[1] / scale),
-                    (int) ((b[2] - b[0]) / scale), (int) ((b[3] - b[1]) / scale)).intersection(whole));
+            if (b != null && b[2] > b[0]) {
+                java.awt.geom.Point2D.Double from = toJava(b[0], b[1]), to = toJava(b[2] - 1, b[3] - 1);
+                eyes.lookAt(new Rectangle((int) from.x, (int) from.y, (int) (to.x - from.x) + 1, (int) (to.y - from.y) + 1).intersection(whole));
+            }
             eyes.start(whole);
             if (!pet.watching() && !hidden) pet.watch(true);
         }
@@ -2691,9 +2714,9 @@ public final class Clawdtop {
     private double[] spotOn(Foreground.Front w) {
         int[] b = w.bounds();
         if (b[2] - b[0] < 100 || b[0] <= -30000) return null; // minimized, or too small to sit on
-        double scale = window.getGraphicsConfiguration().getDefaultTransform().getScaleX(); // Windows' pixels to Java's
         Rectangle screen = screenBounds();
-        double left = b[0] / scale, right = b[2] / scale, top = b[1] / scale;
+        java.awt.geom.Point2D.Double topLeft = toJava(b[0], b[1]), topRight = toJava(b[2] - 1, b[1]); // (Windows' pixels to Java's, on its monitor)
+        double left = topLeft.x, right = topRight.x, top = topLeft.y;
         if (top < screen.y + 4) top = screen.y + 34;
         return new double[] {left + (right - left) * 0.72, top + 1};
     }
@@ -2906,8 +2929,7 @@ public final class Clawdtop {
                 tackleLooking = false;
                 if (tackleWindow != front) return;
                 Rectangle s = window.getGraphicsConfiguration().getBounds();
-                double scale = window.getGraphicsConfiguration().getDefaultTransform().getScaleX();
-                double x = found == null ? -1 : s.x + found.centerX() / scale;
+                double x = found == null ? -1 : toJava(s.x + found.centerX(), s.y + s.height - 1).x; // (taskbar buttons come in Windows' pixels)
                 if (found == null || x < s.x || x > s.x + s.width || body.state() != Body.State.HOME) {
                     endTackle(); // no icon to tackle (or he got busy): there it is anyway
                     if (!bubble.asking()) bubble.hide();

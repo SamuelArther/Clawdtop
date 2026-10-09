@@ -158,7 +158,8 @@ final class Desktop {
      */
     static double[] spot(Icon icon, java.awt.Rectangle screen, double scale) {
         if (Platform.MAC) return new double[] {icon.x(), icon.y() - 28};
-        return new double[] {screen.x + icon.x() / scale + 37, screen.y + icon.y() / scale + 8};
+        java.awt.geom.Point2D.Double at = Clawdtop.toJava(icon.x(), icon.y()); // (Windows' pixels to Java's, on the icon's own monitor)
+        return new double[] {at.x + 37, at.y + 8};
     }
 
     /** What a program says, if it finishes in time (else it's stopped, and null). Reads and waits at once: a hung program can't hang him. */

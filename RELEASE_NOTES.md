@@ -1,7 +1,6 @@
-Fix: falling on the other monitor.
+Fix: two monitors with different scaling.
 
-- Ride him over to your other monitor and get shaken off there: he now lands on that monitor's taskbar, then walks home. Before, he fell to the height of his home monitor's taskbar, so on a different-sized monitor he dropped out of sight or walked in mid-air.
-- Hopping off a ride works on any monitor's taskbar, not just the main one.
+- With two monitors at different scaling (like a laptop at 150% and a monitor at 100%), he worked out where windows and desktop icons were using his own monitor's scaling, so on the other monitor he could aim at empty space between the screens. Now each spot uses its own monitor's scaling: sitting on a window while cleaning, desktop songs and tidying, watching a video, and tackling a taskbar button.
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 
