@@ -1,7 +1,8 @@
-Polish: the README covers everything.
+Clawdtop 7.0: everything from the big overnight update, polished.
 
-- The README now explains his music side (singing, jam sessions and where jam files go), watching and listening along (and that he always asks first, with your computer's own permission box), and his rare moves.
-- Option names point to Settings > All the options, the Trash on a Mac, and which features are Windows only.
+- Since 1.0: a to-do list, sticky notes, reminders at a time, finding files, download alerts, a times-table quiz, breathing, eye breaks, a morning rundown, desktop tidying, dropping pictures and zips on him, defining words, a color picker, and lots of handy quick answers.
+- Works properly on a Mac and with two monitors, and setup asks before his big brain download.
+- After updating, he tells you once what's new. Type "help" in his ask box (double-click him) to see it all.
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 
