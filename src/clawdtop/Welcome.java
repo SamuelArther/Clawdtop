@@ -229,22 +229,31 @@ final class Welcome {
     }
 
     void askBirthday() {
-        JTextField date = new JTextField(settings.birthday().isEmpty() ? "" : settings.birthday().replace('-', '/'), 6);
+        askBirthday(false);
+    }
+
+    /** (again: what you typed wasn't a date he could read, so he asks once more, with examples) */
+    private void askBirthday(boolean again) {
+        JTextField date = new JTextField(settings.birthday().isEmpty() ? "" : settings.birthday().replace('-', '/'), 8);
         date.setFont(Bubble.FONT.deriveFont(14f));
         Runnable next = () -> {
-            String typed = date.getText().strip().replace('-', '/').replace('.', '/');
-            String[] parts = typed.split("/");
-            try {
-                int month = Integer.parseInt(parts[0]);
-                int day = Integer.parseInt(parts[1]);
-                if (month >= 1 && month <= 12 && day >= 1 && day <= 31) settings.setBirthday(String.format("%02d-%02d", month, day));
-            } catch (RuntimeException notADate) {
-                // left blank or odd: no birthday surprise, that's all
+            String typed = date.getText().strip();
+            if (typed.isEmpty()) { // (left blank: no birthday surprise, that's all)
+                askHome();
+                return;
             }
+            String day = Helpers.birthday(typed);
+            if (day == null) {
+                beep.accept(Pet.Beep.OOF);
+                askBirthday(true);
+                return;
+            }
+            settings.setBirthday(day);
             askHome();
         };
         date.addActionListener(e -> next.run());
-        show(new String[] {"When's your birthday?", "Just the month and day, like 10/08. (No year!)"}, date,
+        show(again ? new String[] {"Hmm, I couldn't read that date.", "Try the month and day, like 10/08 or Oct 8. (No year!)"}
+                        : new String[] {"When's your birthday?", "Just the month and day, like 10/08. (No year!)"}, date,
                 button("Skip", this::askHome), button("Next", next));
         date.requestFocusInWindow();
     }

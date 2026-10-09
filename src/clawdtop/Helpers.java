@@ -22,6 +22,40 @@ final class Helpers {
             Map.entry("apr", "4"), Map.entry("may", "5"), Map.entry("jun", "6"), Map.entry("jul", "7"), Map.entry("aug", "8"), Map.entry("sep", "9"),
             Map.entry("oct", "10"), Map.entry("nov", "11"), Map.entry("dec", "12"));
 
+    /**
+     * A birthday as you'd type it ("10/08", "10-8", "Oct 8", "8 October", "25/12": a first number over 12 must be the
+     * day) as "MM-dd", or null if it isn't a real date.
+     */
+    static String birthday(String typed) {
+        String t = typed.toLowerCase(Locale.ROOT).strip().replaceAll("(\\d)(st|nd|rd|th)\\b", "$1").replaceAll("[,]", " ").replaceAll("\\s+", " ");
+        int month, day;
+        try {
+            Matcher words = Pattern.compile("^([a-z]{3,9})\\.? (\\d{1,2})$|^(\\d{1,2}) ([a-z]{3,9})\\.?$").matcher(t);
+            if (words.matches()) {
+                String m = (words.group(1) != null ? words.group(1) : words.group(4));
+                String num = MONTHS.get(m.substring(0, 3));
+                if (num == null) return null;
+                month = Integer.parseInt(num);
+                day = Integer.parseInt(words.group(2) != null ? words.group(2) : words.group(3));
+            } else {
+                Matcher nums = Pattern.compile("^(\\d{1,2})\\s*[/.\\- ]\\s*(\\d{1,2})(?:\\s*[/.\\- ]\\s*\\d{2,4})?$").matcher(t);
+                if (!nums.matches()) return null;
+                int a = Integer.parseInt(nums.group(1)), b = Integer.parseInt(nums.group(2));
+                if (a > 12 && b <= 12) { // (25/12: day first)
+                    month = b;
+                    day = a;
+                } else {
+                    month = a;
+                    day = b;
+                }
+            }
+            MonthDay.of(month, day); // (a real date? 2/31 isn't)
+            return String.format("%02d-%02d", month, day);
+        } catch (RuntimeException notADate) {
+            return null;
+        }
+    }
+
     /** "how many days until christmas" and the like: the answer, or null if it isn't one. birthday is "MM-dd" or "". */
     static String countdown(String question, String birthday, LocalDate today) {
         String q = question.toLowerCase(Locale.ROOT).strip().replaceAll("[?!.]+$", "");

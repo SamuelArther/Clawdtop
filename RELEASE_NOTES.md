@@ -1,7 +1,7 @@
-Fix: you can always get out of setup.
+Fix: he reads your birthday the way you write it.
 
-- Press Escape (or close the setup window) to skip the rest of the questions: he uses the usual answers and you're done. Before, there was no way out except Task Manager.
-- Escape on the "All set!" page works like OK.
+- Setup understands birthdays like 10/08, 10-8, Oct 8, October 8th, 8 October, and day-first ones like 25/12.
+- If he can't read it, or it isn't a real date (like 2/31), he asks again with examples instead of quietly forgetting it.
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 

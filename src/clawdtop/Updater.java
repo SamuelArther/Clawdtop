@@ -18,7 +18,7 @@ import java.util.regex.Pattern;
  * (a tiny helper waits for this Clawd to close, puts the new jar in place, and starts him again).
  */
 final class Updater {
-    static final String VERSION = "3.5";
+    static final String VERSION = "3.6";
     static final String REPO = "SamuelArther/Clawdtop";
 
     private Updater() {

@@ -721,6 +721,11 @@ public class ClawdtopTest {
         check("sticky note beside him, and out from under his bubble", Sticky.spotX(1800, 100, wide, null) + " " + Sticky.spotX(1800, 100, wide, new java.awt.Rectangle(1500, 700, 380, 90))
                 + " " + Sticky.spotX(1800, 100, wide, new java.awt.Rectangle(1900, 700, 50, 90)) + " " + Sticky.spotX(20, 100, wide, null), "1676 1364 1676 112");
         check("sticky note one huge word", Sticky.wrap("Supercalifragilisticexpialidocious", noteFont, 60, 5).size() > 1, true);
+        // birthdays as people type them
+        check("birthdays", Helpers.birthday("10/08") + " " + Helpers.birthday("10-8") + " " + Helpers.birthday("Oct 8") + " " + Helpers.birthday("8 October")
+                + " " + Helpers.birthday("25/12") + " " + Helpers.birthday("October 8th") + " " + Helpers.birthday("2/31") + " " + Helpers.birthday("8/") + " "
+                + Helpers.birthday("2/29") + " " + Helpers.birthday("blah") + " " + Helpers.birthday("3/4/2012"),
+                "10-08 10-08 10-08 10-08 12-25 10-08 null null 02-29 null 03-04");
         // the desktop: reading icon spots (Windows' script and Finder say the same shape), sorting files for Neat
         Desktop.Layout desk = Desktop.read("DESKTOP|/home/me/Desktop\nskin|177,2\nmy song.mid|2427,1032\nnot an icon\n");
         check("desktop read", desk.folder().getFileName() + " " + desk.icons(), "Desktop [Icon[name=skin, x=177, y=2], Icon[name=my song.mid, x=2427, y=1032]]");
