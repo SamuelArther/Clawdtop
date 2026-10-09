@@ -1234,6 +1234,7 @@ public final class Clawdtop {
             return;
         }
         String today = java.time.LocalDate.now().toString();
+        if ((!settings.on("restart") || settings.seen("restart:" + today)) && (!settings.on("diskSpace") || settings.seen("disk:" + today))) return; // (both said today)
         worker.execute(() -> {
             long up = Useful.uptime();
             java.io.File full = Useful.nearlyFull();
@@ -1734,12 +1735,13 @@ public final class Clawdtop {
             lastMoved = nowMs;
             if (ticks % 1800 == 0) settings.setLastSeen(nowMs);
         }
-        if (birthdayHiding && nowMs > birthdayHideUntil) birthdaySurprise();
+        if (birthdayHiding && nowMs > birthdayHideUntil && !hidden) birthdaySurprise(); // (not over your video: after it)
         if (pendingBirthday && body.state() != Body.State.FALL) {
             pendingBirthday = false;
             pet.birthday(settings.name());
         }
         if (ticks % 300 == 150) checkTimes();
+        if (ticks % 90 == 60) updateTag(); // (points change as you earn and spend them)
         if (!greetings.isEmpty() && ticks % 15 == 3 && !pet.busyNow() && pet.takeLineIfAny() == null && !bubble.showing()
                 && body.state() == Body.State.HOME && !hidden && !boxed && !birthdayHiding) greetings.poll().run(); // one at a time
         if (ticks % 900 == 450 && focusUntil == 0) remindMe(nowMs);
@@ -1887,9 +1889,16 @@ public final class Clawdtop {
             default -> 1;
         };
         window.setAlwaysOnTop(s.on("onTop"));
-        String tag = (s.on("nameTag") ? "Clawd" : "") + (s.on("nameTag") && s.on("pointsTag") ? " - " : "") + (s.on("pointsTag") ? s.points() + " Clawd Points" : "");
-        canvas.setToolTipText(tag.isEmpty() ? null : tag);
+        updateTag();
         pet.setHome(s.home());
+    }
+
+    /** His name tag (what shows when you rest the cursor on him), with his points kept up to date. */
+    private void updateTag() {
+        Settings s = settings;
+        String tag = (s.on("nameTag") ? "Clawd" : "") + (s.on("nameTag") && s.on("pointsTag") ? " - " : "") + (s.on("pointsTag") ? s.points() + " Clawd Points" : "");
+        String now = tag.isEmpty() ? null : tag;
+        if (!java.util.Objects.equals(now, canvas.getToolTipText())) canvas.setToolTipText(now);
     }
 
     /** Whether he may beep right now (beeps on, and not in quiet hours). */
