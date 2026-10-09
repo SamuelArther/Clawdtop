@@ -67,7 +67,7 @@ public final class Clawdtop {
     private boolean lastFull, steadyFull; // something full screen (last check, and for a second and a half or so)
     private int fullChecks;
     private boolean readyShown;   // he's shown he's about to hop on your cursor
-    private String heldLine;      // something he wanted to say while he was asking you something
+    private final java.util.ArrayDeque<String> heldLines = new java.util.ArrayDeque<>(); // what he wanted to say while asking you something
     private final Tips tips = new Tips();
     private final Bubble bubble = new Bubble();
     private String lastKind;
@@ -585,14 +585,16 @@ public final class Clawdtop {
 
     /** Answers your question: math goes to Calculator (he doesn't trust himself); the rest, his brain. */
     private void answer(String question) {
+        if (bubble.asking()) bubble.hide(); // (you've moved on: the old question goes, so you see this answer)
         answer(question, true);
     }
 
     /** Answers a question (points: only the first time it's asked, not again after his brain's installed). */
     private void answer(String question, boolean firstTime) {
         if (question.toLowerCase(java.util.Locale.ROOT).matches("\\W*(help|what can you do|what do you do|commands|how do (i|you) use you)\\W*")) {
-            pet.say("Things you can ask me:\nAny question (I'll think about it)\nMath like \"what's 12 times 7\" (we'll use Calculator)\n"
-                    + "\"remind me in 10 minutes to stretch\"\n\"set a timer for 5 minutes\", \"start a stopwatch\"\nMore fun stuff is in my menu!");
+            pet.say("Things you can ask me:\nAny question (I'll think about it), or math like \"what's 12 times 7\"\n"
+                    + "\"remind me at 3pm to call Grandma\", \"set a timer for 5 minutes\"\n\"add homework to my list\", \"stick a note: dentist at 4\"\n"
+                    + "\"find my essay\", \"what time is it in Tokyo\", \"clean my link\"\n\"make me a password\", \"keep my computer awake\"\nMore fun stuff is in my menu!");
             return;
         }
         java.util.regex.Matcher singIt = java.util.regex.Pattern.compile("(?i)^\\W*(?:please |can you |could you |will you )?sing(?: me| us)?(?: a song| something| anything)?(?: called| named)?\\s*(.*?)\\W*$").matcher(question);
@@ -991,6 +993,7 @@ public final class Clawdtop {
                     else if (choice == 1) FindFile.open(file);
                     else if (more) showFound(found, i + 1, words, home);
                 }, head(), screenBounds());
+        bubble.expireIn(60_000);
     }
 
     /** Every few seconds: a download that's just finished? He tells you (once it's stopped growing). */
@@ -1050,6 +1053,7 @@ public final class Clawdtop {
             if (choice == 0) FindFile.open(file);
             else if (choice == 1) FindFile.showInFolder(file);
         }, head(), screenBounds());
+        bubble.expireIn(30_000);
     }
 
     /** Adds up how long you've been on the computer today (moving the mouse in the last few minutes counts). */
@@ -2921,11 +2925,13 @@ public final class Clawdtop {
         String line = pet.takeLine();
         if (hidden) line = null;
         else if (bubble.asking()) { // keep it for after you've answered
-            if (line != null) heldLine = line;
+            if (line != null) {
+                heldLines.add(line);
+                while (heldLines.size() > 3) heldLines.poll(); // (just the latest few)
+            }
             line = null;
-        } else if (line == null && heldLine != null) {
-            line = heldLine;
-            heldLine = null;
+        } else if (line == null && !heldLines.isEmpty() && !bubble.showing()) {
+            line = heldLines.poll();
         }
         if (line != null) bubble.show(line, head(), screenBounds());
         bubble.tick();

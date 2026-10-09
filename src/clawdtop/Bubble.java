@@ -107,6 +107,11 @@ final class Bubble {
         window.repaint();
     }
 
+    /** A question that's only news (a finished download, say) goes away by itself if you don't answer it. */
+    void expireIn(long ms) {
+        if (asking()) hideAt = System.currentTimeMillis() + ms;
+    }
+
     /** Keeps the bubble pointing at him as he moves. */
     void follow(Rectangle clawd, Rectangle screen) {
         Dimension size = window.getSize();

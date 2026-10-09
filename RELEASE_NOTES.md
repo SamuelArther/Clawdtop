@@ -1,12 +1,9 @@
-The big helpful update.
+Fix: he never goes quiet behind an old question.
 
-- Drag a song file near him on the desktop: he hops over, grabs it and plays it.
-- Tidy my desktop: he tackles files into a Neat folder by type (and can put them back).
-- To-do list, sticky notes, and reminders at a time ("remind me at 3pm to...").
-- "Find my essay", download-done alerts, screen time, keep-awake mode (with coffee).
-- Clean a copied link, make a password, time in other cities, count words, pick for you.
-- Songs sound much better: no lost notes, busy songs simplified, quiet songs louder.
-- 8 bugs fixed, including stuck notes.
+- A download alert or "found your file" bubble you ignore now goes away by itself, so he can talk again.
+- Asking him something new clears an old question, so you always see the answer.
+- Things he wanted to say while asking you something now wait their turn (no more lost lines).
+- "help" lists all the new things you can ask.
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 
