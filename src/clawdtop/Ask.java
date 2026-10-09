@@ -133,6 +133,8 @@ final class Ask {
         b.setFocusPainted(false);
         b.setBorder(BorderFactory.createEmptyBorder(5, 12, 5, 12));
         b.setOpaque(true);
+        b.setUI(new javax.swing.plaf.basic.BasicButtonUI()); // (Windows' own buttons ignore the colors: white words on a white button)
+        b.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
         b.addActionListener(e -> action.run());
         return b;
     }

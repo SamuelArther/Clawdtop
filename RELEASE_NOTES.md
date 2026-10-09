@@ -1,6 +1,6 @@
-Fix: you can actually see his coffee now.
+Important fix for Windows: blank buttons.
 
-- In keep-awake mode his mug was a tiny white speck. Now it's a proper orange mug with a stripe, a handle and steam, outlined so it shows up on light and dark wallpapers.
+- On Windows, the buttons in his setup screen and his ask box showed up as empty white boxes (white words on a white button), so you couldn't read them. They're his orange buttons again, and the pointer turns into a hand over them.
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 
