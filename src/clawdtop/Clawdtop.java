@@ -373,6 +373,7 @@ public final class Clawdtop {
     private long mediaSeenAt, lastScare, lastBop, loudSince;
     private double calmLevel; // how loud it usually is, lately (so a sudden jump stands out)
     private boolean askingMedia;
+    private long lastOffer = -10 * 60_000L;
 
     /** Something playing in front (a video or music)? He offers to watch or listen; once allowed, he does. */
     private void watchAndListen(Foreground.Front front) {
@@ -387,11 +388,16 @@ public final class Clawdtop {
         }
         boolean video = media.equals("video");
         if (video && settings.on("seeing")) {
-            eyes.start(window.getGraphicsConfiguration().getBounds());
+            Rectangle whole = window.getGraphicsConfiguration().getBounds();
+            double scale = window.getGraphicsConfiguration().getDefaultTransform().getScaleX();
+            int[] b = front.bounds(); // (real pixels: the video's window, which is what he watches)
+            if (b != null && b[2] > b[0]) eyes.lookAt(new Rectangle(whole.x + (int) (b[0] / scale), whole.y + (int) (b[1] / scale),
+                    (int) ((b[2] - b[0]) / scale), (int) ((b[3] - b[1]) / scale)).intersection(whole));
+            eyes.start(whole);
             if (!pet.watching() && !hidden) pet.watch(true);
         }
         if (settings.on("hearing") && Hearing.possible()) ears.start();
-        if (askingMedia || bubble.asking() || pet.busyNow() || hidden) return;
+        if (askingMedia || bubble.asking() || pet.busyNow() || hidden || now - lastOffer < 10 * 60_000) return; // (one question at a time, not too often)
         if (video && !settings.on("seeing") && !settings.flag("askedSeeing")) {
             offerSense("Ooh, a video! Want me to watch this with you?", "seeing", "askedSeeing",
                     "Can Clawd see your screen?", "He takes a quick look at how bright your screen is, a couple of times a second, so he can watch along"
@@ -406,7 +412,16 @@ public final class Clawdtop {
     /** He asks in his bubble; yes brings up the computer's own permission box; allowed, the option goes on. */
     private void offerSense(String question, String option, String asked, String permission, String detail) {
         askingMedia = true;
+        lastOffer = System.currentTimeMillis();
         pet.speak();
+        javax.swing.Timer giveUp = new javax.swing.Timer(25_000, e -> { // no answer: never mind (he'll ask another time)
+            if (askingMedia && question.equals(bubble.question())) {
+                bubble.hide();
+                askingMedia = false;
+            }
+        });
+        giveUp.setRepeats(false);
+        giveUp.start();
         bubble.ask(question, new String[] {"Yes!", "No thanks"}, choice -> {
             settings.setFlag(asked, true); // (he only asks once: it's in his options after that)
             if (choice != 0) {
@@ -428,7 +443,7 @@ public final class Clawdtop {
         double level = ears.level();
         boolean suddenLoud = level > 0.55 && calmLevel < 0.18;
         calmLevel = calmLevel * 0.97 + level * 0.03;
-        boolean bigFlash = eyes.looking() && eyes.change() > 0.35;
+        boolean bigFlash = eyes.looking() && eyes.change() > 0.3;
         if (pet.watching() && (suddenLoud || bigFlash) && now - lastScare > 15_000) {
             lastScare = now;
             pet.scare();

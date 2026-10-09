@@ -11,10 +11,17 @@ import java.awt.image.BufferedImage;
  */
 final class Seeing {
     private volatile boolean on;
+    private volatile Rectangle region; // what he looks at: the video's window (or the whole screen)
+
+    /** Looks at just this part of the screen from now on (the video's window). */
+    void lookAt(Rectangle r) {
+        if (r != null && r.width > 40 && r.height > 40) region = r;
+    }
     private volatile double brightness = -1, change;
     private Thread looker;
 
     synchronized void start(Rectangle screen) {
+        if (region == null) region = screen;
         if (on) return;
         on = true;
         looker = new Thread(() -> {
@@ -22,11 +29,12 @@ final class Seeing {
                 Robot robot = new Robot();
                 double last = -1;
                 while (on) {
-                    BufferedImage shot = robot.createScreenCapture(screen);
+                    BufferedImage shot = robot.createScreenCapture(region != null ? region : screen);
                     long sum = 0;
                     int count = 0;
-                    for (int y = 0; y < shot.getHeight(); y += 24) {
-                        for (int x = 0; x < shot.getWidth(); x += 24) {
+                    int step = Math.max(4, Math.min(shot.getWidth(), shot.getHeight()) / 40);
+                    for (int y = 0; y < shot.getHeight(); y += step) {
+                        for (int x = 0; x < shot.getWidth(); x += step) {
                             int rgb = shot.getRGB(x, y);
                             sum += ((rgb >> 16) & 0xFF) * 3 + ((rgb >> 8) & 0xFF) * 6 + (rgb & 0xFF); // (how bright it looks to us)
                             count++;
@@ -48,6 +56,7 @@ final class Seeing {
 
     synchronized void stop() {
         on = false;
+        region = null;
         brightness = -1;
         change = 0;
     }
