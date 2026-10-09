@@ -1,8 +1,7 @@
-Fix: starting him on a Mac.
+Fix: starting him on Windows.
 
-- If Java is missing or too old on a Mac, Clawdtop.command now says so and opens the free download page (before, nothing happened at all).
-- It finds a new-enough Java even when an older one comes first, and works even if the file lost its "can run" setting.
-- The README explains the first-time "could not verify" message on a Mac (Privacy & Security > Open Anyway) and the "Windows protected your PC" box (More info > Run anyway).
+- Clawdtop.bat now uses the first Java that's new enough. Before, an older Java found first (like Java 21, or an old JAVA_HOME) made it say "too old" even with Java 25 installed. It also looks in the usual install folders.
+- Opened Clawdtop.bat straight from inside the zip? It now tells you to unzip it first (Extract All), instead of confusing advice.
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 
