@@ -1,8 +1,8 @@
-Polish: his speech bubbles read nicely.
+Fix: the README knows what he can do.
 
-- A dozen of his longer lines (keep-awake, the to-do list, finding files, unzipping, "help" and more) used to wrap in odd places. They now break where you'd expect, in tidy lines.
-- "help" lists what you can ask, one idea per line.
-- The sticky note stands on the taskbar beside him like a little sign, at every size (it floated a bit when he was Small).
+- The README now covers everything new: the to-do list and sticky notes, finding files, download alerts, the quick helpers (clean a link, passwords, world clock...), the desktop song fetch and tidy, dropping pictures and zips, the quiz, breathing, eye breaks and the morning rundown.
+- It explains that he asks before downloading his brain, and that Ollama stays if you uninstall him.
+- Fixed a jumbled paragraph in the "First time on Windows" steps.
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 

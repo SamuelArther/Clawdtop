@@ -51,16 +51,17 @@ when he starts, and asks before he updates.
   wrong he looks sorry and deletes it. Click his carpet mid-flight and see what happens. Or click him and pick
   **Make something!**
 - **Ask him a question** (top of his menu): a small AI brain that runs on your own computer through
-  [Ollama](https://ollama.com) (free), using under 2 GB of memory, only while he's answering. He installs it himself
-  in the background after setup (Ollama's own signed installer, just for you, no admin needed), with a notice. He
+  [Ollama](https://ollama.com) (free), using under 2 GB of memory. It's a download of about 2 GB, so he asks first
+  (in setup, or the first time you ask something that needs it), then installs it in the background (Ollama's own
+  signed installer, just for you, no admin needed). Ollama is its own app: it stays if you uninstall him. He
   answers in his personality and never says a bad word. Setup asks how he should answer: normal (the most accurate,
   recommended) or kid-friendly (simple and gentle, for little kids), and whether he may **look things up online**
   (Wikipedia and DuckDuckGo; off unless you say yes). Math? "I wouldn't trust myself to answer right....." He opens
   Calculator, tells you the buttons, and watches: "Good job!" or "Not quite entered right...".
 - **His home:** tell him what to call your computer when you meet. Move him to a new computer and he asks what the
   new place is called, and remembers everywhere he's lived.
-- **Reminders and timers:** type "remind me in 10 minutes to check the oven", "set a timer for 5 minutes" or "start
-  a stopwatch" in his question box. For timers he holds a tiny alarm clock and a red digital display. A **focus timer**
+- **Reminders and timers:** type "remind me in 10 minutes to check the oven", "remind me at 3pm to call Grandma",
+  "set a timer for 5 minutes" or "start a stopwatch" in his question box. For timers he holds a tiny alarm clock and a red digital display. A **focus timer**
   (25 minutes, headphones on, no interruptions) is in his menu.
 - **Run a lap:** he sprints along the taskbar, up the wall, across the top of the screen upside down, down the other
   side and home, sweating more and more. **Music time:** headphones on, bobbing to the beat.
@@ -68,6 +69,21 @@ when he starts, and asks before he updates.
   click the keys, or type A to K). **Drop a MIDI file on him** and he runs to get it and plays the whole thing.
 - **Useful bits:** "How's my computer?", an "Open..." menu for handy places, water and stretch reminders (off at
   first), a nudge when the computer's been on for a week, and a warning when a drive is nearly full.
+- **Your to-do list and sticky notes:** "add homework to my list", "what's on my list", "I finished my homework" (he
+  cheers). "stick a note: dentist at 4" pins a little yellow note next to him; click it when you're done.
+- **Finding things:** "find my history essay" looks through your usual folders (just the names) and gives you
+  **Show me** and **Open it**. When a download finishes, he tells you, with the same buttons.
+- **Quick helpers you can ask for:** "clean my link" (takes the tracking junk off a link you copied), "make me a
+  password", "what time is it in Tokyo", "count my words", "pizza or tacos?", "open the calculator", "save what I
+  copied" (a screenshot or text, into a file on your desktop), "how long have I been on the computer today?" and "keep
+  my computer awake" (he sets down a steaming mug until you say stop).
+- **Your desktop:** drag a song file (.mid) near him on the desktop and he hops over, grabs it and plays it.
+  **Tidy my desktop** (in Useful) tackles your files into a Neat folder, sorted by type, and can put them all back.
+  Nothing is ever deleted.
+- **Drop things on him:** a picture gets a smaller copy (for emailing or texting), and a .zip gets unzipped into a new
+  folder next to it.
+- **Feeling good:** "quiz me on the 7 times table", "breathe with me" (a calm minute, counted on his clock), eye breaks
+  every 20 minutes (off at first), and a quick rundown of your day the first time you log in each morning.
 - **Games:** full-screen game? He sits in the bottom corner, over your ammo, and watches. He also reads your game
   launchers' lists (Steam, Epic, EA, Ubisoft, GOG, Xbox, Riot) on this PC and says nice things about your games.
 - **Cute stuff:** rest the cursor on him and he gets shy; swipe across his face for a boop; hiccups; a nightcap when
@@ -105,15 +121,18 @@ Clawd isn't from an app store, so the first time you start him your computer ask
   **System Settings > Privacy & Security**, scroll down and click **Open Anyway** next to Clawdtop.command (then Open).
   Or open **Terminal**, type `sh ` (with a space), drag `Clawdtop.sh` into the window and press Return. macOS may also
   ask whether Terminal can use your Downloads folder: click OK. After the first time, a double-click is all it takes.
-- **Windows:** if a blue "Windows protected your PC" box appears, click **More info**, then **Run anyway**. If you have [Kelp](https://github.com/KelpSquid/kelp) and have played Minecraft 26.3 with it, you already
-have Java 25 and don't need anything else.
+- **Windows:** if a blue "Windows protected your PC" box appears, click **More info**, then **Run anyway**.
+
+If you have [Kelp](https://github.com/KelpSquid/kelp) and have played Minecraft 26.3 with it, you already have Java 25
+and don't need anything else.
 
 From the code instead:
 
 1. Run `build.bat` (or `./build.sh`). It builds `build\Clawdtop.jar` and checks everything works.
 2. Run `Clawdtop.bat` to start him (or `build.bat run` to do both).
 
-Turn on **Start with Windows** in his menu and he'll be there every time you sign in.
+Turn on **Start with Windows** in his menu (on a Mac: **Start when I log in**) and he'll be there every time you sign
+in.
 
 ## The clawd command
 
