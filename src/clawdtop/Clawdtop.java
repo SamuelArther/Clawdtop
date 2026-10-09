@@ -2036,12 +2036,14 @@ public final class Clawdtop {
             clean.addActionListener(e -> startCleaning());
             useful.add(clean);
         }
+        useful.addSeparator();
         JMenuItem focusItem = new JMenuItem(focusUntil > 0 ? "Stop the focus timer (" + Math.max(1, (focusUntil - System.currentTimeMillis()) / 60_000) + " min left)" : "Focus timer (25 min)");
         focusItem.addActionListener(e -> focus(focusUntil == 0));
         useful.add(focusItem);
         JMenuItem watchItem = new JMenuItem(stopwatchFrom > 0 ? "Stop the stopwatch" : "Start a stopwatch");
         watchItem.addActionListener(e -> stopwatch(stopwatchFrom == 0));
         useful.add(watchItem);
+        useful.addSeparator();
         javax.swing.JMenu todoMenu = new javax.swing.JMenu(settings.todos().isEmpty() ? "To-do list" : "To-do list (" + settings.todos().size() + ")");
         for (String item : settings.todos()) {
             javax.swing.JCheckBoxMenuItem box = new javax.swing.JCheckBoxMenuItem(item.length() > 40 ? item.substring(0, 39) + "..." : item);
@@ -2076,6 +2078,7 @@ public final class Clawdtop {
             if (words != null) findFile(words);
         }));
         useful.add(findItem);
+        useful.addSeparator();
         javax.swing.JCheckBoxMenuItem awakeItem = new javax.swing.JCheckBoxMenuItem("Keep my computer awake", Awake.on());
         awakeItem.addActionListener(e -> keepAwake(!Awake.on()));
         useful.add(awakeItem);
@@ -2641,6 +2644,10 @@ public final class Clawdtop {
             }
             menu.addSeparator();
         }
+        JMenuItem allOptions = new JMenuItem("All the options...");
+        allOptions.addActionListener(e -> OptionsWindow.show(settings, this::useOptions));
+        menu.add(allOptions);
+        menu.addSeparator();
         JMenuItem bye = new JMenuItem("Bye, Clawd");
         bye.addActionListener(e -> System.exit(0));
         menu.add(bye);
@@ -3418,6 +3425,7 @@ public final class Clawdtop {
                     "Can Clawd see your screen?", "(test) He takes a quick look at how bright your screen is.");
             case "yes" -> bubble.press(0);
             case "tidy" -> tidyDesktop();
+            case "options" -> OptionsWindow.show(settings, this::useOptions);
             case "eye break" -> startEyeBreak();
             case "rundown" -> {
                 String r = Helpers.rundown(java.time.LocalDate.now(), settings.todos(), settings.text("sticky"), Helpers.daysToBirthday(settings.birthday(), java.time.LocalDate.now()), settings.name());

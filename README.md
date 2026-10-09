@@ -26,7 +26,7 @@ when he starts, and asks before he updates.
 - **He can open your apps** (off at first: turn on "Tackles the taskbar icon" in his options). Start an app and its
   window stays invisible for a second while Clawd charges along the taskbar and tackles its icon: the app pops open,
   there's an explosion, and he goes flying.
-- **Calm by default:** lots of his sillier antics (sneezes, flies, hiccups, yelling about Caps Lock, random tunes and more) start off; turn any of them on in **All the options**.
+- **Calm by default:** lots of his sillier antics (sneezes, flies, hiccups, yelling about Caps Lock, random tunes and more) start off; turn any of them on in **Settings > All the options** (or `clawd controlpanel` in a terminal).
 - **Big surprises:** on his own he keeps to little things beside him. The big screen-wide surprises (his rocket, the
   flying carpet, the duck flood, pop-ups) happen when you pick **Make something!**, or on his own if you turn on "Big
   surprises" in his options.

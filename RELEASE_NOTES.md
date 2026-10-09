@@ -1,7 +1,7 @@
-Fix: he keeps his shirt.
+Fix: all his options, right in his menu.
 
-- Moving him to another computer, or bringing him back with a save token, now keeps the shirt he's wearing (his hat already came along; his shirt didn't).
-- On a Mac, "clawd uninstall" also removes the line it added to your Terminal settings for the clawd command.
+- Double-click him > Settings > All the options... opens a window with every switch and dial he has, in tabs (Antics, Useful, Privacy, Brain and more). Changes work straight away. Before, they were only in the terminal (clawd controlpanel), even though some messages pointed you to his options.
+- His Useful menu is sorted into groups, so it's easier to find things.
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 

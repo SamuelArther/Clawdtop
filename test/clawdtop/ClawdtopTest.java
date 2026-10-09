@@ -759,6 +759,10 @@ public class ClawdtopTest {
         check("uninstall takes back only his own .zprofile lines", Platform.withoutOurPath("export A=1\n# added by Clawdtop, so Terminal knows the clawd command\nexport PATH=\"$HOME/.local/bin:$PATH\"\nalias x=y\n"),
                 "export A=1\nalias x=y\n");
         check("the save token keeps his shirt", java.util.Arrays.asList(SaveToken.KEYS).contains("shirt"), true);
+        javax.swing.JComponent optionsPanel = OptionsWindow.panel(Settings.load(), () -> { });
+        optionsPanel.setSize(560, 600);
+        snapshot(optionsPanel, frames0.resolve("all the options.png"));
+        check("all the options, in tabs", ((javax.swing.JTabbedPane) ((java.awt.BorderLayout) optionsPanel.getLayout()).getLayoutComponent(java.awt.BorderLayout.CENTER)).getTabCount() > 3, true);
         // the desktop: reading icon spots (Windows' script and Finder say the same shape), sorting files for Neat
         Desktop.Layout desk = Desktop.read("DESKTOP|/home/me/Desktop\nskin|177,2\nmy song.mid|2427,1032\nnot an icon\n");
         check("desktop read", desk.folder().getFileName() + " " + desk.icons(), "Desktop [Icon[name=skin, x=177, y=2], Icon[name=my song.mid, x=2427, y=1032]]");
