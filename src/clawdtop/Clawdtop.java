@@ -826,7 +826,7 @@ public final class Clawdtop {
                         fetching = file;
                         fetchStage = 1;
                         fetchSince = System.currentTimeMillis();
-                        pet.say("Ooh! Music! For me?!");
+                        pet.say("Ooh, a song file! Hang on...");
                         body.perchAt(x, y);
                     }
                 }
@@ -858,7 +858,7 @@ public final class Clawdtop {
             fetching = null;
             if (body.state() == Body.State.PERCH || body.state() == Body.State.HOP_TO) body.leave();
         }
-        if (tidyStage == 1 && body.state() == Body.State.PERCH && now - tidySince > 450) { // landed on it: tackled into Neat
+        if (tidyStage == 1 && body.state() == Body.State.PERCH && now - tidySince > 800) { // landed on it: tackled into Neat
             Object[] next = tidyQueue.poll();
             if (next != null) {
                 Path from = (Path) next[0];
