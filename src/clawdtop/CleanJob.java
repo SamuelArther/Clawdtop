@@ -57,7 +57,7 @@ final class CleanJob {
 
     void start(Body body) {
         body.board();
-        ui.say("Hop on! Now open the folder you\nwant me to clean in File Explorer.");
+        ui.say("Hop on! Now open the folder you\nwant me to clean in " + (Platform.MAC ? "Finder" : Platform.WINDOWS ? "File Explorer" : "your file manager") + ".");
     }
 
     Step step() {
@@ -206,7 +206,7 @@ final class CleanJob {
     private void askSafe() {
         List<Cleaner.Item> safe = plan.safe();
         String text = "I found " + safe.size() + (safe.size() == 1 ? " bit" : " bits") + " of junk (" + Cleaner.size(plan.safeSize()) + "):\n"
-                + summary(safe) + "\nMove " + (safe.size() == 1 ? "it" : "them") + " to the Recycle Bin?";
+                + summary(safe) + "\nMove " + (safe.size() == 1 ? "it" : "them") + " to the " + Cleaner.BIN + "?";
         go(Step.ASK_SAFE);
         ui.ask(text, new String[] {"Yes", "Show me", "No"}, choice -> {
             if (choice == 1) {
@@ -226,7 +226,7 @@ final class CleanJob {
             list.append(folder.relativize(p)).append('\n');
         }
         if (safe.size() > 8) list.append("...and ").append(safe.size() - 8).append(" more like those\n");
-        list.append("Move them to the Recycle Bin?");
+        list.append("Move them to the " + Cleaner.BIN + "?");
         ui.ask(list.toString(), new String[] {"Yes", "No"}, choice -> {
             if (choice == 0) clean(safe);
             else go(Step.BETWEEN);
@@ -264,7 +264,7 @@ final class CleanJob {
         if (message == null) {
             message = moved == 0 ? "OK, I left everything where it was."
                     : "All done! I moved " + moved + (moved == 1 ? " thing" : " things") + " (" + Cleaner.size(movedSize)
-                    + ")\nto the Recycle Bin. You can put them back from there.";
+                    + ")\nto the " + Cleaner.BIN + ". You can put them back from there.";
         }
         ui.say(message);
         go(Step.DONE);

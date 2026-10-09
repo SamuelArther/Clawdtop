@@ -1,8 +1,7 @@
-Polish: finding his menu, and telling him your birthday.
+Polish: Mac words on a Mac.
 
-- After setup he tells you: double-click him any time for his menu. "help" says so too. (Older hints that said "click him" or "right-click" now say double-click: one click says hi, a right-click pets him.)
-- Everything that pointed to "my options" now says where they are: Settings > All the options.
-- New: "my birthday is October 8" in his ask box sets your birthday (then countdowns and the birthday surprise work).
+- On a Mac, his corner spot is called "On the right" (the Dock has no clock), cleaning talks about Finder and the Trash (not File Explorer and the Recycle Bin), and he says he lives on your Dock.
+- The taskbar-tackle option says it's Windows only, and his game compliments say "this computer", not "this PC".
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 

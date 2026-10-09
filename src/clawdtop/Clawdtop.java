@@ -2727,7 +2727,7 @@ public final class Clawdtop {
 
     private void startCleaning() {
         if (!Cleaner.canRecycle()) {
-            bubble.show("I can't reach the Recycle Bin on this computer,\nso I won't clean anything.", head(), popupBounds());
+            bubble.show("I can't reach the " + Cleaner.BIN + " on this computer,\nso I won't clean anything.", head(), popupBounds());
             return;
         }
         job = new CleanJob(new CleanJob.Ui() {
@@ -2849,7 +2849,8 @@ public final class Clawdtop {
         }
         menu.addSeparator();
         for (String spot : Welcome.SPOTS) {
-            JMenuItem item = new JMenuItem("Sit " + Character.toLowerCase(spot.charAt(0)) + spot.substring(1).replace("On the", "on the"));
+            String shown = Welcome.label(spot);
+            JMenuItem item = new JMenuItem("Sit " + Character.toLowerCase(shown.charAt(0)) + shown.substring(1).replace("On the", "on the"));
             item.addActionListener(e -> {
                 settings.setSpot(spot);
                 place();

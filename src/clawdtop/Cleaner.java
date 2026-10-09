@@ -54,7 +54,7 @@ public final class Cleaner {
         String path = f.toString().toLowerCase(Locale.ROOT);
         Path home = Path.of(System.getProperty("user.home")).toAbsolutePath().normalize();
         if (Platform.WINDOWS && (path.startsWith("\\\\") || !fixedDrive(f))) {
-            return "That's on a network or USB drive. Those have no Recycle Bin, so I won't clean there.";
+            return "That's on a network or USB drive. Those have no " + BIN + ", so I won't clean there.";
         }
         if (home.startsWith(f)) return "That folder holds too much that matters. Show me one inside it, like Downloads.";
         if (Platform.WINDOWS && f.getNameCount() >= 1) { // Windows and programs' folders on any drive (D:\Program Files too)
@@ -266,4 +266,7 @@ public final class Cleaner {
         return n.matches(".+\\.(app|bundle|framework|plugin|kext|appex|photoslibrary|photolibrary|imovielibrary|fcpbundle|logicx|band|xcodeproj|xcworkspace"
                 + "|playground|pkg|mpkg|rtfd|pages|numbers|key|aplibrary|musiclibrary|tvlibrary|theater|component|vst|vst3|aaxplugin|saver|prefpane|qlgenerator|mdimporter)");
     }
+
+    /** Where things he cleans up go: the Recycle Bin on Windows, the Trash on a Mac or Linux. */
+    static final String BIN = Platform.WINDOWS ? "Recycle Bin" : "Trash";
 }

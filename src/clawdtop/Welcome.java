@@ -28,6 +28,11 @@ final class Welcome {
     /** Where he can sit, as offered when you meet. */
     static final String[] SPOTS = {"Above the clock", "In the middle", "On the left"};
 
+    /** What a spot's called on this computer (a Mac's Dock has no clock: "On the right" there). Saved as SPOTS says. */
+    static String label(String spot) {
+        return Platform.MAC && spot.equals(SPOTS[0]) ? "On the right" : spot;
+    }
+
     private static final Color PAPER = new Color(255, 250, 242);
     private static final Color INK = new Color(40, 38, 36);
     private static final Color ORANGE = new Color(215, 119, 87);
@@ -246,7 +251,7 @@ final class Welcome {
         JComponent[] buttons = new JComponent[SPOTS.length];
         for (int i = 0; i < SPOTS.length; i++) {
             String spot = SPOTS[i];
-            buttons[i] = button(spot, () -> {
+            buttons[i] = button(label(spot), () -> {
                 settings.setSpot(spot);
                 moved.run();
                 beep.accept(Pet.Beep.CLICKED);

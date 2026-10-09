@@ -34,7 +34,7 @@ public final class SmokeSetup {
         robot = new Robot();
         all = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration().getBounds();
         String[][] steps = {
-                {"welcome type Sam", "name"}, {"welcome click Next", "where"}, {"welcome click Above the clock", "personality"},
+                {"welcome type Sam", "name"}, {"welcome click Next", "where"}, {"welcome click " + Welcome.label("Above the clock"), "personality"},
                 {"welcome click Bouncy", "birthday"}, {"welcome click Skip", "home"}, {"welcome click Next", "military"}, {"welcome click No", "answers"},
                 {"welcome click Normal (recommended)", "web search"}, {"welcome click No, stay offline", "brain"}, {BrainInstall.installed() || BrainInstall.ollama() == null ? "" : "welcome click Not now", "beeps"}, {"welcome click Shh, no beeps", "startup"},
                 {"welcome click Not now", "all set"}, {"welcome click OK!", "the box"}};

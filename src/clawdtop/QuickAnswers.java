@@ -60,10 +60,10 @@ final class QuickAnswers {
             return says[random.nextInt(says.length)];
         }
         if (q.matches("(who are you|what are you|what's your name|whats your name)")) {
-            return "I'm Clawd! A tiny crab who lives on your taskbar. I code, I play piano, I ride your cursor.";
+            return "I'm Clawd! A tiny crab who lives on your " + Platform.BAR + ". I code, I play piano, I ride your cursor.";
         }
         if (q.matches("(how are you|how are you doing|how's it going|you ok|are you ok)")) {
-            String[] says = {"I'm great! I'm a crab on a taskbar. Living the dream.", "Pretty good! The clock and I are getting along.",
+            String[] says = {"I'm great! I'm a crab on a " + Platform.BAR + ". Living the dream.", Platform.MAC ? "Pretty good! The Dock and I are getting along." : "Pretty good! The clock and I are getting along.",
                     "A little sleepy, but happy you asked!"};
             return says[random.nextInt(says.length)];
         }
