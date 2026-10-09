@@ -3552,6 +3552,10 @@ public final class Clawdtop {
                 pet.carpetGone(riding);
             }
             default -> {
+                if (action.equals("welcome skip") && welcome != null) { // (as if you pressed Escape: the rest of the questions get their usual answers)
+                    welcome.skipRest();
+                    return;
+                }
                 if (action.startsWith("welcome click ") && welcome != null) {
                     for (javax.swing.JButton b : smokeFind(welcome.panel(), javax.swing.JButton.class)) {
                         if (b.getText().equals(action.substring(14))) {
