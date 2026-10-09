@@ -585,6 +585,10 @@ public class ClawdtopTest {
         for (int i = 0; i < 60; i++) pianist.tick(33, 0, 0, false, false);
         save(pianist, Path.of("build", "frames").resolve("playing the piano.png"));
 
+        // ---- Weather (only with looking things up on) ----
+        check("weather questions are spotted", WebSearch.aboutWeather("what's the weather like?") + " " + WebSearch.aboutWeather("is it raining") + " " + WebSearch.aboutWeather("whether to code"), "true true false");
+        check("and he has something to say about it", Clawdtop.weatherQuip("Light rain, 60 F").contains("umbrella") + " " + Clawdtop.weatherQuip("Overcast, 76 F").contains("coding weather"), "true true");
+
         // ---- His diary ----
         Diary.write("Coded carpet.py. I made a flying carpet!!");
         Diary.write("Landed on my head. Saw stars. I'm fine.");

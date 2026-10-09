@@ -49,6 +49,18 @@ final class WebSearch {
         return extract == null || extract.isBlank() ? null : new Found(trim(extract), "Wikipedia (" + title + ")");
     }
 
+    /** Whether a question is about the weather. */
+    static boolean aboutWeather(String question) {
+        return question.toLowerCase(java.util.Locale.ROOT).matches(".*\\b(weather|temperature|is it (raining|cold|hot|sunny|snowing))\\b.*");
+    }
+
+    /** The weather where you are (from wttr.in, which goes by your internet address), like "Overcast, 76 F", or null. */
+    static String weather() {
+        String w = get("https://wttr.in/?format=%25C,+%25t+(feels+like+%25f)&u");
+        if (w == null || w.isBlank() || w.length() > 120 || w.contains("<")) return null;
+        return w.strip().replace(" ,", ",").replace("+", "").replace("°", " ").replaceAll("\\s+", " ");
+    }
+
     private static String enc(String s) {
         return URLEncoder.encode(s, StandardCharsets.UTF_8);
     }

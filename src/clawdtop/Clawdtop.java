@@ -318,6 +318,18 @@ public final class Clawdtop {
             pet.say(quick);
             return;
         }
+        if (WebSearch.aboutWeather(question)) {
+            if (!settings.on("webSearch")) {
+                pet.say("I can't see outside from in here!\n(Turn on \"look things up online\" in my options and I'll check.)");
+                return;
+            }
+            worker.execute(() -> {
+                String w = WebSearch.weather();
+                SwingUtilities.invokeLater(() -> pet.say(w == null ? "I tried to look outside, but the internet said no."
+                        : "Right now it's " + w + ".\n" + weatherQuip(w)));
+            });
+            return;
+        }
         int watch = Reminders.stopwatch(question);
         if (watch != 0) {
             stopwatch(watch > 0);
@@ -365,6 +377,18 @@ public final class Clawdtop {
         }, "clawd-brain");
         t.setDaemon(true);
         t.start();
+    }
+
+    /** Something to say about the weather. */
+    static String weatherQuip(String w) {
+        String s = w.toLowerCase(java.util.Locale.ROOT);
+        if (s.contains("thunder")) return "Thunder! I'm hiding under the taskbar.";
+        if (s.contains("rain") || s.contains("drizzle") || s.contains("shower")) return "Don't forget an umbrella! (I'd lend you mine, but I'm 4 pixels tall.)";
+        if (s.contains("snow")) return "SNOW?! Snow day?!";
+        if (s.contains("sun") || s.contains("clear")) return "Nice day for it! Maybe go outside for a bit?";
+        if (s.contains("fog") || s.contains("mist")) return "Spooky.";
+        if (s.contains("cloud") || s.contains("overcast")) return "A bit gray. Good coding weather.";
+        return "Weather: confirmed.";
     }
 
     private boolean brainBusy; // installing his brain right now
