@@ -349,7 +349,7 @@ public class ClawdtopTest {
         check("and change (numbers stay in range)", knobs.on("sneezes") + " " + knobs.choice("voice") + " " + knobs.number("volume"), "false Robot 10");
         check("a robot voice sounds different", java.util.Arrays.equals(Beeps.voiced(Beeps.make(Pet.Beep.HELLO), "Robot", 5), Beeps.make(Pet.Beep.HELLO)), false);
         check("a squeaky voice is shorter (higher)", Beeps.voiced(Beeps.make(Pet.Beep.HELLO), "Squeaky", 5).length < Beeps.make(Pet.Beep.HELLO).length, true);
-        String opts = cli("controlpanel", "13", "2", "0", "0"); // (1 is No tomfoolery, 2 is sneezes)
+        String opts = cli("controlpanel", "11", "2", "0", "0"); // (1 is No tomfoolery, 2 is sneezes)
         check("the control panel lists them all, in groups", opts.contains("Antics") && opts.contains("Riding") && opts.contains("Useful"), true);
         check("and flips one", Settings.load().on("sneezes"), true);
 
@@ -526,7 +526,7 @@ public class ClawdtopTest {
         reborn.setHome("Gaming PC");
         check("moving: the new computer gets a name, the old one goes on the list", reborn.home() + " / " + reborn.oldHomes()
                 + " / " + SaveToken.read(reborn.saveToken()).get("oldHomes"), "Gaming PC / [Samuel's Laptop] / Samuel's Laptop");
-        check("and the control panel can rename it", cli("controlpanel", "14", "Big Desk", "0").contains("His home's name") + " " + Settings.load().home(), "true Big Desk");
+        check("and the control panel can rename it", cli("controlpanel", "12", "Big Desk", "0").contains("His home's name") + " " + Settings.load().home(), "true Big Desk");
         check("and shows his settings", panel.contains("Clawd's control panel"), true);
         check("uninstall asks first, and no means no", cli("uninstall", "n").contains("He's staying"), true);
 
@@ -669,7 +669,7 @@ public class ClawdtopTest {
         calm.set("serious", "true");
         check("no tomfoolery turns off the silly stuff", calm.on("creates") + " " + calm.on("sneezes") + " " + calm.on("rides") + " " + calm.jokes(), "false false false Off");
         check("but he's still useful", calm.on("diskSpace") + " " + calm.on("missedYou"), "true true");
-        check("and the control panel has the switch", cli("controlpanel", "15", "0").contains("No tomfoolery") + " " + Settings.load().serious(), "true false");
+        check("and the control panel has the switch", cli("controlpanel", "13", "0").contains("No tomfoolery") + " " + Settings.load().serious(), "true false");
         calm = Settings.load();
         Pet calmPet = new Pet(3);
         Settings calmSettings = calm;

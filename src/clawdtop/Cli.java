@@ -236,13 +236,13 @@ public final class Cli {
             out.println("   6  Mood right now      (happy, sleepy, asleep, awake)");
             out.println("   7  Beeps               " + onOff(s.sounds()));
             out.println("   8  Tips                " + onOff(s.tips()));
-            out.println("  11  Jokes               " + s.jokes());
-            out.println("  12  Your birthday       " + (s.birthday().isEmpty() ? DIM + "(not set)" + RESET : s.birthday().replace('-', '/')));
-            out.println("  13  All the options     " + DIM + "(" + Options.ALL.size() + " of them!)" + RESET);
-            out.println("  14  His home's name     " + (s.homeNamed() ? s.home() : DIM + "(none)" + RESET));
-            out.println("  15  No tomfoolery       " + onOff(s.serious()) + DIM + "  (serious mode: no silly stuff)" + RESET);
-            out.println("   9  Start with Windows  " + onOff(Startup.on()));
-            out.println("  10  " + (on ? "Stop him" : "Start him"));
+            out.println("   9  Jokes               " + s.jokes());
+            out.println("  10  Your birthday       " + (s.birthday().isEmpty() ? DIM + "(not set)" + RESET : s.birthday().replace('-', '/')));
+            out.println("  11  All the options     " + DIM + "(" + Options.ALL.size() + " of them!)" + RESET);
+            out.println("  12  His home's name     " + (s.homeNamed() ? s.home() : DIM + "(none)" + RESET));
+            out.println("  13  No tomfoolery       " + onOff(s.serious()) + DIM + "  (serious mode: no silly stuff)" + RESET);
+            out.println("  14  Start with Windows  " + onOff(Startup.on()));
+            out.println("  15  " + (on ? "Stop him" : "Start him"));
             out.println("   0  Done");
             out.print("\nPick a number: ");
             out.flush();
@@ -299,16 +299,16 @@ public final class Cli {
                 }
                 case "7" -> s.setSounds(!s.sounds());
                 case "8" -> s.setTips(!s.tips());
-                case "9" -> Startup.set(!Startup.on());
-                case "13" -> allOptions();
-                case "15" -> s.set("serious", String.valueOf(!s.serious()));
-                case "14" -> {
+                case "14" -> Startup.set(!Startup.on());
+                case "11" -> allOptions();
+                case "13" -> s.set("serious", String.valueOf(!s.serious()));
+                case "12" -> {
                     out.print("What should he call this computer? (like " + s.suggestedHome() + ") ");
                     out.flush();
                     String home = in.readLine();
                     if (home != null && !home.isBlank()) s.setHome(home);
                 }
-                case "12" -> {
+                case "10" -> {
                     out.print("  Your birthday, month/day like 10/08 (blank for none): ");
                     out.flush();
                     String typed = in.readLine();
@@ -324,12 +324,12 @@ public final class Cli {
                         }
                     }
                 }
-                case "11" -> {
+                case "9" -> {
                     String[] often = {"Off", "Rare", "Sometimes", "Lots"};
                     int i = choose(often);
                     if (i >= 0) s.setJokes(often[i]);
                 }
-                case "10" -> {
+                case "15" -> {
                     if (on) stop(true);
                     else start();
                 }
