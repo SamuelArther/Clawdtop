@@ -470,6 +470,32 @@ public final class Settings {
         save();
     }
 
+    /** A remembered bit of text that isn't one of his options (like the sticky note he's holding up). */
+    public String text(String name) {
+        return values.getProperty("text." + name, "");
+    }
+
+    public void setText(String name, String value) {
+        if (value == null || value.isEmpty()) values.remove("text." + name);
+        else values.setProperty("text." + name, value);
+        save();
+    }
+
+    /** Your to-do list, in order. */
+    public java.util.List<String> todos() {
+        String all = values.getProperty("todos", "");
+        return all.isEmpty() ? java.util.List.of() : java.util.List.of(all.split("\u001f"));
+    }
+
+    public void setTodos(java.util.List<String> todos) {
+        java.util.List<String> list = new java.util.ArrayList<>();
+        for (String t : todos) if (!t.isBlank()) list.add(t.replace("\u001f", " ").strip());
+        while (list.size() > 40) list.remove(0);
+        if (list.isEmpty()) values.remove("todos");
+        else values.setProperty("todos", String.join("\u001f", list));
+        save();
+    }
+
     /** A remembered yes-or-no that isn't one of his options (like "already asked to watch videos with you"). */
     public boolean flag(String name) {
         return "true".equals(values.getProperty("flag." + name));

@@ -214,6 +214,16 @@ public final class Pet {
     private long sinceUsed;        // ms since you last did anything with him (not just used the computer)
 
     /** You're doing something with him (the cursor's on him, you clicked him, he's riding...): no nodding off. */
+    private boolean coffee; // holding his coffee: keeping your computer awake
+
+    public boolean coffee() {
+        return coffee;
+    }
+
+    public void setCoffee(boolean on) {
+        coffee = on;
+    }
+
     public void used() {
         sinceUsed = 0;
     }

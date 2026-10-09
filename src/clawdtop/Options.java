@@ -98,6 +98,7 @@ final class Options {
             Option.on("Useful", "updates", "Checks for a newer version of him when he starts", true),
             Option.on("Privacy", "seeing", "Watches videos with you (looks at how bright the screen is; you're asked first)", false),
             Option.on("Privacy", "hearing", "Hears how loud your computer's sound is, to bop along (you're asked first)", false),
+            Option.on("Useful", "downloads", "Tells you when a download finishes (with Open and Show buttons)", true),
             Option.on("Useful", "water", "Reminds you to drink water (every hour)", false),
             Option.on("Useful", "stretch", "Reminds you to stretch (every 2 hours)", false),
             Option.on("Useful", "restart", "Says when the computer hasn't restarted in a week", true),

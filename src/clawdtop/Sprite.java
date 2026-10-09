@@ -455,6 +455,7 @@ public final class Sprite {
         }
         if (pet.jamming()) drawJamGear(g, pet, unit, top, mood);
         if (mood == Pet.Mood.WATCH || mood == Pet.Mood.SCARED) drawPopcorn(g, pet, unit, mood);
+        else if (pet.coffee() && mood != Pet.Mood.JAM) drawCoffee(g, pet, unit);
         if (mood == Pet.Mood.PIANO) { // his instrument
             switch (pet.instrument()) {
                 case GUITAR -> drawGuitar(g, pet, unit, top, false);
@@ -917,6 +918,20 @@ public final class Sprite {
         if (down) {
             box(g, unit, bx + 4, by - 3, 0.7, 0.6, new Color(255, 214, 102));
             box(g, unit, bx + 4.5, by - 4.3, 0.25, 1.4, new Color(255, 214, 102));
+        }
+    }
+
+    /** His mug of coffee on the floor beside him, steaming (he's keeping your computer awake). */
+    private static void drawCoffee(Graphics2D g, Pet pet, int unit) {
+        Color mug = new Color(250, 246, 238), coffee = new Color(110, 66, 40), steam = new Color(255, 255, 255, 150);
+        double mx = LEFT - 3.6, my = GROUND - 2.6;
+        box(g, unit, mx, my, 2.4, 2.6, mug);
+        box(g, unit, mx + 2.4, my + 0.6, 0.6, 1.2, mug); // the handle
+        box(g, unit, mx + 0.3, my + 0.2, 1.8, 0.5, coffee);
+        long t = pet.time() / 300;
+        for (int i = 0; i < 2; i++) { // two wisps of steam, drifting up
+            double up = (t + i * 2) % 4;
+            box(g, unit, mx + 0.5 + i * 1.0 + (up % 2 == 0 ? 0 : 0.3), my - 0.8 - up * 0.6, 0.4, 0.5, steam);
         }
     }
 

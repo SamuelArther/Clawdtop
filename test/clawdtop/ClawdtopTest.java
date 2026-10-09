@@ -688,6 +688,24 @@ public class ClawdtopTest {
         check("pick a number isn't choosing", Extras.choose("pick a number between 1 and 5", new java.util.Random(1)), null);
         check("open app", Extras.appFor("open the calculator") != null && Extras.appFor("open downloads").equals("folder:Downloads"), true);
         check("open nothing", Extras.appFor("open sesame"), null);
+        // finding files, downloads, the sticky note
+        check("find words", FindFile.wordsIn("find my history essay") + " " + FindFile.wordsIn("Where did I save the birthday pictures?") + " "
+                + FindFile.wordsIn("find the file called budget_2026") + " " + FindFile.wordsIn("find the area of a circle"), "[history, essay] [birthday, pictures] [budget, 2026] null");
+        Path lookIn = Files.createTempDirectory("clawdtop-find");
+        Files.createDirectories(lookIn.resolve("School/.hidden"));
+        Files.writeString(lookIn.resolve("School/History Essay final.docx"), "x");
+        Files.writeString(lookIn.resolve("School/.hidden/history essay.txt"), "x");
+        Files.writeString(lookIn.resolve("essay notes.txt"), "x");
+        check("find files", FindFile.search(List.of("history", "essay"), List.of(lookIn), 3000).stream().map(p -> p.getFileName().toString()).toList(),
+                "[History Essay final.docx]");
+        check("where it is", FindFile.whereIs(lookIn.resolve("School/History Essay final.docx"), lookIn), "School");
+        check("still downloading", FindFile.partial("movie.mp4.crdownload") + " " + FindFile.partial("song.mp3.part") + " " + FindFile.partial("game.exe"), "true true false");
+        check("sizes", FindFile.size(500) + " / " + FindFile.size(340_000) + " / " + FindFile.size(12_400_000), "500 bytes / 332 KB / 11.8 MB");
+        java.awt.FontMetrics noteFont = new java.awt.image.BufferedImage(1, 1, java.awt.image.BufferedImage.TYPE_INT_ARGB).createGraphics()
+                .getFontMetrics(new java.awt.Font("Dialog", java.awt.Font.PLAIN, 13));
+        List<String> noteLines = Sticky.wrap("Dentist at 4, then pick up Grandma from the airport and buy milk eggs bread cheese apples", noteFont, 106, 5);
+        check("sticky note wraps", noteLines.size() <= 5 && noteLines.stream().allMatch(l -> noteFont.stringWidth(l) <= 106) && noteLines.get(0).startsWith("Dentist"), true);
+        check("sticky note one huge word", Sticky.wrap("Supercalifragilisticexpialidocious", noteFont, 60, 5).size() > 1, true);
         // the desktop: reading icon spots (Windows' script and Finder say the same shape), sorting files for Neat
         Desktop.Layout desk = Desktop.read("DESKTOP|/home/me/Desktop\nskin|177,2\nmy song.mid|2427,1032\nnot an icon\n");
         check("desktop read", desk.folder().getFileName() + " " + desk.icons(), "Desktop [Icon[name=skin, x=177, y=2], Icon[name=my song.mid, x=2427, y=1032]]");

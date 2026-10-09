@@ -786,6 +786,77 @@ public final class Clawdtop {
             } else Useful.open(app);
             return true;
         }
+        // your to-do list
+        java.util.regex.Matcher todo = java.util.regex.Pattern.compile("^(?:please )?(?:add|put) (.+?) (?:to|on) (?:my |the )?(?:to-?do |to do )?list$|^(?:to-?do|to do):? (.+)$").matcher(q);
+        if (todo.matches()) {
+            String what = question.strip().replaceAll("[?!.]+$", "");
+            String said = todo.group(1) != null ? todo.group(1) : todo.group(2);
+            int at = what.toLowerCase(java.util.Locale.ROOT).indexOf(said);
+            addTodo(at >= 0 ? what.substring(at, at + said.length()) : said); // (as you typed it, capitals and all)
+            return true;
+        }
+        if (q.matches("(what'?s on |show |read )?(me )?my (to-?do |to do )?list|what do i (have|need) to do( today)?|my to-?dos?")) {
+            java.util.List<String> list = settings.todos();
+            if (list.isEmpty()) pet.say("Your list's empty! Nothing to do. (Add things: \"add homework to my list\")");
+            else {
+                StringBuilder b = new StringBuilder("On your list:");
+                for (int i = 0; i < Math.min(8, list.size()); i++) b.append("\n").append(i + 1).append(". ").append(list.get(i));
+                if (list.size() > 8) b.append("\n(and ").append(list.size() - 8).append(" more)");
+                pet.say(b.toString());
+            }
+            return true;
+        }
+        if (q.matches("(clear|empty|delete|erase) my (to-?do |to do )?list")) {
+            settings.setTodos(java.util.List.of());
+            pet.say("Your list is wiped clean!");
+            return true;
+        }
+        java.util.regex.Matcher crossed = java.util.regex.Pattern.compile("^(?:i )?(?:finished|did|done with|done|completed|cross off|check off|tick off|crossed off) (.+?)(?: off)?(?: my list)?$").matcher(q);
+        if (crossed.matches()) {
+            String item = todoMatching(crossed.group(1));
+            if (item != null) {
+                doneTodo(item);
+                return true;
+            }
+        }
+        // the sticky note
+        java.util.regex.Matcher note2 = java.util.regex.Pattern.compile("^(?:please )?(?:stick (?:up )?a note|sticky note|post-?it|put up a (?:note|sign))(?: (?:saying|that says|for me))?:? (.+)$")
+                .matcher(question.strip().replaceAll("[.!]+$", ""));
+        if (note2.matches()) {
+            stickNote(Brain.noBadWords(note2.group(1).strip()));
+            pet.say("Stuck it up! Click the note when you're done with it.");
+            return true;
+        }
+        if (q.matches("(take down|remove|get rid of|hide) (the |my |your )?(sticky )?(note|sign|post-?it)|done with (the |my )?(sticky )?note")) {
+            boolean had = !settings.text("sticky").isEmpty();
+            stickNote("");
+            pet.say(had ? "Down it comes!" : "I'm not holding up a note right now.");
+            return true;
+        }
+        // finding a file
+        java.util.List<String> lookFor = FindFile.wordsIn(question);
+        if (lookFor != null) {
+            findFile(lookFor);
+            return true;
+        }
+        // screen time
+        if (q.matches("how long have i been on (the |my )?(computer|pc|laptop|mac|screen)( today)?|(how much )?screen ?time( today| have i had( today)?)?|how long have i been (on|using) (it|this) today")) {
+            countScreenTime(System.currentTimeMillis());
+            long ms = screenMsToday;
+            pet.say(ms < 60_000 ? "You've barely been on today!" : "You've been on the computer about " + howLong(ms) + " today."
+                    + (ms > 4 * 3_600_000L ? "\nThat's a lot! Maybe go outside for a bit?" : ms > 2 * 3_600_000L ? "\nRemember to take breaks!" : ""));
+            return true;
+        }
+        // keeping the computer awake
+        if (q.matches("(please )?(keep|make) (my |the )?(computer|pc|laptop|mac|screen) (awake|on)|don'?t let (my |the )?(computer|pc|laptop|mac|screen) (sleep|go to sleep|turn off)|(stay awake|caffeine|coffee) mode")) {
+            keepAwake(true);
+            return true;
+        }
+        if (q.matches("(you can )?(let|allow) (my |the )?(computer|pc|laptop|mac|screen) (sleep|go to sleep|nap)( again| now)?|stop keeping (it|my computer|the computer) awake")) {
+            if (Awake.on()) keepAwake(false);
+            else pet.say("I'm not keeping it awake right now.");
+            return true;
+        }
         // things to do with what you copied: clean a link, count the words, save it, or a new password to paste
         if (q.matches("(please )?(clean|fix|shorten|tidy|strip) (up )?(my|this|the|that)( copied)? (link|url)( i copied)?( up)?|remove (the )?tracking( from (my |this |the )?(link|url))?")) {
             String copied = clipboardText();
@@ -829,6 +900,208 @@ public final class Clawdtop {
             return true;
         }
         return false;
+    }
+
+    // ---- Your to-do list, the sticky note, finding files, finished downloads, screen time, keeping awake ----
+    private final Sticky sticky = new Sticky();
+    private final java.util.Map<String, Long> downloadsSeen = new java.util.HashMap<>(); // name -> size, when last looked
+    private final java.util.Map<String, Long> downloadsGrowing = new java.util.HashMap<>(); // new ones, not done yet: name -> size
+    private boolean downloadsLooked;
+    private final java.util.ArrayDeque<Path> downloadsDone = new java.util.ArrayDeque<>(); // to tell you about
+    private long screenMsToday, screenSavedAt, lastScreenTick;
+    private java.time.LocalDate screenDay;
+
+    /** Adds something to your to-do list. */
+    private void addTodo(String what) {
+        String item = Brain.noBadWords(what.strip().replaceAll("[.!]+$", ""));
+        if (item.isEmpty()) return;
+        java.util.List<String> list = new java.util.ArrayList<>(settings.todos());
+        list.add(item);
+        settings.setTodos(list);
+        pet.say("Added to your list: " + item + "\n(" + list.size() + (list.size() == 1 ? " thing" : " things") + " on it. Double-click me > Useful to see it.)");
+    }
+
+    /** Crosses something off (and cheers). */
+    private void doneTodo(String item) {
+        java.util.List<String> list = new java.util.ArrayList<>(settings.todos());
+        if (!list.remove(item)) return;
+        settings.setTodos(list);
+        if (settings.on("earnPoints")) settings.earn(Shop.ASK);
+        pet.party(list.isEmpty() ? "Crossed off: " + item + "\nAND YOUR LIST IS EMPTY! You did it all!" : "Crossed off: " + item + "! Nice!\n" + list.size() + " to go.");
+        Diary.write("Got something done: " + item + ".");
+    }
+
+    /** The item on your list a phrase is about ("the dishes" -> "do the dishes"), or null. */
+    private String todoMatching(String phrase) {
+        String want = phrase.toLowerCase(java.util.Locale.ROOT).replaceAll("^(the|my|a|an) ", "").strip();
+        if (want.length() < 3 || want.matches("(it|that|this|them|those|everything|all|stuff|something|nothing|good|great|well)")) return null;
+        for (String t : settings.todos()) if (t.toLowerCase(java.util.Locale.ROOT).equals(want)) return t;
+        for (String t : settings.todos()) { // every word you said is a whole word in it ("dishes" -> "do the dishes")
+            java.util.List<String> words = java.util.Arrays.asList(t.toLowerCase(java.util.Locale.ROOT).split("[^a-z0-9']+"));
+            if (java.util.Arrays.stream(want.split("\\s+")).allMatch(words::contains)) return t;
+        }
+        return null;
+    }
+
+    /** Puts up his sticky note (or takes it down, for ""). */
+    private void stickNote(String text) {
+        settings.setText("sticky", text == null ? "" : text.strip());
+        showSticky();
+    }
+
+    private void showSticky() {
+        String text = settings.text("sticky");
+        if (text.isEmpty() || hidden) {
+            sticky.hide();
+            return;
+        }
+        sticky.show(text, () -> {
+            pet.speak();
+            bubble.ask("Done with this note?\n\"" + text + "\"", new String[] {"Take it down", "Keep it"}, choice -> {
+                if (choice != 0) return;
+                stickNote("");
+                pet.say("Down it comes! One less thing.");
+            }, head(), screenBounds());
+        });
+    }
+
+    /** "Find my essay": he looks (on his helper thread, a few seconds at most) and shows you what he found. */
+    private void findFile(java.util.List<String> words) {
+        pet.say("Looking for \"" + String.join(" ", words) + "\"...");
+        pet.sniff();
+        Path home = Path.of(System.getProperty("user.home"));
+        worker.execute(() -> {
+            java.util.List<Path> found = FindFile.search(words, FindFile.places(home), 5000);
+            SwingUtilities.invokeLater(() -> showFound(found, 0, words, home));
+        });
+    }
+
+    private void showFound(java.util.List<Path> found, int i, java.util.List<String> words, Path home) {
+        if (found.isEmpty()) {
+            pet.say("I couldn't find a file called \"" + String.join(" ", words) + "\".\n(I looked in Desktop, Documents, Downloads, Pictures, Music and Videos.)");
+            return;
+        }
+        Path file = found.get(i);
+        boolean more = i + 1 < found.size();
+        pet.speak();
+        bubble.ask((i == 0 ? "Found it! " : "How about this one? ") + file.getFileName() + "\n(in " + FindFile.whereIs(file, home) + ")"
+                        + (i == 0 && found.size() > 1 ? "\n(" + (found.size() - 1) + (found.size() == 2 ? " more file matches too.)" : " more files match too.)") : ""),
+                more ? new String[] {"Show me", "Open it", "Next one"} : new String[] {"Show me", "Open it", "Thanks!"}, choice -> {
+                    if (choice == 0) FindFile.showInFolder(file);
+                    else if (choice == 1) FindFile.open(file);
+                    else if (more) showFound(found, i + 1, words, home);
+                }, head(), screenBounds());
+    }
+
+    /** Every few seconds: a download that's just finished? He tells you (once it's stopped growing). */
+    private void watchDownloads() {
+        if (!settings.on("downloads")) return;
+        Path folder = Path.of(System.getProperty("user.home"), "Downloads");
+        worker.execute(() -> {
+            java.util.Map<String, Long> now = new java.util.HashMap<>();
+            java.util.Map<String, Long> changed = new java.util.HashMap<>();
+            try (var files = java.nio.file.Files.list(folder)) {
+                for (Path f : files.toList()) {
+                    String name = f.getFileName().toString();
+                    if (FindFile.partial(name) || !java.nio.file.Files.isRegularFile(f)) continue;
+                    long size = java.nio.file.Files.size(f);
+                    now.put(name, size);
+                    changed.put(name, java.nio.file.Files.getLastModifiedTime(f).toMillis());
+                }
+            } catch (IOException | RuntimeException noFolder) {
+                return;
+            }
+            SwingUtilities.invokeLater(() -> {
+                if (!downloadsLooked) { // (the first look only learns what's there already)
+                    downloadsLooked = true;
+                    downloadsSeen.putAll(now);
+                    return;
+                }
+                long recent = System.currentTimeMillis() - 10 * 60_000;
+                for (var e : now.entrySet()) {
+                    String name = e.getKey();
+                    if (downloadsSeen.containsKey(name)) continue;
+                    Long before = downloadsGrowing.put(name, e.getValue());
+                    if (before != null && before.equals(e.getValue()) && e.getValue() > 0) { // stopped growing: done
+                        downloadsGrowing.remove(name);
+                        downloadsSeen.put(name, e.getValue());
+                        if (changed.getOrDefault(name, 0L) > recent) downloadsDone.add(folder.resolve(name)); // (not an old file copied in)
+                    }
+                }
+                downloadsSeen.keySet().retainAll(now.keySet());
+                downloadsGrowing.keySet().retainAll(now.keySet());
+            });
+        });
+    }
+
+    /** Tells you about a finished download, when he's free to. */
+    private void tellAboutDownloads() {
+        if (downloadsDone.isEmpty() || pet.busyNow() || bubble.showing() || hidden || job != null) return;
+        Path file = downloadsDone.poll();
+        if (!java.nio.file.Files.exists(file)) return;
+        long size;
+        try {
+            size = java.nio.file.Files.size(file);
+        } catch (IOException gone) {
+            return;
+        }
+        pet.speak();
+        bubble.ask("Your download's done!\n" + file.getFileName() + " (" + FindFile.size(size) + ")", new String[] {"Open it", "Show me", "OK"}, choice -> {
+            if (choice == 0) FindFile.open(file);
+            else if (choice == 1) FindFile.showInFolder(file);
+        }, head(), screenBounds());
+    }
+
+    /** Adds up how long you've been on the computer today (moving the mouse in the last few minutes counts). */
+    private void countScreenTime(long nowMs) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        if (!today.equals(screenDay)) {
+            screenDay = today;
+            screenMsToday = parseLong(settings.text("screen." + today), 0);
+            lastScreenTick = nowMs;
+        }
+        long step = Math.min(nowMs - lastScreenTick, 5_000);
+        lastScreenTick = nowMs;
+        if (nowMs - lastMoved < 5 * 60_000 && step > 0) screenMsToday += step;
+        if (nowMs - screenSavedAt > 5 * 60_000) {
+            screenSavedAt = nowMs;
+            settings.setText("screen." + today, String.valueOf(screenMsToday));
+        }
+    }
+
+    private static long parseLong(String s, long otherwise) {
+        try {
+            return Long.parseLong(s.strip());
+        } catch (NumberFormatException e) {
+            return otherwise;
+        }
+    }
+
+    /** "3 hours 12 minutes". */
+    static String howLong(long ms) {
+        long m = ms / 60_000, h = m / 60;
+        m %= 60;
+        if (h == 0) return m + (m == 1 ? " minute" : " minutes");
+        return h + (h == 1 ? " hour" : " hours") + (m > 0 ? " " + m + (m == 1 ? " minute" : " minutes") : "");
+    }
+
+    /** Keeps the computer awake (he holds his coffee), or stops. */
+    private void keepAwake(boolean on) {
+        if (!on) {
+            Awake.stop();
+            pet.setCoffee(false);
+            pet.say("Okay, your computer can nap again. *sips the last of the coffee*");
+            return;
+        }
+        pet.say("Brewing...");
+        worker.execute(() -> {
+            boolean ok = Awake.start();
+            SwingUtilities.invokeLater(() -> {
+                pet.setCoffee(ok);
+                pet.say(ok ? "Got my coffee! I'll keep your computer awake (no sleeping, no dark screen)\nuntil you tell me to stop, or I go."
+                        : "Hmm, I couldn't keep it awake on this computer.");
+            });
+        });
     }
 
     /** How you copy, on this computer. */
@@ -1581,6 +1854,40 @@ public final class Clawdtop {
         JMenuItem watchItem = new JMenuItem(stopwatchFrom > 0 ? "Stop the stopwatch" : "Start a stopwatch");
         watchItem.addActionListener(e -> stopwatch(stopwatchFrom == 0));
         useful.add(watchItem);
+        javax.swing.JMenu todoMenu = new javax.swing.JMenu(settings.todos().isEmpty() ? "To-do list" : "To-do list (" + settings.todos().size() + ")");
+        for (String item : settings.todos()) {
+            javax.swing.JCheckBoxMenuItem box = new javax.swing.JCheckBoxMenuItem(item.length() > 40 ? item.substring(0, 39) + "..." : item);
+            box.addActionListener(e -> doneTodo(item));
+            todoMenu.add(box);
+        }
+        if (!settings.todos().isEmpty()) todoMenu.addSeparator();
+        JMenuItem addOne = new JMenuItem("Add something...");
+        addOne.addActionListener(e -> askBox.show("What do you need to do?", head(), screenBounds(), this::addTodo));
+        todoMenu.add(addOne);
+        useful.add(todoMenu);
+        JMenuItem noteItem = new JMenuItem(settings.text("sticky").isEmpty() ? "Stick up a note..." : "Take down the sticky note");
+        noteItem.addActionListener(e -> {
+            if (settings.text("sticky").isEmpty()) {
+                askBox.show("What should the note say?", head(), screenBounds(), text -> {
+                    if (text.isBlank()) return;
+                    stickNote(Brain.noBadWords(text));
+                    pet.say("Stuck it up! Click the note when you're done with it.");
+                });
+            } else {
+                stickNote("");
+                pet.say("Down it comes!");
+            }
+        });
+        useful.add(noteItem);
+        JMenuItem findItem = new JMenuItem("Find a file...");
+        findItem.addActionListener(e -> askBox.show("What's the file called? (Part of the name is fine.)", head(), screenBounds(), text -> {
+            java.util.List<String> words = FindFile.wordsIn("find my " + text);
+            if (words != null) findFile(words);
+        }));
+        useful.add(findItem);
+        javax.swing.JCheckBoxMenuItem awakeItem = new javax.swing.JCheckBoxMenuItem("Keep my computer awake", Awake.on());
+        awakeItem.addActionListener(e -> keepAwake(!Awake.on()));
+        useful.add(awakeItem);
         JMenuItem checkup = new JMenuItem("How's my computer?");
         checkup.addActionListener(e -> worker.execute(() -> {
             String report = Useful.checkup();
@@ -2421,6 +2728,7 @@ public final class Clawdtop {
             }
             if (hide != hidden) {
                 hidden = hide;
+                showSticky();
                 window.setVisible(!hidden);
                 if (hidden) bubble.hide();
             }
@@ -2554,6 +2862,12 @@ public final class Clawdtop {
         }
         if (newTick && ticks % 300 == 150) checkTimes();
         if (newTick) noticeDrags();
+        if (newTick && ticks % 90 == 45) watchDownloads();
+        if (newTick && ticks % 30 == 7) {
+            tellAboutDownloads();
+            countScreenTime(nowMs);
+        }
+        sticky.place(window.getX(), window.getY(), window.getWidth(), window.getHeight(), screenBounds());
         if (newTick && ticks % 90 == 20) watchDesktopForSongs();
         desktopTrips();
         if (newTick && ticks % 3 == 0) react(nowMs);
@@ -2734,7 +3048,8 @@ public final class Clawdtop {
     }
 
     void start() {
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> { // never leave an app see-through
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> { // never leave an app see-through (or the computer kept awake)
+            Awake.stop();
             long w = tackleWindow;
             if (w != 0) WindowTricks.reveal(w, tackleStyle);
         }));
@@ -2756,6 +3071,7 @@ public final class Clawdtop {
         pet.setBirthdayToday(settings.birthdayToday());
         window.setVisible(true);
         useItems();
+        showSticky(); // (the note you stuck up last time)
         if (settings.met()) cameBack(0);
         welcomeStarted = !settings.met();
         new Timer(FRAME_MS, e -> tick()).start();
@@ -2887,6 +3203,7 @@ public final class Clawdtop {
                     "Can Clawd see your screen?", "(test) He takes a quick look at how bright your screen is.");
             case "yes" -> bubble.press(0);
             case "tidy" -> tidyDesktop();
+            case "download done" -> downloadsDone.add(Path.of(System.getProperty("smoke.download", "missing")));
             case "dragged" -> draggedSomething = true;
             case "put back" -> putDesktopBack();
             case "veterans" -> {
