@@ -13,7 +13,7 @@ import java.util.zip.CRC32;
  * It's just those settings, packed up with a check so a typo is caught: "CLAWD-" + the settings + "-" + the check.
  */
 final class SaveToken {
-    static final String[] KEYS = {"name", "color", "personality", "spot", "size", "points", "owned", "hat", "hut", "birthday", "metDate", "home", "oldHomes", "service"};
+    static final String[] KEYS = {"name", "color", "personality", "spot", "size", "points", "owned", "hat", "shirt", "hut", "birthday", "metDate", "home", "oldHomes", "service"};
 
     private SaveToken() {
     }

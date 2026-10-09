@@ -1,8 +1,7 @@
-Fix: tic-tac-toe and math.
+Fix: he keeps his shirt.
 
-- Clicking the tic-tac-toe title bar no longer plays a move in the corner square.
-- "clawd ask what is 5/0" explains dividing by zero instead of answering "Infinity".
-- Math like "2x3x4" is understood (it used to skip every other x).
+- Moving him to another computer, or bringing him back with a save token, now keeps the shirt he's wearing (his hat already came along; his shirt didn't).
+- On a Mac, "clawd uninstall" also removes the line it added to your Terminal settings for the clawd command.
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 

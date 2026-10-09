@@ -368,5 +368,21 @@ final class Platform {
         } catch (IOException e) {
             // already gone
         }
+        if (MAC) { // and the line he added to ~/.zprofile (only his: the comment says so)
+            Path profile = Path.of(System.getProperty("user.home"), ".zprofile");
+            try {
+                if (Files.exists(profile)) {
+                    String had = Files.readString(profile), now = withoutOurPath(had);
+                    if (!now.equals(had)) Files.writeString(profile, now, StandardCharsets.UTF_8);
+                }
+            } catch (IOException e) {
+                // leave it (it's harmless)
+            }
+        }
+    }
+
+    /** A ~/.zprofile without the two lines Clawdtop added (the comment, and the PATH line right after it). */
+    static String withoutOurPath(String profile) {
+        return profile.replace("# added by Clawdtop, so Terminal knows the clawd command\nexport PATH=\"$HOME/.local/bin:$PATH\"\n", "");
     }
 }
