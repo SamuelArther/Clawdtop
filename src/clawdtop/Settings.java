@@ -143,7 +143,7 @@ public final class Settings {
     /** What "No tomfoolery" turns off: the silly stuff. The useful things (tips, cleaning, reminders) stay. */
     static final java.util.Set<String> TOMFOOLERY = java.util.Set.of("sneezes", "flies", "spins", "creates", "capsLock", "grumpy",
             "stompOff", "batteryPanic", "freakout", "friday", "friendship", "rides", "shakeOff", "seasonalHats", "monday", "hiccups", "boop",
-            "piano", "music", "mistakes", "blush", "tackle", "bigSurprises");
+            "piano", "music", "mistakes", "blush", "tackle", "bigSurprises", "cpDance");
 
     /** No tomfoolery: serious mode. */
     public boolean serious() {
@@ -426,6 +426,16 @@ public final class Settings {
 
     public void setService(String branch, String how) {
         values.setProperty("service", branch == null ? "" : branch + "|" + how);
+        save();
+    }
+
+    /** A remembered yes-or-no that isn't one of his options (like "already asked to watch videos with you"). */
+    public boolean flag(String name) {
+        return "true".equals(values.getProperty("flag." + name));
+    }
+
+    public void setFlag(String name, boolean on) {
+        values.setProperty("flag." + name, String.valueOf(on));
         save();
     }
 

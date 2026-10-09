@@ -602,6 +602,19 @@ public class ClawdtopTest {
         check("he sings in his own little beep voice (no piano, no song file playing)", singer.takeLine().startsWith("*ahem*") + " " + singer.playingMidi()
                 + " " + (Beeps.sing(72, 300).length > 1000), "true null true");
         check("song files have nice titles", Clawdtop.songTitle(new java.io.File("navy.mid")) + " / " + Clawdtop.songTitle(new java.io.File("my_song.mid")), "Anchors Aweigh / my song");
+        check("he can tell videos from music from the window", Seeing.mediaIn("chrome.exe", "Funny cats - YouTube - Google Chrome") + " "
+                + Seeing.mediaIn("Spotify.exe", "Song") + " " + Seeing.mediaIn("chrome.exe", "My Mix - YouTube Music") + " " + Seeing.mediaIn("notepad.exe", "notes"),
+                "video music music null");
+        Pet viewer = new Pet(6);
+        viewer.takeBeep();
+        viewer.watch(true);
+        for (int i = 0; i < 5; i++) viewer.tick(33, 0, 0, false, false);
+        viewer.scare();
+        check("watching with popcorn, and jumping at the scary bits", viewer.mood(), Pet.Mood.SCARED);
+        for (int i = 0; i < 60; i++) viewer.tick(33, 0, 0, false, false);
+        check("then back to watching", viewer.mood(), Pet.Mood.WATCH);
+        viewer.watch(false);
+        check("until the show's over", viewer.mood(), Pet.Mood.IDLE);
         boolean calmPicks = true;
         java.util.Random picks = new java.util.Random(5);
         for (int i = 0; i < 500; i++) calmPicks &= !Creation.pick(picks, java.util.Set.of(), "", false).big();

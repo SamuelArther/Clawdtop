@@ -61,6 +61,12 @@ public final class Pet {
         WOOZY,
         /** A jam session: laptop out, cords in, he records each part, slams the button, and jams to the whole song. */
         JAM,
+        /** The Club Penguin dance: waddling side to side, flapping his arms in turns. (Rarely, out of nowhere.) */
+        CPDANCE,
+        /** Watching your video with you: lying down, a bucket of popcorn, munching now and then. */
+        WATCH,
+        /** Something sudden and loud (or a big flash) in what you're watching: he jumps, and popcorn goes everywhere. */
+        SCARED,
         /** A celebration: confetti! */
         PARTY,
         /** Your birthday: party hat, a cake, and a party blower he toots. */
@@ -377,6 +383,10 @@ public final class Pet {
                     set(Mood.HAPPY, 900);
                 }
             }
+            case WATCH -> { if (!watching) set(Mood.IDLE, idleTime()); }
+            case SCARED -> {
+                if (moodFor > nextChange) set(watching ? Mood.WATCH : Mood.IDLE, watching ? Long.MAX_VALUE : idleTime());
+            }
             case HICCUP -> {
                 if ((moodFor / 1000) != ((moodFor - ms) / 1000) && moodFor < 3000) {
                     wants = Beep.CLICKED;
@@ -439,7 +449,7 @@ public final class Pet {
                 }
             }
             case GOODBYE -> { }
-            case SAD, LOVED, JUGGLE, DANCE, WAVE, YELLED, ANNOYED, SPIN, WOOZY, PARTY -> {
+            case SAD, LOVED, JUGGLE, DANCE, CPDANCE, WAVE, YELLED, ANNOYED, SPIN, WOOZY, PARTY -> {
                 if (mood == Mood.JUGGLE && !dropped && moodFor > 2800 && moodFor - ms <= 2800 && prefs.on("mistakes") && random.nextInt(3) == 0) {
                     dropped = true; // whoops
                     line = "Whoops!";
@@ -496,6 +506,10 @@ public final class Pet {
                 }
             }
             case IDLE -> {
+                if (watching && !focusing) { // (something interrupted the movie: back to it)
+                    set(Mood.WATCH, Long.MAX_VALUE);
+                    break;
+                }
                 if (focusing) { // (a reminder or something interrupted focus mode: back to it)
                     set(Mood.FOCUS, Long.MAX_VALUE);
                     break;
@@ -512,6 +526,10 @@ public final class Pet {
                     playPiano(random.nextInt(3) == 0 ? null : Piano.SONGS[random.nextInt(Piano.SONGS.length)]); // a little tune, just because
                 } else if (moodFor > Math.min(15_000, nextChange / 2) && prefs.on("music") && random.nextInt(70_000) == 0) {
                     vibe(); // feeling the music
+                } else if (moodFor > 12_000 && prefs.on("cpDance") && random.nextInt(150_000) == 0) {
+                    line = random.nextBoolean() ? "*hits the dance*" : null; // the Club Penguin dance, out of nowhere
+                    wants = Beep.HAPPY;
+                    set(Mood.CPDANCE, 5200);
                 } else if (moodFor > 10_000 && prefs.on("hiccups") && random.nextInt(60_000) == 0) {
                     line = "hic!";
                     wants = Beep.CLICKED;
@@ -585,6 +603,10 @@ public final class Pet {
         if (mood == Mood.DUCKS && moodFor < DUCK_SPAM) { // looking round at the duck behind him, up in the middle
             wantX = -1;
             wantY = -0.8f;
+        }
+        if (mood == Mood.WATCH || mood == Mood.SCARED) { // looking up at the screen
+            wantX = -0.6f;
+            wantY = -1;
         }
         if (mood == Mood.LAUNCHPAD) { // looking at his rocket
             wantX = 1;
@@ -1060,6 +1082,42 @@ public final class Pet {
     }
 
     /** Plays a song (or, on the drums, a beat; null: one he makes up) on one of his instruments. */
+    // ---- Watching (and listening) with you ----
+    private boolean watching;
+
+    /** Watching a video with you (popcorn!), or done watching. */
+    public void watch(boolean on) {
+        if (on == watching) return;
+        watching = on;
+        if (on && !busy() && mood != Mood.SLEEP) {
+            String[] start = {"Ooh, what are we watching?", "Movie time! I brought popcorn.", "Scoot over, I want to see."};
+            line = start[random.nextInt(start.length)];
+            set(Mood.WATCH, Long.MAX_VALUE);
+        } else if (!on && (mood == Mood.WATCH || mood == Mood.SCARED)) {
+            String[] done = {"Good show.", "That was a good one.", "*crunch* ...the end?"};
+            line = done[random.nextInt(done.length)];
+            set(Mood.IDLE, idleTime());
+        }
+    }
+
+    public boolean watching() {
+        return watching;
+    }
+
+    /** Something sudden in what you're watching: he jumps out of his skin (popcorn everywhere). */
+    public void scare() {
+        if (mood != Mood.WATCH) return;
+        String[] eek = {"AAH!", "NOPE.", "Eek!", "WHY WOULD THEY DO THAT", "I wasn't scared. You were scared."};
+        line = eek[random.nextInt(eek.length)];
+        wants = Beep.PANIC;
+        set(Mood.SCARED, 1600);
+    }
+
+    /** Whether he's munching popcorn right now (hand to his mouth), while watching. */
+    public boolean munching() {
+        return mood == Mood.WATCH && moodFor % 3200 > 2700;
+    }
+
     // ---- Jam sessions ----
     static final int JAM_SETUP = 0, JAM_TYPING = 8, JAM_SLAM = 9, JAM_PLAYING = 10;
     static final long JAM_SLAM_AT = 900; // ms into the slam: hand comes down
@@ -1590,7 +1648,8 @@ public final class Pet {
         if (mood == Mood.HAPPY) return (float) Math.abs(Math.sin(time / 130.0)) * 3;
         if (mood == Mood.LISTEN || mood == Mood.PIANO) return 0;
         if (mood == Mood.REMIND) return moodFor < 2800 ? (float) Math.abs(Math.sin(moodFor / 110.0)) * 2.5f : 0; // hop hop hop
-        if (mood == Mood.FOCUS || mood == Mood.LAP) return 0;
+        if (mood == Mood.FOCUS || mood == Mood.LAP || mood == Mood.WATCH) return 0;
+        if (mood == Mood.SCARED) return moodFor < 700 ? (float) Math.sin(moodFor / 700.0 * Math.PI) * 4 : 0; // JUMP
         if (mood == Mood.HICCUP) return moodFor % 1000 < 180 && moodFor < 3000 ? 1.5f : 0; // a little jump with each hic
         if (mood == Mood.STRETCH) return (float) Math.sin(Math.min(1, moodFor / 600.0) * Math.PI / 2) * (moodFor < 1400 ? 1.5f : 0);
         if (mood == Mood.FREAKOUT) return (float) Math.abs(Math.sin(time / 60.0)) * (nextChange == Long.MAX_VALUE ? 3 : 1.5f); // jumping about

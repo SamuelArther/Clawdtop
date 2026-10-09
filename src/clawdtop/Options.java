@@ -38,6 +38,7 @@ final class Options {
             Option.on("Antics", "blush", "Gets shy when the cursor rests on him", true),
             Option.on("Antics", "boop", "Goes cross-eyed when you swipe across his face (boop!)", false),
             Option.on("Antics", "morning", "A big good-morning stretch each day", true),
+            Option.on("Antics", "cpDance", "Now and then, out of nowhere, the Club Penguin dance", true),
             Option.on("Antics", "tackle", "Tackles the taskbar icon of apps you open (it pops open when he hits it)", false),
             Option.on("Antics", "bigSurprises", "Big surprises on his own (a rocket, a flying carpet, a duck flood, pop-ups)", false),
             Option.on("Antics", "spins", "Seeing birds when the cursor zooms past", false),
@@ -94,6 +95,8 @@ final class Options {
             Option.on("Brain", "webSearch", "Look things up online when you ask him something (Wikipedia, DuckDuckGo)", false),
             // Being useful
             Option.on("Useful", "updates", "Checks for a newer version of him when he starts", true),
+            Option.on("Privacy", "seeing", "Watches videos with you (looks at how bright the screen is; you're asked first)", false),
+            Option.on("Privacy", "hearing", "Hears how loud your computer's sound is, to bop along (you're asked first)", false),
             Option.on("Useful", "water", "Reminds you to drink water (every hour)", false),
             Option.on("Useful", "stretch", "Reminds you to stretch (every 2 hours)", false),
             Option.on("Useful", "restart", "Says when the computer hasn't restarted in a week", true),

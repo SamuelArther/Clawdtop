@@ -122,6 +122,16 @@ public final class Sprite {
             trip.dispose();
             return;
         }
+        if (mood == Pet.Mood.CPDANCE) {
+            // the Club Penguin dance: a waddle, tipping side to side on the beat
+            Graphics2D waddle = (Graphics2D) g.create();
+            boolean left = (pet.time() / 260) % 2 == 0;
+            waddle.translate((left ? -0.4 : 0.4) * unit, 0);
+            waddle.rotate(left ? -0.06 : 0.06, feetX() * unit, GROUND * unit);
+            drawBody(waddle, pet, unit, mood);
+            waddle.dispose();
+            return;
+        }
         if (mood == Pet.Mood.SHAKE) {
             // shaking it off: his whole body wobbles side to side, fast
             Graphics2D wobble = (Graphics2D) g.create();
@@ -250,7 +260,7 @@ public final class Sprite {
         }
         int drop = switch (mood) {    // how far his body sits down from standing
             case SIT, WORK, SAD, FOCUS -> 1;
-            case LIE, SLEEP -> 2;
+            case LIE, SLEEP, WATCH -> 2;
             default -> 0;
         };
         double lift = Math.min(pet.lift(), Math.max(0, 7 - hatHeight(pet.hat()))); // (a tall hat: smaller hops, so it fits)
@@ -264,7 +274,7 @@ public final class Sprite {
         int legs = 2 - drop;
         if (legs > 0) {
             boolean running = mood == Pet.Mood.FREAKOUT; // running on the spot, legs going like mad
-            boolean walking = mood == Pet.Mood.WALK || mood == Pet.Mood.CARRY || mood == Pet.Mood.LAP;
+            boolean walking = mood == Pet.Mood.WALK || mood == Pet.Mood.CARRY || mood == Pet.Mood.LAP || mood == Pet.Mood.CPDANCE;
             boolean step = (walking && (pet.time() / 150) % 2 == 0) || (running && (pet.time() / 70) % 2 == 0);
             int[] xs = {0, 2, 10, 12};
             for (int i = 0; i < 4; i++) {
@@ -280,6 +290,11 @@ public final class Sprite {
                 || mood == Pet.Mood.BLUSH || mood == Pet.Mood.BOOPED || mood == Pet.Mood.HICCUP || mood == Pet.Mood.REMIND);
         if (holdingClock) {
             // (both hands are on his little clock: see drawClock)
+        } else if (mood == Pet.Mood.CPDANCE) {
+            // flippers flapping, one up as the other goes down
+            boolean up = (pet.time() / 260) % 2 == 0;
+            box(g, unit, LEFT - 2, top + (up ? -0.5 : 3), 1.4, 2.5, body);
+            box(g, unit, LEFT + 13.6, top + (up ? 3 : -0.5), 1.4, 2.5, body);
         } else if (mood == Pet.Mood.DANCE || made(pet, Creation.Effect.DISCO) || made(pet, Creation.Effect.MUSIC) || mood == Pet.Mood.JUGGLE) {
             // hands going up and down in turns (dancing, or tossing balls)
             boolean up = (pet.time() / (mood == Pet.Mood.JUGGLE ? 140 : 180)) % 2 == 0;
@@ -333,6 +348,15 @@ public final class Sprite {
             boolean up = (pet.time() / 140) % 2 == 0;
             box(g, unit, LEFT - 2, top + (up ? -1 : 1), 1.2, 2.5, body);
             box(g, unit, LEFT + 13.8, top + (up ? 1 : -1), 1.2, 2.5, body);
+        } else if (mood == Pet.Mood.WATCH) {
+            // one hand in the popcorn, the other bringing some up to his mouth now and then
+            box(g, unit, LEFT - 1.6, top + 3.5, 1.6, 1.6, body);
+            if (pet.munching()) box(g, unit, LEFT + 5.4, top + 4.2, 1.4, 1.4, hand);
+            else box(g, unit, LEFT + 13, top + 4, 2, 2, body);
+        } else if (mood == Pet.Mood.SCARED) {
+            // hands flung up
+            box(g, unit, LEFT - 2, top - 1.5, 1.2, 3, body);
+            box(g, unit, LEFT + 13.8, top - 1.5, 1.2, 3, body);
         } else if (mood == Pet.Mood.JAM) {
             int step = pet.jamStep();
             if (step == Pet.JAM_SLAM) { // hand way up... then SLAM, down on the laptop
@@ -419,7 +443,7 @@ public final class Sprite {
                 box(g, unit, eyeX, eyeY + 1, 1, 1, EYE);                              // narrowed eyes
                 box(g, unit, eyeX + (x == 3 ? -0.5 : 0), eyeY - 0.5 + (x == 3 ? 0 : 0), 1.5, 0.5, EYE); // grumpy eyebrows
                 box(g, unit, eyeX + (x == 3 ? 0.5 : -0.5), eyeY, 1, 0.5, EYE);
-            } else if (mood == Pet.Mood.YELLED || mood == Pet.Mood.FREAKOUT
+            } else if (mood == Pet.Mood.YELLED || mood == Pet.Mood.FREAKOUT || mood == Pet.Mood.SCARED
                     || (mood == Pet.Mood.DUCKS && pet.moodTime() >= Pet.DUCK_SURPRISE && pet.moodTime() < Pet.DUCK_SURPRISE + 400)) {
                 box(g, unit, eyeX - 0.5, eyeY - 0.5, 2, 3, EYE); // eyes wide open in shock
                 box(g, unit, eyeX, eyeY + 0.5, 1, 1, LIT);
@@ -430,6 +454,7 @@ public final class Sprite {
             }
         }
         if (pet.jamming()) drawJamGear(g, pet, unit, top, mood);
+        if (mood == Pet.Mood.WATCH || mood == Pet.Mood.SCARED) drawPopcorn(g, pet, unit, mood);
         if (mood == Pet.Mood.PIANO) { // his instrument
             switch (pet.instrument()) {
                 case GUITAR -> drawGuitar(g, pet, unit, top, false);
@@ -893,6 +918,31 @@ public final class Sprite {
             box(g, unit, bx + 4, by - 3, 0.7, 0.6, new Color(255, 214, 102));
             box(g, unit, bx + 4.5, by - 4.3, 0.25, 1.4, new Color(255, 214, 102));
         }
+    }
+
+    /** His bucket of popcorn on the floor beside him (and, when he's scared, popcorn flying everywhere). */
+    private static void drawPopcorn(Graphics2D g, Pet pet, int unit, Pet.Mood mood) {
+        Color red = new Color(220, 50, 55), white = new Color(250, 246, 238), corn = new Color(255, 236, 170);
+        double bx = LEFT - 4.4, by = GROUND - 3.2;
+        for (int i = 0; i < 4; i++) box(g, unit, bx + i * 0.8, by, 0.8, 3.2, i % 2 == 0 ? red : white); // the striped bucket
+        boolean spilled = mood == Pet.Mood.SCARED;
+        if (!spilled) {
+            box(g, unit, bx - 0.2, by - 0.8, 3.6, 0.9, corn); // heaped up on top
+            box(g, unit, bx + 0.6, by - 1.3, 1.2, 0.6, corn);
+        } else { // popcorn flying out all over
+            double t = Math.min(1, pet.moodTime() / 1200.0);
+            for (int i = 0; i < 12; i++) {
+                double a = -Math.PI / 2 + (i - 5.5) * 0.28;
+                double speed = 8 + (i * 7 % 5);
+                double x = bx + 1.6 + Math.cos(a) * speed * t, y = by - 0.6 + Math.sin(a) * speed * t + 14 * t * t;
+                if (y < GROUND - 0.6) box(g, unit, x, y, 0.6, 0.6, corn);
+            }
+        }
+        if (pet.munching()) box(g, unit, LEFT + 6, top(pet) + 4.4, 0.6, 0.6, corn); // a bit at his mouth
+    }
+
+    private static double top(Pet pet) {
+        return GROUND - 2 - 8 + 2; // (lying down, watching)
     }
 
     /** A jam session: his laptop on the floor beside him, a cord to whatever he's playing, REC while he records. */

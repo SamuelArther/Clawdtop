@@ -367,6 +367,83 @@ public final class Clawdtop {
         return Piano.SERVICE_SONGS.getOrDefault(name.toLowerCase(java.util.Locale.ROOT), name);
     }
 
+    // ---- Watching and listening along (only once you've said he may, through the computer's own permission box) ----
+    private final Hearing ears = new Hearing();
+    private final Seeing eyes = new Seeing();
+    private long mediaSeenAt, lastScare, lastBop, loudSince;
+    private double calmLevel; // how loud it usually is, lately (so a sudden jump stands out)
+    private boolean askingMedia;
+
+    /** Something playing in front (a video or music)? He offers to watch or listen; once allowed, he does. */
+    private void watchAndListen(Foreground.Front front) {
+        String media = farewell || boxed ? null : Seeing.mediaIn(front.app(), front.title());
+        long now = System.currentTimeMillis();
+        if (media != null) mediaSeenAt = now;
+        if (media == null) {
+            if (now - mediaSeenAt > 20_000 && pet.watching()) pet.watch(false); // the show's over
+            if (now - mediaSeenAt > 20_000 && eyes.looking()) eyes.stop();
+            if (now - mediaSeenAt > 60_000 && ears.listening()) ears.stop();
+            return;
+        }
+        boolean video = media.equals("video");
+        if (video && settings.on("seeing")) {
+            eyes.start(window.getGraphicsConfiguration().getBounds());
+            if (!pet.watching() && !hidden) pet.watch(true);
+        }
+        if (settings.on("hearing") && Hearing.possible()) ears.start();
+        if (askingMedia || bubble.asking() || pet.busyNow() || hidden) return;
+        if (video && !settings.on("seeing") && !settings.flag("askedSeeing")) {
+            offerSense("Ooh, a video! Want me to watch this with you?", "seeing", "askedSeeing",
+                    "Can Clawd see your screen?", "He takes a quick look at how bright your screen is, a couple of times a second, so he can watch along"
+                            + " and react (popcorn included). Nothing is recorded, saved or sent anywhere. You can turn it off in his options.");
+        } else if (Hearing.possible() && !settings.on("hearing") && !settings.flag("askedHearing")) {
+            offerSense(video ? "Want me to hear it too?" : "Ooh, music! Want me to hear this?", "hearing", "askedHearing",
+                    "Can Clawd hear your computer's sound?", "He only hears how loud it is, so he can bop along and jump at the scary bits."
+                            + " Nothing is recorded, saved or sent anywhere. You can turn it off in his options.");
+        }
+    }
+
+    /** He asks in his bubble; yes brings up the computer's own permission box; allowed, the option goes on. */
+    private void offerSense(String question, String option, String asked, String permission, String detail) {
+        askingMedia = true;
+        pet.speak();
+        bubble.ask(question, new String[] {"Yes!", "No thanks"}, choice -> {
+            settings.setFlag(asked, true); // (he only asks once: it's in his options after that)
+            if (choice != 0) {
+                askingMedia = false;
+                pet.say("Okay! (You can turn it on in my options later.)");
+                return;
+            }
+            Consent.ask(permission, detail, allowed -> {
+                askingMedia = false;
+                settings.set(option, String.valueOf(allowed));
+                pet.say(allowed ? (option.equals("seeing") ? "Yay! Movie buddy!" : "Yay! Let's hear it!") : "Okay, I won't. (It's in my options if you change your mind.)");
+            });
+        }, head(), screenBounds());
+    }
+
+    /** Every frame or so: reacting to what he sees and hears (a jump at the scary bits, bopping along to music). */
+    private void react(long now) {
+        if (!ears.listening() && !eyes.looking()) return;
+        double level = ears.level();
+        boolean suddenLoud = level > 0.55 && calmLevel < 0.18;
+        calmLevel = calmLevel * 0.97 + level * 0.03;
+        boolean bigFlash = eyes.looking() && eyes.change() > 0.35;
+        if (pet.watching() && (suddenLoud || bigFlash) && now - lastScare > 15_000) {
+            lastScare = now;
+            pet.scare();
+        }
+        if (!pet.watching() && level > 0.06) { // music playing: after a few seconds of it, he bops along
+            if (loudSince == 0) loudSince = now;
+            if (now - loudSince > 4000 && now - lastBop > 90_000 && !pet.busyNow() && !hidden) {
+                lastBop = now;
+                pet.vibe();
+            }
+        } else if (level < 0.02) {
+            loudSince = 0;
+        }
+    }
+
     /** A jam session to a song file: recording the parts (the first time), or just playing it again. */
     private void jamTo(java.io.File f, boolean again) {
         worker.execute(() -> {
@@ -1787,6 +1864,7 @@ public final class Clawdtop {
             devApp = Foreground.isDevApp(app);
             if (job == null) maybeTip(front);
             followAppSpot(front);
+            watchAndListen(front);
             if (Games.launcher(app) && !hidden) admireGames("launcher");
             DisplayMode mode = window.getGraphicsConfiguration().getDevice().getDisplayMode();
             boolean fullNow = job == null && !devApp && Foreground.fullScreen(mode.getWidth(), mode.getHeight());
@@ -1948,6 +2026,7 @@ public final class Clawdtop {
             pet.birthday(settings.name());
         }
         if (newTick && ticks % 300 == 150) checkTimes();
+        if (newTick && ticks % 3 == 0) react(nowMs);
         if (newTick && ticks % 90 == 60) updateTag(); // (points change as you earn and spend them)
         if (!greetings.isEmpty() && newTick && ticks % 15 == 3 && !pet.busyNow() && pet.takeLineIfAny() == null && !bubble.showing()
                 && body.state() == Body.State.HOME && !hidden && !boxed && !birthdayHiding) greetings.poll().run(); // one at a time
