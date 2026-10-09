@@ -260,7 +260,7 @@ public final class Pet {
         };
         if (!prefs.on("codingHappy")) devAppInFront = false;
         time += ms;
-        moodFor += mood == Mood.PIANO ? real : ms;
+        moodFor += mood == Mood.PIANO || mood == Mood.JAM ? real : ms; // (songs go by the real clock, whatever his speed setting)
         sinceUsed += real;
 
         // A dev app coming to the front makes him happy for a moment, and his eyes stay lit while it's there

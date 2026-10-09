@@ -213,8 +213,8 @@ public final class Clawdtop {
                     place(); // this is home now (or he'd jump straight back to where he was)
                 } else if (pet.sleepy()) {
                     pet.poke(); // just wakes him up
-                } else if (pet.mood() == Pet.Mood.PIANO) {
-                    pet.stopPiano(); // enough music
+                } else if (pet.mood() == Pet.Mood.PIANO || pet.jamming()) {
+                    pet.stopPiano(); // enough music (or enough jamming)
                 } else if (pet.duckSpam()) {
                     pet.stopDucks(); // you clicked his laptop: it shuts. No more ducks
                 } else if (pet.secretlyCoding()) {
@@ -2879,6 +2879,8 @@ public final class Clawdtop {
                 showSticky();
                 window.setVisible(!hidden);
                 if (hidden) bubble.hide();
+                // (hiding for your game or video: a song or jam ends, rather than starting over from the top later and getting cut off)
+                if (hidden && (pet.mood() == Pet.Mood.PIANO || pet.jamming())) pet.stopPiano();
             }
         }
         // Now and then (once a day, a while after he starts): something nice about your games

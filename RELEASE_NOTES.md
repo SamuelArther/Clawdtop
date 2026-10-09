@@ -1,10 +1,8 @@
-Fix: watching and listening along behave.
+Fix: jam sessions.
 
-- Turning "see" or "hear" off in his options stops him right away (he used to keep going while the video stayed open).
-- Switching from a video to music ends the movie: no more popcorn, or jumping at loud songs. He bops along instead.
-- Only browser tabs count as shows: a Word file called "Netflix essay" or a folder named "YouTube" no longer gets popcorn.
-- If his "want me to watch?" question got interrupted, he could stop asking for good. Fixed.
-- On a Mac, "find my..." says Movies instead of Videos.
+- Clicking him during a jam session now stops it (before, a click did nothing until the song ended).
+- His animation speed setting no longer changes how long a jam's song plays (Fast used to cut songs short; Slow left him dancing in silence).
+- If he hides for your full-screen game or video mid-song, the song ends cleanly instead of restarting from the top later and getting cut off.
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 

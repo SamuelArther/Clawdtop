@@ -730,6 +730,11 @@ public class ClawdtopTest {
         check("media", Seeing.mediaIn("chrome.exe", "Funny cats - YouTube") + " " + Seeing.mediaIn("WINWORD.EXE", "Netflix essay.docx") + " "
                 + Seeing.mediaIn("explorer.exe", "YouTube") + " " + Seeing.mediaIn("spotify.exe", "Song") + " " + Seeing.mediaIn("Safari", "Netflix") + " "
                 + Seeing.mediaIn("discord.exe", "#twitch-clips"), "video null null music video null");
+        // a jam can be stopped (a click), and its song goes by the real clock (not his animation speed)
+        Pet jammer = new Pet(5);
+        check("jam starts", jammer.jamAgain(new Piano.Song("test jam", new int[] {60, 62}, new double[] {1, 1}, 400, new java.io.File("test_jam.mid"), 2000)) + " " + jammer.jamming(), "true true");
+        jammer.stopPiano();
+        check("jam stops", jammer.jamming() + " " + jammer.mood(), "false IDLE");
         // the desktop: reading icon spots (Windows' script and Finder say the same shape), sorting files for Neat
         Desktop.Layout desk = Desktop.read("DESKTOP|/home/me/Desktop\nskin|177,2\nmy song.mid|2427,1032\nnot an icon\n");
         check("desktop read", desk.folder().getFileName() + " " + desk.icons(), "Desktop [Icon[name=skin, x=177, y=2], Icon[name=my song.mid, x=2427, y=1032]]");
