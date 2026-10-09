@@ -24,6 +24,7 @@ public final class SmokeWatch {
         out.mkdirs();
         Path home = Files.createTempDirectory("clawdtop-smoke");
         System.setProperty("clawdtop.home", home.toString());
+        System.setProperty("clawdtop.smokeBrowser", "true"); // (our pretend YouTube window is a Java one: count it as a browser)
         Files.writeString(home.resolve("settings.properties"), "met=true\nname=Tester\nbeeps=false\ntips=false\nmetDate=2026-10-08\n");
         Clawdtop[] clawd = new Clawdtop[1];
         SwingUtilities.invokeAndWait(() -> {

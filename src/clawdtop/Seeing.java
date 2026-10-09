@@ -83,7 +83,8 @@ final class Seeing {
     static String mediaIn(String app, String title) {
         String a = app == null ? "" : app.toLowerCase(java.util.Locale.ROOT);
         // (a title only counts in a browser: a Word file called "Netflix essay" or a folder called "YouTube" isn't a show)
-        String t = title == null || !BROWSERS.contains(a) ? "" : title.toLowerCase(java.util.Locale.ROOT);
+        boolean browser = BROWSERS.contains(a) || (Boolean.getBoolean("clawdtop.smokeBrowser") && a.startsWith("java")); // (the screen test's pretend video window)
+        String t = title == null || !browser ? "" : title.toLowerCase(java.util.Locale.ROOT);
         if (a.equals("spotify.exe") || a.equals("itunes.exe") || a.equals("applemusic.exe") || a.equals("music.ui.exe") || a.equals("foobar2000.exe")
                 || a.equals("winamp.exe") || a.equals("musicbee.exe") || a.equals("spotify") || a.equals("music")
                 || t.contains("youtube music") || t.contains("soundcloud") || t.contains("deezer") || t.contains("pandora") || t.contains("apple music")) {
