@@ -122,7 +122,7 @@ public class ClawdtopTest {
 
         // which files he grabs, and where they go
         check("what he grabs", Clawdtop.grabKind(Path.of("a.mid")) + " " + Clawdtop.grabKind(Path.of("b.ZIP")) + " " + Clawdtop.grabKind(Path.of("c.jpeg"))
-                + " " + Clawdtop.grabKind(Path.of("d.txt")), "song zip picture null");
+                + " " + Clawdtop.grabKind(Path.of("d.txt")) + " " + Clawdtop.grabKind(Path.of("e.gif")), "song zip picture null null");
         Path desk = Files.createTempDirectory("clawdtop-desk");
         Path song = Files.writeString(desk.resolve("tune.mid"), "pretend song");
         Path kept = Clawdtop.keepSong(song);

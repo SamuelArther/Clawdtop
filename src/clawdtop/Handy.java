@@ -23,7 +23,7 @@ final class Handy {
 
     static boolean picture(Path file) {
         String n = file.getFileName().toString().toLowerCase(Locale.ROOT);
-        return n.endsWith(".png") || n.endsWith(".jpg") || n.endsWith(".jpeg") || n.endsWith(".bmp") || n.endsWith(".gif");
+        return n.endsWith(".png") || n.endsWith(".jpg") || n.endsWith(".jpeg") || n.endsWith(".bmp"); // (not a GIF: a smaller copy would lose its moving)
     }
 
     static boolean zip(Path file) {
