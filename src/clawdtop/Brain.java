@@ -130,7 +130,7 @@ final class Brain {
             default -> "You are chill and easygoing, warm and a little funny.";
         };
         java.time.LocalDateTime now = java.time.LocalDateTime.now();
-        return "You are Clawd, a tiny orange pixel crab who lives on the user's computer taskbar and keeps them company. "
+        return "You are Clawd, a tiny orange pixel crab who lives on the user's computer " + Platform.BAR + " and keeps them company. "
                 + "Today is " + now.format(java.time.format.DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy", Locale.ENGLISH))
                 + " and it's " + now.format(java.time.format.DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH)) + ". "
                 + mood + " "

@@ -137,7 +137,9 @@ Once he's run, any new terminal knows the `clawd` command:
 
 Set him up again later and paste your save token in when he asks: he'll (sort of) remember you.
 
-It's a `clawd.cmd` in `%LOCALAPPDATA%\Clawdtop\bin`, put on your own (user) PATH; nothing system-wide changes.
+On Windows it's a `clawd.cmd` in `%LOCALAPPDATA%\Clawdtop\bin`, put on your own (user) PATH; nothing system-wide
+changes. On a Mac or Linux it's `~/.local/bin/clawd` (on a Mac, a line in `~/.zprofile` lets new Terminal windows find
+it).
 Changes from the control panel reach him within a couple of seconds.
 
 ## Testing him

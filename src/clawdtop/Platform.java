@@ -24,6 +24,8 @@ final class Platform {
     static final boolean WINDOWS = OS.startsWith("windows");
     static final boolean MAC = OS.startsWith("mac");
     static final boolean LINUX = !WINDOWS && !MAC;
+    /** What the bar along the bottom of the screen is called here: the Dock on a Mac, the taskbar elsewhere. */
+    static final String BAR = MAC ? "Dock" : "taskbar";
 
     /** Makes a window see-through, if this computer can (on Linux it needs a compositor; without one, it stays plain). */
     static void seeThrough(Window w) {
@@ -334,8 +336,27 @@ final class Platform {
             Files.createDirectories(file.getParent());
             if (!Files.exists(file) || !Files.readString(file).equals(text)) Files.writeString(file, text, StandardCharsets.UTF_8);
             file.toFile().setExecutable(true);
+            if (MAC) onTerminalPath(file.getParent());
         } catch (IOException e) {
             // no clawd command, then
+        }
+    }
+
+    /**
+     * A Mac's Terminal doesn't look in ~/.local/bin, so (once) a line goes in ~/.zprofile that adds it: then every new
+     * Terminal window knows the clawd command.
+     */
+    private static void onTerminalPath(Path folder) {
+        String path = System.getenv("PATH");
+        if (path != null && java.util.Arrays.asList(path.split(":")).contains(folder.toString())) return; // (already there)
+        Path profile = Path.of(System.getProperty("user.home"), ".zprofile");
+        try {
+            String had = Files.exists(profile) ? Files.readString(profile) : "";
+            if (had.contains(".local/bin")) return;
+            Files.writeString(profile, had + (had.isEmpty() || had.endsWith("\n") ? "" : "\n")
+                    + "# added by Clawdtop, so Terminal knows the clawd command\nexport PATH=\"$HOME/.local/bin:$PATH\"\n", StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            // no clawd command in Terminal, then (it's still at ~/.local/bin/clawd)
         }
     }
 

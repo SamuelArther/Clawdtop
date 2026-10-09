@@ -1,7 +1,7 @@
-Fix: starting with your computer keeps working.
+Fix: he speaks Mac on a Mac.
 
-- Windows: after a Java update (or if you moved his folder), signing in showed an error box. Now he falls back to whichever Java you have, and if his folder's gone, nothing pops up.
-- Mac: starting at login uses the Mac's own Java launcher (survives Java updates), fixes itself if his folder moves, and works with "&" in folder names.
+- On a Mac he says "Dock" instead of "taskbar" (in setup, his box, and the clawd command), and his menu says "Start when I log in" instead of "Start with Windows".
+- The clawd command now works in Terminal on a Mac (new Terminal windows can find it).
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 

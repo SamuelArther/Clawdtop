@@ -164,7 +164,7 @@ public final class Cli {
     private void help() {
         hello("Clawd's commands");
         out.println();
-        out.println("  clawd start          bring Clawd to your taskbar");
+        out.println("  clawd start          bring Clawd to your " + Platform.BAR);
         out.println("  clawd stop           send him off for now");
         out.println("  clawd restart        stop, then start");
         out.println("  clawd status         is he running?");
@@ -214,7 +214,7 @@ public final class Cli {
 
     private void start() throws IOException {
         if (running().isPresent()) {
-            out.println("Clawd's already on your taskbar.");
+            out.println("Clawd's already on your " + Platform.BAR + ".");
             return;
         }
         Path jar = Install.jar();
@@ -230,7 +230,7 @@ public final class Cli {
                 break;
             }
         }
-        out.println(running().isPresent() ? "Clawd's on his way to your taskbar!" : "Hmm, he didn't start. Try again in a moment?");
+        out.println(running().isPresent() ? "Clawd's on his way to your " + Platform.BAR + "!" : "Hmm, he didn't start. Try again in a moment?");
     }
 
     private void stop(boolean say) {
@@ -257,7 +257,7 @@ public final class Cli {
     private void status() {
         Settings s = Settings.load();
         Optional<ProcessHandle> clawd = running();
-        hello(clawd.isPresent() ? "Clawd is on your taskbar." : "Clawd isn't running. (clawd start)");
+        hello(clawd.isPresent() ? "Clawd is on your " + Platform.BAR + "." : "Clawd isn't running. (clawd start)");
         out.println();
         out.println("  Name:        " + (s.name().isEmpty() ? DIM + "(not told yet)" + RESET : s.name()));
         out.println("  Lives in:    " + (s.homeNamed() ? s.home() : DIM + "(this computer has no name yet)" + RESET));
@@ -545,7 +545,7 @@ public final class Cli {
         out.println();
         Optional<ProcessHandle> clawd = running();
         if (clawd.isPresent()) {
-            out.println(DIM + "(look at your taskbar)" + RESET);
+            out.println(DIM + "(look at your " + Platform.BAR + ")" + RESET);
             Settings.ask("goodbye"); // he says bye, crumbles away, and closes himself
             try {
                 clawd.get().onExit().get(15, java.util.concurrent.TimeUnit.SECONDS);

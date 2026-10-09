@@ -114,7 +114,7 @@ final class Welcome {
             askSpot();
         };
         name.addActionListener(e -> next.run());
-        show(new String[] {"Hi!! I'm Clawd!", "I'll sit on your taskbar and keep you company.", "What's your name?"},
+        show(new String[] {"Hi!! I'm Clawd!", "I'll sit on your " + Platform.BAR + " and keep you company.", "What's your name?"},
                 name, button("Moving from another computer", this::askMove), button("I have a save token", this::askToken),
                 button("Next", next));
         name.requestFocusInWindow();
@@ -346,7 +346,7 @@ final class Welcome {
             return;
         }
         java.util.List<String> lines = new java.util.ArrayList<>(java.util.List.of("All set" + (who.isEmpty() ? "" : ",") + who + "!",
-                "I'm in a box down on your taskbar.", "Click it to let me out!"));
+                "I'm in a box down on your " + Platform.BAR + ".", "Click it to let me out!"));
         if (settings.on("askMe")) {
             lines.add("(I'm also getting my brain ready in the background, so I can answer your questions:");
             lines.add("Ollama, free, " + Brain.downloadSize(settings.choice("brain")) + " to download. You don't have to do anything.)");

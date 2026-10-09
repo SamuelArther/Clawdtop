@@ -1562,7 +1562,7 @@ public final class Clawdtop {
     /** Something to say about the weather. */
     static String weatherQuip(String w) {
         String s = w.toLowerCase(java.util.Locale.ROOT);
-        if (s.contains("thunder")) return "Thunder! I'm hiding under the taskbar.";
+        if (s.contains("thunder")) return "Thunder! I'm hiding under the " + Platform.BAR + ".";
         if (s.contains("rain") || s.contains("drizzle") || s.contains("shower")) return "Don't forget an umbrella! (I'd lend you mine, but I'm 4 pixels tall.)";
         if (s.contains("snow")) return "SNOW?! Snow day?!";
         if (s.contains("sun") || s.contains("clear")) return "Nice day for it! Maybe go outside for a bit?";
@@ -2521,7 +2521,7 @@ public final class Clawdtop {
             if (!tipsItem.isSelected()) bubble.hide();
         });
         menu.add(tipsItem);
-        JCheckBoxMenuItem startup = new JCheckBoxMenuItem("Start with Windows", Startup.on());
+        JCheckBoxMenuItem startup = new JCheckBoxMenuItem(Platform.WINDOWS ? "Start with Windows" : "Start when I log in", Startup.on());
         startup.addActionListener(e -> Startup.set(startup.isSelected()));
         menu.add(startup);
         menu.addSeparator();
