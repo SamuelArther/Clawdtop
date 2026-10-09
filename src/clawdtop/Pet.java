@@ -1040,6 +1040,11 @@ public final class Pet {
         return Piano.place(song.notes()[songNote - 1]);
     }
 
+    /** The MIDI file he's playing right now (the whole thing plays, chords and all), or null. */
+    public java.io.File playingMidi() {
+        return mood == Mood.PIANO && song != null && song.midi() != null && moodFor >= PIANO_INTRO ? song.midi() : null;
+    }
+
     /** The drum (or note) being hit right now, for drawing his drum set. */
     public int drumHit() {
         if (mood != Mood.PIANO || song == null || songNote == 0) return 0;

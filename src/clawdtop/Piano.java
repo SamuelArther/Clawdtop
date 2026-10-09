@@ -22,12 +22,16 @@ import java.util.function.IntConsumer;
  */
 final class Piano {
     /** A song: its name, notes (MIDI numbers, 60 is middle C), and how many beats each one lasts. */
-    record Song(String name, int[] notes, double[] beats, int beatMs) {
-        /** How long it lasts, ms. */
+    record Song(String name, int[] notes, double[] beats, int beatMs, java.io.File midi, long fullMs) {
+        Song(String name, int[] notes, double[] beats, int beatMs) {
+            this(name, notes, beats, beatMs, null, 0);
+        }
+
+        /** How long it lasts, ms (a whole MIDI file plays to its end, chords and all). */
         long length() {
             double total = 0;
             for (double b : beats) total += b;
-            return (long) (total * beatMs);
+            return Math.max(fullMs, (long) (total * beatMs));
         }
     }
 
@@ -126,7 +130,7 @@ final class Piano {
                 ms[i] = Math.max(60, Math.min(2000, (next - ticks.get(i)) * msPerTick));
             }
             String name = file.getName().replaceAll("(?i)\\.midi?$", "").replace('_', ' ');
-            return new Song("your " + (name.length() > 30 ? name.substring(0, 30) : name), notes, ms, 1);
+            return new Song("your " + (name.length() > 30 ? name.substring(0, 30) : name), notes, ms, 1, file, seq.getMicrosecondLength() / 1000);
         } catch (Exception notMidi) {
             return null;
         }

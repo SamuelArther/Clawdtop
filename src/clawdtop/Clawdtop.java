@@ -256,6 +256,34 @@ public final class Clawdtop {
         pet.focus(on, false);
     }
     private final Piano yourPiano = new Piano();
+    private javax.sound.midi.Sequencer sequencer; // playing a whole MIDI file (his piano just shows it)
+    private java.io.File sequencerFile;
+
+    /** Plays a whole MIDI file while he plays it on his piano (null stops it). */
+    private void playMidi(java.io.File file) {
+        if (java.util.Objects.equals(file, sequencerFile)) return;
+        if (sequencer != null) {
+            sequencer.stop();
+            sequencer.close();
+            sequencer = null;
+        }
+        sequencerFile = file;
+        if (file == null || !mayBeep()) return;
+        worker.execute(() -> {
+            try {
+                javax.sound.midi.Sequencer s = javax.sound.midi.MidiSystem.getSequencer();
+                s.open();
+                s.setSequence(javax.sound.midi.MidiSystem.getSequence(file));
+                s.start();
+                SwingUtilities.invokeLater(() -> {
+                    if (java.util.Objects.equals(file, sequencerFile)) sequencer = s;
+                    else s.close(); // already stopped
+                });
+            } catch (Exception noMidi) {
+                // no sound for it, then (he still plays along)
+            }
+        });
+    }
 
     /** Where your MIDI files go for his piano (and, in "veterans", the songs he plays on Veterans Day). */
     static Path songsFolder() {
@@ -1350,7 +1378,8 @@ public final class Clawdtop {
         pet.hover(overHim && !moved, FRAME_MS);
         pet.tick(FRAME_MS, mouse.x - eyesX, mouse.y - eyesY, moved, devApp);
         int note = pet.takeNote();
-        if (note > 0 && mayBeep()) beeps.play(pet.instrument(), note, pet.noteLength());
+        if (note > 0 && mayBeep() && pet.playingMidi() == null) beeps.play(pet.instrument(), note, pet.noteLength());
+        playMidi(pet.playingMidi());
         Pet.Beep beep = pet.takeBeep();
         if (beep != null && mayBeep()) beeps.play(beep);
         String line = pet.takeLine();
@@ -1620,6 +1649,10 @@ public final class Clawdtop {
                 }
                 if (action.startsWith("answer ")) {
                     bubble.press(Integer.parseInt(action.substring(7)));
+                    return;
+                }
+                if (action.startsWith("midi ")) {
+                    playDropped(new java.io.File(action.substring(5)));
                     return;
                 }
                 if (action.startsWith("make ")) pet.create(Creation.find(action.substring(5)));
