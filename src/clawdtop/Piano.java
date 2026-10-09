@@ -226,7 +226,7 @@ final class Piano {
                 if (!(e.getMessage() instanceof javax.sound.midi.ShortMessage m)) continue;
                 int cmd = m.getCommand();
                 boolean drums = allPiano && (m.getChannel() == 9 || thud[m.getChannel()]);
-                boolean effect = (allPiano && cmd == javax.sound.midi.ShortMessage.PROGRAM_CHANGE) || cmd == javax.sound.midi.ShortMessage.PITCH_BEND
+                boolean effect = ((allPiano || vocal[m.getChannel()]) && cmd == javax.sound.midi.ShortMessage.PROGRAM_CHANGE) || cmd == javax.sound.midi.ShortMessage.PITCH_BEND
                         || cmd == javax.sound.midi.ShortMessage.CHANNEL_PRESSURE || cmd == javax.sound.midi.ShortMessage.POLY_PRESSURE
                         || (cmd == javax.sound.midi.ShortMessage.CONTROL_CHANGE && m.getData1() != 7 && m.getData1() != 11 && m.getData1() != 64);
                 if (drums || effect) track.remove(e);
@@ -296,6 +296,23 @@ final class Piano {
                         }
                     }
                     i = j;
+                }
+            }
+        }
+        // a note that's never let go of (a damaged file) is let go of at the end, so it can't hang on (or jam up the counting below)
+        long lastTick = 0;
+        for (javax.sound.midi.Track track : tracks) lastTick = Math.max(lastTick, track.ticks());
+        for (javax.sound.midi.Track track : tracks) {
+            java.util.Map<Integer, Integer> down = new java.util.HashMap<>();
+            for (int i = 0; i < track.size(); i++) {
+                if (!(track.get(i).getMessage() instanceof javax.sound.midi.ShortMessage m)) continue;
+                int key = m.getChannel() * 128 + m.getData1();
+                if (m.getCommand() == javax.sound.midi.ShortMessage.NOTE_ON && m.getData2() > 0) down.merge(key, 1, Integer::sum);
+                else if ((m.getCommand() == javax.sound.midi.ShortMessage.NOTE_OFF || m.getCommand() == javax.sound.midi.ShortMessage.NOTE_ON) && down.getOrDefault(key, 0) > 0) down.merge(key, -1, Integer::sum);
+            }
+            for (var stuck : down.entrySet()) {
+                for (int k = 0; k < stuck.getValue(); k++) {
+                    track.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.NOTE_OFF, stuck.getKey() / 128, stuck.getKey() % 128, 0), lastTick));
                 }
             }
         }
@@ -517,44 +534,104 @@ final class Piano {
      */
     static Song fromMidi(java.io.File file) {
         try {
-            javax.sound.midi.Sequence seq = javax.sound.midi.MidiSystem.getSequence(file);
+            javax.sound.midi.Sequence played = pianoOnly(javax.sound.midi.MidiSystem.getSequence(file)); // (exactly what you hear: silence cut, drums out)
+            java.util.function.LongToDoubleFunction clock = clock(played);
             java.util.TreeMap<Long, Integer> top = new java.util.TreeMap<>(); // start tick -> highest note
-            long lastNote = 0, firstNote = Long.MAX_VALUE; // when the first note starts and the last ends (some files sit silent at the start, or for minutes after)
-            for (javax.sound.midi.Track track : seq.getTracks()) {
+            for (javax.sound.midi.Track track : played.getTracks()) {
                 for (int i = 0; i < track.size(); i++) {
                     javax.sound.midi.MidiEvent e = track.get(i);
-                    if (e.getMessage() instanceof javax.sound.midi.ShortMessage any && (any.getCommand() == javax.sound.midi.ShortMessage.NOTE_ON
-                            || any.getCommand() == javax.sound.midi.ShortMessage.NOTE_OFF)) lastNote = Math.max(lastNote, e.getTick());
-                    if (e.getMessage() instanceof javax.sound.midi.ShortMessage any && any.getCommand() == javax.sound.midi.ShortMessage.NOTE_ON && any.getData2() > 0) {
-                        firstNote = Math.min(firstNote, e.getTick());
-                    }
                     if (e.getMessage() instanceof javax.sound.midi.ShortMessage m && m.getCommand() == javax.sound.midi.ShortMessage.NOTE_ON
                             && m.getData2() > 0 && m.getChannel() != 9) { // (channel 10 is drums)
                         top.merge(e.getTick(), m.getData1(), Math::max);
                     }
                 }
             }
-            if (top.isEmpty() || seq.getTickLength() == 0) return null;
-            double msPerTick = seq.getMicrosecondLength() / 1000.0 / seq.getTickLength();
-            java.util.List<Long> ticks = new java.util.ArrayList<>(top.keySet());
-            int count = Math.min(400, ticks.size());
+            long bandMs = 0;
+            try {
+                javax.sound.midi.Sequence band = fullBand(javax.sound.midi.MidiSystem.getSequence(file));
+                bandMs = (long) clock(band).applyAsDouble(band.getTickLength());
+            } catch (Exception noBand) {
+                // just the piano, then
+            }
+            if (top.isEmpty() && bandMs == 0) return null;
+            // when each note starts, really (notes a hair apart, like a strummed chord, are one chord: its top note)
+            java.util.List<Double> starts = new java.util.ArrayList<>();
+            java.util.List<Integer> tune = new java.util.ArrayList<>();
+            for (var note : top.entrySet()) {
+                double at = clock.applyAsDouble(note.getKey());
+                if (!starts.isEmpty() && at - starts.get(starts.size() - 1) < TOGETHER_MS) {
+                    tune.set(tune.size() - 1, Math.max(tune.get(tune.size() - 1), note.getValue()));
+                    continue;
+                }
+                starts.add(at);
+                tune.add(note.getValue());
+                if (starts.size() >= MOST_NOTES) break;
+            }
+            if (tune.isEmpty()) { // (only drums: there's no tune for his piano, but a jam session can still have it)
+                starts.add(0.0);
+                tune.add(60);
+            }
+            int count = tune.size();
             int[] notes = new int[count];
             double[] ms = new double[count];
+            double pianoMs = clock.applyAsDouble(played.getTickLength());
             for (int i = 0; i < count; i++) {
-                int n = top.get(ticks.get(i));
+                int n = tune.get(i);
                 while (n > 84) n -= 12; // keep it on his little piano
                 while (n < 48) n += 12;
                 notes[i] = n;
-                long next = i + 1 < ticks.size() ? ticks.get(i + 1) : ticks.get(i) + seq.getResolution();
-                ms[i] = Math.max(60, Math.min(2000, (next - ticks.get(i)) * msPerTick));
+                double next = i + 1 < count ? starts.get(i + 1) : Math.max(starts.get(i) + 300, pianoMs);
+                ms[i] = Math.max(1, next - starts.get(i)); // (his notes keep to the song's own clock: no rounding that adds up)
             }
             String name = file.getName().replaceAll("(?i)\\.midi?$", "").replace('_', ' ');
             name = SERVICE_SONGS.getOrDefault(name.toLowerCase(java.util.Locale.ROOT), name); // army.mid -> its real title
-            long songMs = Math.min(seq.getMicrosecondLength() / 1000, (long) ((lastNote - firstNote) * msPerTick) + 600); // (from its first note to its last: see trimmed)
+            long songMs = (long) Math.max(pianoMs, bandMs) + 600; // (the whole song, as long as the audio plays: see trimmed)
             return new Song("your " + (name.length() > 30 ? name.substring(0, 30) : name), notes, ms, 1, file, songMs);
         } catch (Exception notMidi) {
             return null;
         }
+    }
+
+    /** The most notes of a song file he shows on his piano (the music itself plays to the end either way). */
+    static final int MOST_NOTES = 5000;
+
+    /**
+     * A song's clock: the real time (ms) of each tick, following its tempo changes (the sequencer does too, so his
+     * hands and the music stay together).
+     */
+    static java.util.function.LongToDoubleFunction clock(javax.sound.midi.Sequence seq) {
+        int resolution = Math.max(1, seq.getResolution());
+        if (seq.getDivisionType() != javax.sound.midi.Sequence.PPQ) { // (frames a second: one steady speed)
+            double msPerTick = 1000.0 / (seq.getDivisionType() * resolution);
+            return tick -> tick * msPerTick;
+        }
+        java.util.TreeMap<Long, Integer> tempos = new java.util.TreeMap<>(); // tick -> microseconds a beat
+        tempos.put(0L, 500_000); // (120 a minute, until it says otherwise)
+        for (javax.sound.midi.Track track : seq.getTracks()) {
+            for (int i = 0; i < track.size(); i++) {
+                if (track.get(i).getMessage() instanceof javax.sound.midi.MetaMessage meta && meta.getType() == 0x51 && meta.getData().length >= 3) {
+                    byte[] d = meta.getData();
+                    int us = ((d[0] & 0xFF) << 16) | ((d[1] & 0xFF) << 8) | (d[2] & 0xFF);
+                    if (us > 0) tempos.put(track.get(i).getTick(), us);
+                }
+            }
+        }
+        long[] at = new long[tempos.size()];
+        double[] msAt = new double[tempos.size()];
+        int[] speed = new int[tempos.size()];
+        int k = 0;
+        for (var t : tempos.entrySet()) {
+            at[k] = t.getKey();
+            speed[k] = t.getValue();
+            msAt[k] = k == 0 ? 0 : msAt[k - 1] + (at[k] - at[k - 1]) * (speed[k - 1] / 1000.0) / resolution;
+            k++;
+        }
+        return tick -> {
+            int i = java.util.Arrays.binarySearch(at, tick);
+            if (i < 0) i = -i - 2;
+            i = Math.max(0, i);
+            return msAt[i] + (tick - at[i]) * (speed[i] / 1000.0) / resolution;
+        };
     }
 
     /** Whether a file looks like MIDI (by its name). */

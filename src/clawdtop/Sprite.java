@@ -601,7 +601,7 @@ public final class Sprite {
         if (mood == Pet.Mood.UNPACK) {
             long t = pet.moodTime();
             for (int b = 0; b < 2; b++) {
-                double bx = b == 0 ? LEFT - 4.5 : LEFT + 13;
+                double bx = b == 0 ? LEFT - 3.8 : LEFT + 12.3; // (flaps and all, inside his square)
                 box(g, unit, bx, GROUND - 4, 4.5, 4, Box.CARDBOARD);
                 box(g, unit, bx + 1.6, GROUND - 4, 1.2, 4, Box.TAPE);
                 if (t > 400 + b * 700) {
@@ -620,11 +620,11 @@ public final class Sprite {
                     new Color(110, 200, 110), new Color(90, 150, 240), new Color(160, 110, 220)};
             for (int i = 0; i < 19; i++) {
                 double wave = Math.sin(pet.time() / 110.0 + i * 0.7) * 0.25;
-                for (int b = 0; b < rainbow.length; b++) box(g, unit, LEFT - 3 + i, GROUND - 0.2 + b * 0.2 + wave, 1, 0.2, rainbow[b]);
+                for (int b = 0; b < rainbow.length; b++) box(g, unit, LEFT - 3 + i, GROUND - 0.6 + b * 0.2 + wave, 1, 0.2, rainbow[b]); // (all of it inside his square)
             }
             Color tassel = new Color(255, 214, 102);
-            box(g, unit, LEFT - 3.6, GROUND + 0.2 + Math.sin(pet.time() / 110.0) * 0.25, 0.6, 0.4, tassel);
-            box(g, unit, LEFT + 16, GROUND + 0.2 + Math.sin(pet.time() / 110.0 + 18 * 0.7) * 0.25, 0.6, 0.4, tassel);
+            box(g, unit, LEFT - 3.6, GROUND - 0.2 + Math.sin(pet.time() / 110.0) * 0.25, 0.6, 0.4, tassel);
+            box(g, unit, LEFT + 16, GROUND - 0.2 + Math.sin(pet.time() / 110.0 + 18 * 0.7) * 0.25, 0.6, 0.4, tassel);
         }
 
         // The disco ball he coded, spinning over his head, throwing spots of light about
@@ -969,9 +969,10 @@ public final class Sprite {
         } else { // popcorn flying out all over
             double t = Math.min(1, pet.moodTime() / 1200.0);
             for (int i = 0; i < 12; i++) {
-                double a = -Math.PI / 2 + (i - 5.5) * 0.28;
+                double a = -Math.PI / 2 + (i - 2.5) * 0.22;
                 double speed = 8 + (i * 7 % 5);
-                double x = bx + 1.6 + Math.cos(a) * speed * t, y = by - 0.6 + Math.sin(a) * speed * t + 14 * t * t;
+                double sideways = Math.cos(a) * speed * t * (Math.cos(a) < 0 ? 0.25 : 0.9); // (mostly up and over him: it stays in his square)
+                double x = bx + 1.6 + sideways, y = by - 0.6 + Math.sin(a) * speed * t + 14 * t * t;
                 if (y < GROUND - 0.6) box(g, unit, x, y, 0.6, 0.6, corn);
             }
         }

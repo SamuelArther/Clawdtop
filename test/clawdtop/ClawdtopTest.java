@@ -143,6 +143,30 @@ public class ClawdtopTest {
         Path filed = Clawdtop.moveFile(pic, Clawdtop.picturesFolder().resolve("p.png"));
         check("pictures go in Pictures you gave me", filed.getParent().getFileName() + " " + Files.exists(pic), "Pictures you gave me false");
 
+        // a zip made on a Mac (its __MACOSX leftovers), and one that breaks halfway: nothing half-unzipped left behind
+        Path macZip = desk.resolve("Photos.zip");
+        try (var zout = new java.util.zip.ZipOutputStream(Files.newOutputStream(macZip))) {
+            for (String n : new String[] {"Photos/a.txt", "__MACOSX/", "__MACOSX/Photos/._a.txt", "Photos/b.txt"}) {
+                zout.putNextEntry(new java.util.zip.ZipEntry(n));
+                if (!n.endsWith("/")) zout.write("x".getBytes());
+                zout.closeEntry();
+            }
+        }
+        Handy.Unzipped mac = Handy.unzip(macZip);
+        check("a Mac zip: just the photos, none of the Mac leftovers", mac.files() + " " + Files.exists(mac.folder().resolve("a.txt")) + " " + Files.exists(mac.folder().resolve("X")), "2 true false");
+        Path broken = desk.resolve("broken.zip");
+        byte[] good = Files.readAllBytes(macZip);
+        Files.write(broken, java.util.Arrays.copyOf(good, good.length / 2));
+        boolean threw = false;
+        try {
+            Handy.unzip(broken);
+        } catch (Exception e) {
+            threw = true;
+        }
+        check("a broken zip: no half-unzipped folder left", !threw || !Files.exists(desk.resolve("broken")), true);
+        check("uninstalling keeps a zip he was still unzipping", Cli.YOURS.contains("unzipping"), true);
+        check("a brand-new file isn't one you gave him (a screenshot landing on a Mac desktop)", Clawdtop.oldFile(Files.writeString(desk.resolve("Screenshot.png"), "x")), false);
+
         // the scraps: flung out, flutter down, lie there, fade away
         Scraps scraps = new Scraps();
         scraps.start(500, 650, 4);
@@ -261,6 +285,48 @@ public class ClawdtopTest {
         Path quietFile = desk.resolve("quiet.mid");
         javax.sound.midi.MidiSystem.write(quiet, 0, quietFile.toFile());
         check("and he knows how long it really is", Piano.fromMidi(quietFile.toFile()).fullMs() < 2000, true);
+
+        // his hands keep to the song's real clock: tempo changes, strummed chords
+        javax.sound.midi.Sequence slowDown = new javax.sound.midi.Sequence(javax.sound.midi.Sequence.PPQ, 4);
+        javax.sound.midi.Track st = slowDown.createTrack();
+        st.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.MetaMessage(0x51, new byte[] {0x07, (byte) 0xA1, 0x20}, 3), 0)); // 500,000 us a beat
+        st.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.MetaMessage(0x51, new byte[] {0x0F, 0x42, 0x40}, 3), 8));          // then 1,000,000: half speed
+        for (int i = 0; i < 4; i++) {
+            st.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.NOTE_ON, 0, 60 + i, 90), i * 4L));
+            st.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.NOTE_OFF, 0, 60 + i, 0), i * 4L + 3));
+        }
+        st.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.NOTE_ON, 0, 40, 90), 14)); // (and a note that never ends)
+        check("the song's clock follows its tempo", Math.round(Piano.clock(slowDown).applyAsDouble(12)), 2000L); // 8 ticks at 125 ms + 4 at 250
+        Path slowFile = desk.resolve("slow down.mid");
+        javax.sound.midi.MidiSystem.write(slowDown, 0, slowFile.toFile());
+        Piano.Song slow = Piano.fromMidi(slowFile.toFile());
+        double third = slow.beats()[0] + slow.beats()[1];
+        check("his notes come when the music's do", Math.round(third) + " " + slow.notes().length, "1000 5");
+        javax.sound.midi.Sequence strum = new javax.sound.midi.Sequence(javax.sound.midi.Sequence.PPQ, 480);
+        javax.sound.midi.Track sm = strum.createTrack();
+        for (int i = 0; i < 4; i++) { // a strummed chord: four notes a few ticks apart (a few ms), then one more note a beat later
+            sm.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.NOTE_ON, 0, 60 + i * 4, 90), i * 5L));
+            sm.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.NOTE_OFF, 0, 60 + i * 4, 0), 400));
+        }
+        sm.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.NOTE_ON, 0, 67, 90), 480));
+        sm.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.NOTE_OFF, 0, 67, 0), 900));
+        Path strumFile = desk.resolve("strum.mid");
+        javax.sound.midi.MidiSystem.write(strum, 0, strumFile.toFile());
+        Piano.Song strummed = Piano.fromMidi(strumFile.toFile());
+        check("a strummed chord is one chord (its top note)", strummed.notes().length + " " + strummed.notes()[0] + " " + Math.round(strummed.beats()[0]), "2 72 500");
+        javax.sound.midi.Sequence fixed = Piano.pianoOnly(javax.sound.midi.MidiSystem.getSequence(slowFile.toFile()));
+        int offs = 0;
+        for (javax.sound.midi.Track tr : fixed.getTracks()) for (int i = 0; i < tr.size(); i++) {
+            if (tr.get(i).getMessage() instanceof javax.sound.midi.ShortMessage m && m.getData1() == 40 && (m.getCommand() == javax.sound.midi.ShortMessage.NOTE_OFF
+                    || (m.getCommand() == javax.sound.midi.ShortMessage.NOTE_ON && m.getData2() == 0))) offs++;
+        }
+        check("a note that never ended gets an ending", offs > 0, true);
+        javax.sound.midi.Sequence drums = new javax.sound.midi.Sequence(javax.sound.midi.Sequence.PPQ, 4);
+        javax.sound.midi.Track dt = drums.createTrack();
+        for (int i = 0; i < 16; i++) dt.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.NOTE_ON, 9, 36, 90), i * 2L));
+        Path drumFile = desk.resolve("drums_jam.mid");
+        javax.sound.midi.MidiSystem.write(drums, 0, drumFile.toFile());
+        check("a drums-only jam track still jams", Piano.fromMidi(drumFile.toFile()) != null, true);
 
         // no tips in his sleep
         check("tips skip him while he sleeps", Files.readString(Path.of("src/clawdtop/Clawdtop.java")).contains("bubble.asking() || pet.sleepy()) return; // (no tips in his sleep)"), true);

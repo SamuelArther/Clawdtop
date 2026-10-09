@@ -45,6 +45,17 @@ final class Handy {
      * (some drawings and screenshots squash better as they are), it tries harder, and if it still isn't, no copy is kept.
      */
     static Path shrink(Path picture) throws IOException {
+        try (var in = javax.imageio.ImageIO.createImageInputStream(picture.toFile())) { // (how big it is, before opening it all)
+            var readers = in == null ? null : javax.imageio.ImageIO.getImageReaders(in);
+            if (readers == null || !readers.hasNext()) return null;
+            var reader = readers.next();
+            try {
+                reader.setInput(in);
+                if ((long) reader.getWidth(0) * reader.getHeight(0) > MOST_PIXELS) return null;
+            } finally {
+                reader.dispose();
+            }
+        }
         BufferedImage image = javax.imageio.ImageIO.read(picture.toFile());
         if (image == null) return null;
         long before = Files.size(picture);
@@ -110,8 +121,9 @@ final class Handy {
         try (ZipInputStream in = new ZipInputStream(Files.newInputStream(zip))) {
             for (ZipEntry e; (e = in.getNextEntry()) != null; ) {
                 String inside = e.getName().replace('\\', '/');
-                if (only != null) inside = inside.substring(only.length());
-                if (inside.isEmpty() || inside.startsWith("__MACOSX/") || inside.endsWith(".DS_Store")) continue;
+                if (inside.startsWith("__MACOSX/") || inside.endsWith(".DS_Store")) continue; // (a Mac's leftovers)
+                if (only != null && inside.startsWith(only)) inside = inside.substring(only.length());
+                if (inside.isEmpty()) continue;
                 Path to = root.resolve(inside).normalize();
                 if (!to.startsWith(root)) continue; // (a sneaky "../../" path: skipped)
                 if (e.isDirectory()) {
@@ -128,9 +140,25 @@ final class Handy {
                     }
                 }
             }
+        } catch (IOException | RuntimeException broken) {
+            deleteTree(folder); // (no half-unzipped folder left lying about)
+            throw broken;
         }
         return new Unzipped(folder, files);
     }
+
+    /** Deletes a folder and everything in it (what he made himself and doesn't need). */
+    static void deleteTree(Path folder) {
+        if (!Files.exists(folder)) return;
+        try (var all = Files.walk(folder)) {
+            for (Path p : all.sorted(java.util.Comparator.reverseOrder()).toList()) Files.deleteIfExists(p);
+        } catch (IOException | RuntimeException stuck) {
+            // whatever's left can stay
+        }
+    }
+
+    /** The most pixels a picture may have for him to open it (a huge one would use up all his memory). */
+    static final long MOST_PIXELS = 150_000_000L;
 
     /** If everything in the zip is inside one folder, "that folder/" (else null). */
     private static String soleFolder(Path zip) throws IOException {

@@ -1354,6 +1354,19 @@ public final class Pet {
     }
 
     /** The MIDI file he's playing right now (the whole thing plays, chords and all), or null. */
+    /** How far into the song file he is (ms): at his piano, or the whole band at the end of a jam (0 otherwise). */
+    public long songElapsed() {
+        if (mood == Mood.PIANO && song != null && song.midi() != null) return Math.max(0, moodFor - PIANO_INTRO);
+        if (mood == Mood.JAM && jamStep == JAM_PLAYING) return moodFor;
+        return 0;
+    }
+
+    /** The song file's music has played to its end: so he finishes too (bows, or the jam's over). */
+    public void songOver() {
+        boolean atPiano = mood == Mood.PIANO && song != null && song.midi() != null && !jamming && instrument != Piano.Instrument.VOICE;
+        if ((atPiano || (mood == Mood.JAM && jamStep == JAM_PLAYING)) && nextChange > moodFor) nextChange = moodFor;
+    }
+
     public java.io.File playingMidi() {
         return mood == Mood.PIANO && song != null && song.midi() != null && moodFor >= PIANO_INTRO && instrument != Piano.Instrument.VOICE
                 ? song.midi() : null; // (singing: just his voice, following the tune)

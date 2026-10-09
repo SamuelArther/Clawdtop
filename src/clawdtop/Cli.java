@@ -581,7 +581,7 @@ public final class Cli {
     }
 
     /** His folders with your things in them (kept, if you say so, when he's uninstalled or starts over). */
-    static final java.util.List<String> YOURS = java.util.List.of("songs", "creations", "Pictures you gave me");
+    static final java.util.List<String> YOURS = java.util.List.of("songs", "creations", "Pictures you gave me", "unzipping");
 
     /** Asks whether to keep your songs, the pictures you gave him and the things he coded (if there are any). */
     private boolean keepYourFiles() throws IOException {
