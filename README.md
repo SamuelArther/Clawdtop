@@ -58,6 +58,8 @@ A tiny desktop buddy: Clawd sits on top of your taskbar, right above the clock, 
 - **Holidays:** fireworks on New Year's and the 4th of July, a heart on Valentine's Day, a ghost on Halloween, snow at
   Christmas, Easter, April Fools and Thanksgiving. On Veterans Day he wears a little army uniform, salutes, and plays
   service songs (put MIDI files in his `songs/veterans` folder).
+- **Games and quick answers:** tic-tac-toe against him (he's good, but he's a crab). Ask him the time, the date,
+  to flip a coin, roll a die, play rock paper scissors, or (with looking things up on) the weather.
 - **Dress him up:** hats and t-shirts from the shop (earn Clawd Points by spending time with him).
 - **His diary:** `clawd diary` shows what he got up to lately, in his own words.
 - **No tomfoolery:** one switch for serious people. The jokes and gags stop; the useful things stay.
