@@ -339,7 +339,7 @@ public final class Clawdtop {
                             pet.say((said == null ? "" : said + "\n") + "(One at a time! Give me the next one after.)");
                         }
                     }
-                    else pet.say("Hmm, not sure what to do with that one!\nI can play songs (.mid), unzip .zip files,\nand make pictures smaller.");
+                    else pet.say("Hmm, not sure what to do with that one!\nGive me a song (.mid), a .zip, or a picture\n(.png, .jpg or .bmp) and watch what I do with it.");
                 } catch (Exception ex) {
                     e.dropComplete(false);
                 }
@@ -1893,10 +1893,10 @@ public final class Clawdtop {
                             new String[] {"Open it", "OK"}, c -> { if (c == 0) FindFile.open(shown); }, head(), popupBounds());
                     Diary.write("Somebody gave me a zip. I tore it right open! RRRIP. " + folder.files() + " files inside.");
                 } else {
-                    String sizes = copy == Handy.ALREADY_SMALL ? "It was already small, so it's the same size."
-                            : Handy.size(got.now()) + " became " + Handy.size(shown) + ".";
-                    bubble.ask("Here's your picture, smaller: " + shown.getFileName() + ", " + where + ".\n" + sizes
-                            + "\nI filed the big one away (my menu: Useful > Pictures you gave me).",
+                    boolean same = copy == Handy.ALREADY_SMALL;
+                    String sizes = same ? "It's already as small as I can make it, so here's a copy." : Handy.size(got.now()) + " became " + Handy.size(shown) + ".";
+                    bubble.ask((same ? "Here's your picture: " : "Here's your picture, smaller: ") + shown.getFileName() + ", " + where + ".\n" + sizes
+                            + "\nI filed the original away (my menu: Useful > Pictures you gave me).",
                             new String[] {"Show me", "OK"}, c -> { if (c == 0) FindFile.showInFolder(shown); }, head(), popupBounds());
                     Diary.write("Somebody gave me a picture. I filed it away nice and neat, and gave them a smaller one.");
                 }
