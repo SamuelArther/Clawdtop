@@ -189,6 +189,19 @@ public final class Clawdtop {
         return new Rectangle(b.x + in.left, b.y + in.top, Math.max(1, b.width - in.left - in.right), Math.max(1, b.height - in.top - in.bottom));
     }
 
+    /** The taskbar's top on the monitor at x (his home floor if that's his home monitor; groundY if x is on none). */
+    private double floorUnder(double x) {
+        for (java.awt.GraphicsDevice d : GraphicsEnvironment.getLocalGraphicsEnvironment().getScreenDevices()) {
+            Rectangle b = d.getDefaultConfiguration().getBounds();
+            if (x >= b.x && x < b.x + b.width) {
+                Rectangle u = usable(d.getDefaultConfiguration());
+                double floor = u.y + u.height - settings.number("nudge");
+                return Math.abs(floor - groundY) < 2 ? groundY : floor;
+            }
+        }
+        return groundY;
+    }
+
     /** All the monitors' areas, as one line (to notice one being plugged in, unplugged or changed). */
     private static String monitors() {
         StringBuilder all = new StringBuilder();
@@ -3137,7 +3150,9 @@ public final class Clawdtop {
             } else if (body.hopReady() == 0) {
                 readyShown = false;
             }
-            body.tick(frameMs, mouse.x, mouse.y, homeX, groundY, 12 * unit, screen.x, screen.x + screen.width);
+            // (away from home on another monitor, the floor is that monitor's taskbar: a fall there lands on it, not in mid-air)
+            double floor = body.state() == Body.State.HOME ? groundY : floorUnder(body.x());
+            body.tick(frameMs, mouse.x, mouse.y, homeX, floor, 12 * unit, screen.x, screen.x + screen.width);
             pet.follow(body.state());
             creations();
             if (body.takeMissed()) pet.say("Missed! ...I meant to do that.");

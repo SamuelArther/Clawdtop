@@ -1,6 +1,7 @@
-Fix: maximized windows aren't games.
+Fix: falling on the other monitor.
 
-- If your taskbar hides itself, a maximized window (Chrome, Word, Explorer...) could look "full screen" to him, so he'd disappear, or sit in the corner saying "Ooh, a game!". Now only real full-screen things (games, full-screen videos) count.
+- Ride him over to your other monitor and get shaken off there: he now lands on that monitor's taskbar, then walks home. Before, he fell to the height of his home monitor's taskbar, so on a different-sized monitor he dropped out of sight or walked in mid-air.
+- Hopping off a ride works on any monitor's taskbar, not just the main one.
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 
