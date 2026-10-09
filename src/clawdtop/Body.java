@@ -260,7 +260,7 @@ public final class Body {
                 double turn = from + (turns[leg] - from) * Math.min(1, d / (8 * unitPx)); // round the corner
                 angle = turn;
                 // where his window goes so his feet are at (fx, fy) while he's turned (he turns round his middle)
-                double r = 6.5 * unitPx;
+                double r = Sprite.spinRadius() * unitPx;
                 x = fx + r * Math.sin(turn);
                 y = fy + r - r * Math.cos(turn);
             }

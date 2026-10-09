@@ -522,7 +522,7 @@ public final class Clawdtop {
         }
         if (settings.on("askMe") && job == null) {
             JMenuItem ask = new JMenuItem("Ask me a question...");
-            ask.addActionListener(e -> askBox.show("Ask me anything!", window.getBounds(), screenBounds(), this::answer));
+            ask.addActionListener(e -> askBox.show("Ask me anything!", head(), screenBounds(), this::answer));
             menu.add(ask);
         }
 
@@ -542,7 +542,7 @@ public final class Clawdtop {
                 piano.add(item);
             }
             JMenuItem mine = new JMenuItem("Let me play!");
-            mine.addActionListener(e -> yourPiano.show(window.getBounds(), screenBounds(), note -> {
+            mine.addActionListener(e -> yourPiano.show(head(), screenBounds(), note -> {
                 beeps.piano(note, 400); // you are playing it: it always makes a sound
                 pet.listened();
             }));
@@ -629,7 +629,7 @@ public final class Clawdtop {
                     if (Shop.buy(settings, item)) {
                         useItems();
                         pet.poke();
-                        bubble.show("Yay, " + item.name().toLowerCase(java.util.Locale.ROOT) + "! Thank you!", window.getBounds(), screenBounds());
+                        bubble.show("Yay, " + item.name().toLowerCase(java.util.Locale.ROOT) + "! Thank you!", head(), screenBounds());
                     }
                 });
             }
@@ -654,7 +654,7 @@ public final class Clawdtop {
         if (job != null && job.step() == CleanJob.Step.DONE && job.stepTimeIsNew()) settings.earn(Shop.JOB);
         // Petting: the mouse rubbing back and forth over him
         long now = System.currentTimeMillis();
-        if (window.getBounds().contains(mouse) && moved && state == Body.State.HOME) {
+        if (head().contains(mouse) && moved && state == Body.State.HOME) {
             int dir = Integer.signum(mouse.x - lastRubX);
             if (dir != 0 && dir != rubDirection) {
                 if (rubTurns == 0) rubStarted = now;
@@ -748,7 +748,7 @@ public final class Clawdtop {
         long now = System.currentTimeMillis();
         if (zoomFrom != null) {
             double speed = zoomFrom.distance(mouse) / Math.max(1, now - zoomAt) * 1000; // px a second
-            Rectangle near = window.getBounds();
+            Rectangle near = head();
             near.grow(40, 40);
             // Did the cursor's path cross his face? Then it's a boop. Zooming past close by spins him round.
             double eyesX = window.getX() + Sprite.eyesX() * settings.unit(), eyesY = window.getY() + Sprite.eyesY() * settings.unit();
@@ -848,7 +848,7 @@ public final class Clawdtop {
     private void tellJoke() {
         lastJokeAt = System.currentTimeMillis();
         jokeJitter = (long) (Math.random() * 120_000);
-        bubble.show(jokes.next(), window.getBounds(), screenBounds());
+        bubble.show(jokes.next(), head(), screenBounds());
         pet.speak();
     }
 
@@ -892,7 +892,7 @@ public final class Clawdtop {
                     bubble.ask("Your " + full.getPath().replace("\\", "") + " drive is nearly full (" + Cleaner.size(full.getUsableSpace()) + " left).\n"
                             + "Want me to clean out a folder?", new String[] {"Yes, clean one", "Not now"}, c -> {
                                 if (c == 0) startCleaning();
-                            }, window.getBounds(), screenBounds());
+                            }, head(), screenBounds());
                 }
             });
         });
@@ -900,7 +900,7 @@ public final class Clawdtop {
 
     private void startCleaning() {
         if (!Cleaner.canRecycle()) {
-            bubble.show("I can't reach the Recycle Bin on this computer,\nso I won't clean anything.", window.getBounds(), screenBounds());
+            bubble.show("I can't reach the Recycle Bin on this computer,\nso I won't clean anything.", head(), screenBounds());
             return;
         }
         job = new CleanJob(new CleanJob.Ui() {
@@ -917,12 +917,12 @@ public final class Clawdtop {
             }
 
             public void say(String text) {
-                bubble.show(text, window.getBounds(), screenBounds());
+                bubble.show(text, head(), screenBounds());
                 pet.speak();
             }
 
             public void ask(String text, String[] buttons, java.util.function.IntConsumer answer) {
-                bubble.ask(text, buttons, answer, window.getBounds(), screenBounds());
+                bubble.ask(text, buttons, answer, head(), screenBounds());
                 pet.speak();
             }
 
@@ -1092,7 +1092,7 @@ public final class Clawdtop {
 
         int unit = settings.unit();
         if (boxed) {
-            if (welcome != null && welcome.showing()) welcome.follow(window.getBounds(), screenBounds());
+            if (welcome != null && welcome.showing()) welcome.follow(head(), screenBounds());
             return; // nothing to do until he's out
         }
         if (greetWhenHome && body.state() == Body.State.HOME) {
@@ -1101,7 +1101,7 @@ public final class Clawdtop {
             String hi = settings.restored()
                     ? "Hii.......... I think I remember you...." + (settings.name().isEmpty() ? "" : " " + settings.name() + ", right?")
                     : "Hi" + (settings.name().isEmpty() ? "" : " " + settings.name()) + "!! I'm so happy to be here!";
-            bubble.show(hi, window.getBounds(), screenBounds());
+            bubble.show(hi, head(), screenBounds());
         }
         // His body: on his perch, or riding your cursor, flying off, dizzy, walking home
         if (dragFrom == Integer.MIN_VALUE) {
@@ -1154,7 +1154,7 @@ public final class Clawdtop {
         if (movingOut && body.state() == Body.State.OUT) System.exit(0); // gone to the new computer
         if (huffed && body.state() == Body.State.HOME) {
             huffed = false;
-            bubble.show("...okay. I'm better now.", window.getBounds(), screenBounds());
+            bubble.show("...okay. I'm better now.", head(), screenBounds());
         }
         double eyesX = window.getX() + Sprite.eyesX() * unit;
         double eyesY = window.getY() + Sprite.eyesY() * unit;
@@ -1167,10 +1167,10 @@ public final class Clawdtop {
         Pet.Beep beep = pet.takeBeep();
         if (beep != null && mayBeep()) beeps.play(beep);
         String line = pet.takeLine();
-        if (line != null) bubble.show(line, window.getBounds(), screenBounds());
+        if (line != null) bubble.show(line, head(), screenBounds());
         bubble.tick();
-        if (bubble.showing()) bubble.follow(window.getBounds(), screenBounds());
-        if (welcome != null && welcome.showing()) welcome.follow(window.getBounds(), screenBounds());
+        if (bubble.showing()) bubble.follow(head(), screenBounds());
+        if (welcome != null && welcome.showing()) welcome.follow(head(), screenBounds());
         canvas.repaint();
     }
 
@@ -1189,7 +1189,7 @@ public final class Clawdtop {
         if (tip == null) return;
         lastTipAt = now;
         settings.earn(Shop.TIP);
-        bubble.show(tip, window.getBounds(), window.getGraphicsConfiguration().getBounds());
+        bubble.show(tip, head(), window.getGraphicsConfiguration().getBounds());
         pet.speak();
     }
 
@@ -1199,7 +1199,7 @@ public final class Clawdtop {
     /** clawd move: he's off to the new computer. He picks up a box and walks off the edge of the screen. */
     private void moveOut() {
         if (job != null) job.stop(body, pet);
-        bubble.show("Off to the new place! Bye!", window.getBounds(), screenBounds());
+        bubble.show("Off to the new place! Bye!", head(), screenBounds());
         pet.moving(true);
         Rectangle screen = screenBounds();
         boolean right = homeX > screen.x + screen.width / 2.0;
@@ -1316,9 +1316,9 @@ public final class Clawdtop {
                 greetWhenHome = true;
                 }).show();
             });
-            welcome.start(window.getBounds(), screenBounds());
+            welcome.start(head(), screenBounds());
         } else if (!settings.name().isEmpty() && pet.takeLineIfAny() == null && !birthdayHiding) {
-            bubble.show("Hi again, " + settings.name() + "!", window.getBounds(), screenBounds());
+            bubble.show("Hi again, " + settings.name() + "!", head(), screenBounds());
         }
     }
 
@@ -1356,7 +1356,7 @@ public final class Clawdtop {
      * things on cue. Call on the Swing thread.
      */
     void smoke(String action) {
-        Rectangle at = window.getBounds();
+        Rectangle at = head();
         switch (action) {
             case "menu" -> jobs().show(canvas, at.width / 2, at.height / 3);
             case "settings menu" -> menu().show(canvas, at.width / 2, at.height / 3);
@@ -1367,7 +1367,7 @@ public final class Clawdtop {
             case "tip" -> pet.say("Win+Shift+S takes a screenshot of part of the screen.");
             case "math" -> answer("what's 12 times 7?");
             case "piano" -> pet.playPiano(Piano.SONGS[0]);
-            case "your piano" -> yourPiano.show(window.getBounds(), screenBounds(), note -> {
+            case "your piano" -> yourPiano.show(head(), screenBounds(), note -> {
                 beeps.piano(note, 400);
                 pet.listened();
                 smokeNotes++;
@@ -1459,6 +1459,13 @@ public final class Clawdtop {
     /** For the screen test: whether he's back to just hanging out at home. */
     boolean smokeIdle() {
         return job == null && body.state() == Body.State.HOME && (pet.mood() == Pet.Mood.IDLE || pet.mood() == Pet.Mood.SIT);
+    }
+
+    /** Where he is on the screen, for pointing bubbles at (his window, without the room it keeps above him for hats). */
+    private Rectangle head() {
+        Rectangle r = window.getBounds();
+        int room = 3 * settings.unit();
+        return new Rectangle(r.x, r.y + room, r.width, r.height - room);
     }
 
     /** For tests: the screen area he'd sit in, without a window. */

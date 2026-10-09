@@ -10,7 +10,7 @@ import java.awt.Graphics2D;
 public final class Sprite {
     /** How big the drawing is, in units: room to bounce, raise his arms and let out z's. */
     public static final int WIDTH = 23; // (room at his right for his laptop)
-    public static final int HEIGHT = 15;
+    public static final int HEIGHT = 18; // (room above him for tall hats)
 
     static final Color ORANGE = new Color(215, 119, 87); // his own color
     private static Color body = ORANGE;                  // the color he is right now (drawing is on one thread)
@@ -21,7 +21,7 @@ public final class Sprite {
     static final Color ZZZ = new Color(200, 210, 230, 220);
     static final Color LAPTOP = new Color(128, 128, 128); // the plain gray laptop from the Claude Code animation
 
-    private static final int GROUND = 14; // the row his feet stand on (the bottom of the drawing)
+    static final int GROUND = 17; // the row his feet stand on (the bottom of the drawing)
     private static final int LEFT = 5;    // where his body starts (in the middle)
 
     private Sprite() {
@@ -31,6 +31,7 @@ public final class Sprite {
     public static void draw(Graphics2D g, Pet pet, int unit) {
         Pet.Mood mood = pet.mood();
         body = pet.color();
+        time = pet.time();
         hand = new Color(body.getRed() * 83 / 100, body.getGreen() * 77 / 100, body.getBlue() * 74 / 100); // a shade darker, so his hands show in front of him
         if (mood == Pet.Mood.SPIN) {
             // spun round by a zooming cursor: once all the way round
@@ -420,6 +421,7 @@ public final class Sprite {
         // A fly buzzing round him, and his hands clapping at it at the end
         double[] fly = pet.fly();
         if (fly != null) {
+            fly = new double[] {fly[0], fly[1] + GROUND - 14}; // (its path is round his head)
             box(g, unit, fly[0], fly[1], 0.7, 0.7, new Color(30, 30, 30));
             boolean wing = (pet.time() / 40) % 2 == 0;
             box(g, unit, fly[0] - 0.3, fly[1] - (wing ? 0.4 : 0.2), 0.5, 0.3, new Color(200, 220, 255, 170));
@@ -571,7 +573,7 @@ public final class Sprite {
     public static void drawTurned(Graphics2D g, Pet pet, int unit, double angle) {
         Graphics2D turned = (Graphics2D) g.create();
         if (angle != 0) {
-            turned.translate(0, 4 * unit * (1 - Math.cos(angle)) / 2);
+            turned.translate(0, (2 * GROUND - HEIGHT - 9) * unit * (1 - Math.cos(angle)) / 2); // so his head lands on the ground
             turned.rotate(angle, WIDTH * unit / 2.0, HEIGHT * unit / 2.0);
         }
         draw(turned, pet, unit);
@@ -1017,6 +1019,8 @@ public final class Sprite {
     }
 
     /** A hat from the shop (or the season) on his head, whose top is at top. */
+    private static long time; // for hats that move (the propeller), set when he's drawn
+
     static void drawHat(Graphics2D g, int unit, String hat, double top) {
         double mid = LEFT + 6.5;
         switch (hat) {
@@ -1055,6 +1059,87 @@ public final class Sprite {
                 box(g, unit, mid - 1, top - 3, 2, 1, blue);
                 box(g, unit, mid - 0.5, top - 4, 1, 1, yellow);
                 box(g, unit, mid - 0.75, top - 5, 1.5, 1, new Color(255, 120, 170));
+            }
+            case "bow" -> {
+                Color red = new Color(225, 50, 70), dark = new Color(170, 30, 50);
+                box(g, unit, mid + 1.5, top - 1.4, 1.6, 1.4, red);
+                box(g, unit, mid + 3.6, top - 1.4, 1.6, 1.4, red);
+                box(g, unit, mid + 3, top - 1, 0.7, 0.8, dark);
+            }
+            case "beanie" -> {
+                Color knit = new Color(80, 150, 230), rib = new Color(55, 115, 190);
+                box(g, unit, mid - 4, top - 2.2, 8, 2.2, knit);
+                box(g, unit, mid - 3, top - 3, 6, 0.8, knit);
+                box(g, unit, mid - 4, top - 0.8, 8, 0.8, rib);
+                box(g, unit, mid - 0.7, top - 4.2, 1.4, 1.2, Color.WHITE); // pom-pom
+            }
+            case "cap" -> { // a baseball cap, backwards
+                Color cap = new Color(220, 60, 60);
+                box(g, unit, mid - 3.5, top - 2, 7, 2, cap);
+                box(g, unit, mid - 6, top - 0.8, 2.6, 0.8, cap); // the brim, at the back
+                box(g, unit, mid - 0.3, top - 2.4, 0.6, 0.4, Color.WHITE);
+            }
+            case "propeller" -> {
+                Color a = new Color(255, 214, 102), b = new Color(80, 150, 230), c = new Color(220, 60, 60);
+                box(g, unit, mid - 3.5, top - 1.8, 3.5, 1.8, a);
+                box(g, unit, mid, top - 1.8, 3.5, 1.8, b);
+                box(g, unit, mid - 0.2, top - 2.8, 0.4, 1, new Color(90, 90, 100));
+                double spin = Math.abs(Math.sin(time / 60.0));
+                box(g, unit, mid - 3 * spin, top - 3.1, 6 * spin + 0.3, 0.4, c); // spinning blades
+            }
+            case "flowers" -> {
+                Color leaf = new Color(90, 170, 80);
+                box(g, unit, mid - 4.5, top - 0.6, 9, 0.6, leaf);
+                Color[] petals = {new Color(255, 140, 180), new Color(255, 230, 100), new Color(180, 140, 240), new Color(255, 255, 255)};
+                for (int i = 0; i < 5; i++) {
+                    box(g, unit, mid - 4.5 + i * 2, top - 1.4, 1.2, 1.2, petals[i % petals.length]);
+                    box(g, unit, mid - 4.1 + i * 2, top - 1, 0.4, 0.4, new Color(255, 200, 60));
+                }
+            }
+            case "chef" -> {
+                box(g, unit, mid - 2.5, top - 1.2, 5, 1.2, Color.WHITE);
+                box(g, unit, mid - 3, top - 4, 6, 2.8, Color.WHITE);
+                box(g, unit, mid - 3.5, top - 4.6, 2.5, 1.6, Color.WHITE);
+                box(g, unit, mid + 1, top - 4.6, 2.5, 1.6, Color.WHITE);
+                box(g, unit, mid - 2.5, top - 1.4, 5, 0.25, new Color(220, 220, 228));
+            }
+            case "cowboy" -> {
+                Color brown = new Color(150, 95, 50), band = new Color(90, 55, 30);
+                box(g, unit, mid - 6, top - 0.9, 12, 0.9, brown);
+                box(g, unit, mid - 6.5, top - 1.6, 1, 0.8, brown);
+                box(g, unit, mid + 5.5, top - 1.6, 1, 0.8, brown);
+                box(g, unit, mid - 3, top - 3.5, 6, 2.6, brown);
+                box(g, unit, mid - 3, top - 1.6, 6, 0.6, band);
+                box(g, unit, mid - 0.5, top - 3.6, 1, 0.5, band); // the dent on top
+            }
+            case "grad" -> {
+                Color black = new Color(30, 30, 36), gold = new Color(255, 200, 60);
+                box(g, unit, mid - 2.5, top - 1.5, 5, 1.5, black);
+                box(g, unit, mid - 4.5, top - 2.3, 9, 0.8, black);
+                box(g, unit, mid - 0.4, top - 2.6, 0.8, 0.4, gold);
+                box(g, unit, mid + 3.2, top - 2.1, 0.3, 2.4, gold); // tassel
+                box(g, unit, mid + 3, top + 0.2, 0.7, 0.7, gold);
+            }
+            case "wizard" -> {
+                Color purple = new Color(110, 70, 190), star = new Color(255, 220, 90);
+                box(g, unit, mid - 4.5, top - 0.8, 9, 0.8, purple);
+                box(g, unit, mid - 3, top - 2.3, 6, 1.5, purple);
+                box(g, unit, mid - 2, top - 3.8, 4, 1.5, purple);
+                box(g, unit, mid - 1, top - 5.2, 2.5, 1.4, purple);
+                box(g, unit, mid + 0.8, top - 6, 1.6, 0.9, purple); // the floppy tip
+                box(g, unit, mid - 2, top - 2, 0.6, 0.6, star);
+                box(g, unit, mid + 1, top - 3.4, 0.6, 0.6, star);
+                box(g, unit, mid - 0.4, top - 4.8, 0.5, 0.5, star);
+            }
+            case "viking" -> {
+                Color metal = new Color(170, 175, 185), horn = new Color(240, 230, 205), band = new Color(140, 100, 60);
+                box(g, unit, mid - 3.5, top - 2.4, 7, 2.4, metal);
+                box(g, unit, mid - 3.5, top - 0.7, 7, 0.7, band);
+                box(g, unit, mid - 0.3, top - 2.4, 0.6, 2.4, band);
+                box(g, unit, mid - 5, top - 2.2, 1.5, 1, horn); // horns
+                box(g, unit, mid - 5.6, top - 3.6, 1, 1.6, horn);
+                box(g, unit, mid + 3.5, top - 2.2, 1.5, 1, horn);
+                box(g, unit, mid + 4.6, top - 3.6, 1, 1.6, horn);
             }
             case "nightcap" -> {
                 // a floppy sleeping cap, drooping to one side, with a pom-pom
@@ -1102,6 +1187,11 @@ public final class Sprite {
         int x1 = (int) Math.round((x + w) * unit);
         int y1 = (int) Math.round((y + h) * unit);
         g.fillRect(x0, y0, Math.max(1, x1 - x0), Math.max(1, y1 - y0));
+    }
+
+    /** How far below the middle of the drawing his feet are, in units (he turns round the middle). */
+    public static double spinRadius() {
+        return GROUND - HEIGHT / 2.0;
     }
 
     /** The point between his feet, across the drawing, in units. */
