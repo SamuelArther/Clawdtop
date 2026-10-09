@@ -57,6 +57,32 @@ final class Helpers {
     }
 
     /** "how many days until christmas" and the like: the answer, or null if it isn't one. birthday is "MM-dd" or "". */
+    /** Days until your birthday ("MM-DD"), or -1 if he doesn't know it. */
+    static long daysToBirthday(String birthday, LocalDate today) {
+        if (birthday == null || !birthday.matches("\\d\\d-\\d\\d")) return -1;
+        try {
+            MonthDay md = MonthDay.parse("--" + birthday);
+            return java.time.temporal.ChronoUnit.DAYS.between(today, next(today, md));
+        } catch (RuntimeException notADate) {
+            return -1;
+        }
+    }
+
+    /**
+     * The morning rundown: the date, then what's on your plate (to-dos, your sticky note, a birthday coming up).
+     * Null if there's nothing but the date to say.
+     */
+    static String rundown(LocalDate today, java.util.List<String> todos, String sticky, long birthdayIn, String name) {
+        java.util.List<String> lines = new java.util.ArrayList<>();
+        if (!todos.isEmpty()) lines.add(todos.size() == 1 ? "1 thing on your to-do list: " + todos.get(0) : todos.size() + " things on your to-do list (first up: " + todos.get(0) + ")");
+        if (sticky != null && !sticky.isBlank()) lines.add("Your note says: " + sticky);
+        if (birthdayIn > 0 && birthdayIn <= 14) lines.add(birthdayIn == 1 ? "Your birthday is TOMORROW!" : birthdayIn + " days till your birthday!");
+        if (lines.isEmpty()) return null;
+        String day = today.getDayOfWeek().getDisplayName(java.time.format.TextStyle.FULL, Locale.ENGLISH) + ", "
+                + today.getMonth().getDisplayName(java.time.format.TextStyle.FULL, Locale.ENGLISH) + " " + today.getDayOfMonth();
+        return "Here's your day" + (name == null || name.isBlank() ? "" : ", " + name) + "! It's " + day + ".\n- " + String.join("\n- ", lines);
+    }
+
     static String countdown(String question, String birthday, LocalDate today) {
         String q = question.toLowerCase(Locale.ROOT).strip().replaceAll("[?!.]+$", "");
         Matcher m = UNTIL.matcher(q);
