@@ -44,7 +44,7 @@ final class Hut {
             return;
         }
         window.setSize(WIDTH * unit, HEIGHT * unit);
-        window.setLocation(rightX - WIDTH * unit, groundY - HEIGHT * unit + unit);
+        window.setLocation(rightX - WIDTH * unit, groundY - HEIGHT * unit); // (its floor level with his feet)
         window.setVisible(true);
         window.repaint();
     }

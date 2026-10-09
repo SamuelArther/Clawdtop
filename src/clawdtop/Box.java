@@ -64,7 +64,7 @@ final class Box {
         window.setFocusableWindowState(false);
         window.setType(java.awt.Window.Type.UTILITY);
         window.setSize((WIDTH + 8) * unit, (HEIGHT + 6) * unit);
-        window.setLocation(centerX - window.getWidth() / 2, groundY - window.getHeight() + unit);
+        window.setLocation(centerX - window.getWidth() / 2, groundY - window.getHeight()); // (its bottom level with his feet)
         animation = new Timer(33, e -> {
             time += 33;
             window.repaint();

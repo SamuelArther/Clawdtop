@@ -45,7 +45,11 @@ final class Bubble {
     private static final int BUTTON_HEIGHT = 24;
     private static final int BUTTON_GAP = 8;
 
+    private static final char BOLD = '\u0001'; // (marks a line to draw in bold: a title over the rest)
+    private static final int MAX_WIDTH = 360;   // longer lines wrap
+
     private final JWindow window = new JWindow();
+    private int tailX = -1; // where the tail is (pointing at him), from the bubble's left; -1: the usual spot
     private String[] lines = new String[0];
     private String[] buttons = new String[0];
     private IntConsumer answer;
@@ -59,7 +63,7 @@ final class Bubble {
                 g2.setComposite(java.awt.AlphaComposite.Clear);
                 g2.fillRect(0, 0, getWidth(), getHeight());
                 g2.setComposite(java.awt.AlphaComposite.SrcOver);
-                Bubble.paint(g2, lines, buttons, getWidth(), getHeight());
+                Bubble.paint(g2, lines, buttons, getWidth(), getHeight(), tailX);
                 g2.dispose();
             }
         };
@@ -93,7 +97,7 @@ final class Bubble {
 
     /** Asks something, with buttons; answer gets the number of the button clicked. Stays up until answered. */
     void ask(String text, String[] choices, IntConsumer answer, Rectangle clawd, Rectangle screen) {
-        lines = text.split("\n");
+        lines = layout(text);
         buttons = choices;
         this.answer = answer;
         hideAt = Long.MAX_VALUE;
@@ -108,6 +112,11 @@ final class Bubble {
         Dimension size = window.getSize();
         int x = clawd.x + clawd.width / 2 - size.width + 24; // the tail points down at him, near the bubble's right
         x = Math.max(screen.x + 4, Math.min(screen.x + screen.width - size.width - 4, x));
+        int tail = Math.max(18, Math.min(size.width - 18, clawd.x + clawd.width / 2 - x)); // (still pointing at him at the screen's edges)
+        if (tail != tailX) {
+            tailX = tail;
+            window.repaint();
+        }
         window.setLocation(x, Math.max(screen.y + 4, clawd.y - size.height + 6));
     }
 
@@ -125,7 +134,7 @@ final class Bubble {
 
     /** The question being asked right now, or null. */
     String question() {
-        return asking() ? String.join("\n", lines) : null;
+        return asking() ? String.join("\n", java.util.Arrays.stream(lines).map(Bubble::text).toList()) : null;
     }
 
     void hide() {
@@ -146,11 +155,50 @@ final class Bubble {
         return size(lines, new String[0]);
     }
 
+    /**
+     * The text as lines for the bubble: long lines wrapped to fit, and the first line marked bold when it's a title over
+     * more lines (and fits on one line).
+     */
+    static String[] layout(String text) {
+        String[] raw = text.split("\n");
+        FontMetrics plain = metrics(FONT), bold = metrics(FIRST_LINE);
+        java.util.List<String> out = new java.util.ArrayList<>();
+        for (int i = 0; i < raw.length; i++) {
+            boolean title = i == 0 && raw.length > 1 && bold.stringWidth(raw[0]) <= MAX_WIDTH;
+            if (title) {
+                out.add(BOLD + raw[0]);
+                continue;
+            }
+            StringBuilder line = new StringBuilder();
+            for (String word : raw[i].split(" ", -1)) {
+                String tryLine = line.length() == 0 ? word : line + " " + word;
+                if (line.length() > 0 && plain.stringWidth(tryLine) > MAX_WIDTH) {
+                    out.add(line.toString());
+                    line.setLength(0);
+                    line.append(word);
+                } else {
+                    line.setLength(0);
+                    line.append(tryLine);
+                }
+            }
+            out.add(line.toString());
+        }
+        return out.toArray(new String[0]);
+    }
+
+    private static boolean bold(String line) {
+        return !line.isEmpty() && line.charAt(0) == BOLD;
+    }
+
+    private static String text(String line) {
+        return bold(line) ? line.substring(1) : line;
+    }
+
     static Dimension size(String[] lines, String[] buttons) {
         FontMetrics plain = metrics(FONT);
         FontMetrics bold = metrics(FIRST_LINE);
-        int width = 0;
-        for (int i = 0; i < lines.length; i++) width = Math.max(width, (i == 0 ? bold : plain).stringWidth(lines[i]));
+        int width = 60; // (never so small the tail hangs off the corner)
+        for (String line : lines) width = Math.max(width, (bold(line) ? bold : plain).stringWidth(text(line)));
         width = Math.max(width, buttonsWidth(buttons));
         int height = plain.getHeight() * lines.length + PAD * 2 + TAIL + 2;
         if (buttons.length > 0) height += BUTTON_HEIGHT + PAD;
@@ -186,15 +234,19 @@ final class Bubble {
     }
 
     static void paint(Graphics2D g, String[] lines, int width, int height) {
-        paint(g, lines, new String[0], width, height);
+        paint(g, lines, new String[0], width, height, -1);
     }
 
-    /** Draws the bubble filling width x height: a rounded box with a little tail at the bottom right. */
     static void paint(Graphics2D g, String[] lines, String[] buttons, int width, int height) {
+        paint(g, lines, buttons, width, height, -1);
+    }
+
+    /** Draws the bubble filling width x height: a rounded box with a little tail at the bottom (at tail, or the right). */
+    static void paint(Graphics2D g, String[] lines, String[] buttons, int width, int height, int tailAt) {
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         int boxHeight = height - TAIL - 1;
-        int tailX = width - 30;
+        int tailX = tailAt > 0 ? Math.max(18, Math.min(width - 18, tailAt)) : width - 30;
         Polygon tail = new Polygon(new int[] {tailX - 8, tailX + 4, tailX + 8}, new int[] {boxHeight - 2, boxHeight - 2, height - 2}, 3);
         g.setColor(PAPER);
         g.fillRoundRect(1, 1, width - 2, boxHeight - 2, 14, 14);
@@ -210,8 +262,8 @@ final class Bubble {
         FontMetrics m = g.getFontMetrics(FONT);
         int y = PAD + m.getAscent();
         for (int i = 0; i < lines.length; i++) {
-            g.setFont(i == 0 && lines.length > 1 ? FIRST_LINE : FONT);
-            g.drawString(lines[i], PAD + 1, y);
+            g.setFont(bold(lines[i]) ? FIRST_LINE : FONT);
+            g.drawString(text(lines[i]), PAD + 1, y);
             y += m.getHeight();
         }
         g.setFont(FIRST_LINE);

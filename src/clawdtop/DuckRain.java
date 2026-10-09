@@ -84,6 +84,11 @@ final class DuckRain {
         return !ducks.isEmpty();
     }
 
+    /** Whether nothing's moving: all landed, and not vanishing (no need to redraw them). */
+    boolean settled() {
+        return allLanded() && poofFor < 0;
+    }
+
     /** Whether they're all down on the floor. */
     boolean allLanded() {
         for (Duck d : ducks) if (!d.landed) return false;

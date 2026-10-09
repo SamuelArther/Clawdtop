@@ -27,6 +27,21 @@ public final class Sprite {
     private Sprite() {
     }
 
+    /** How far a hat sticks up above his head (units). */
+    static double hatHeight(String hat) {
+        return switch (hat == null ? "" : hat) {
+            case "wizard" -> 6;
+            case "birthday" -> 5;
+            case "chef" -> 4.6;
+            case "beanie" -> 4.2;
+            case "party-hat", "top-hat" -> 4;
+            case "" -> 0;
+            default -> 3.6;
+        };
+    }
+
+    private static boolean noHat; // (upside down: his hat would be in the taskbar)
+
     /** Draws him as he is right now, with the top-left of the drawing at (0, 0). */
     public static void draw(Graphics2D g, Pet pet, int unit) {
         Pet.Mood mood = pet.mood();
@@ -36,7 +51,9 @@ public final class Sprite {
         if (mood == Pet.Mood.SPIN) {
             // spun round by a zooming cursor: once all the way round
             Graphics2D spun = (Graphics2D) g.create();
-            spun.rotate(Math.min(1, pet.moodTime() / 600.0) * Math.PI * 2, WIDTH * unit / 2.0, (GROUND - 5) * unit);
+            double p = Math.min(1, pet.moodTime() / 600.0);
+            spun.translate(0, -Math.sin(Math.PI * p) * 3 * unit); // a little hop, so he spins clear of the ground
+            spun.rotate(p * Math.PI * 2, WIDTH * unit / 2.0, (GROUND - 5) * unit);
             drawBody(spun, pet, unit, mood);
             spun.dispose();
             return;
@@ -84,7 +101,7 @@ public final class Sprite {
             // tripped: tipping over forwards, then back up
             Graphics2D trip = (Graphics2D) g.create();
             double t = pet.tripping();
-            trip.rotate(Math.sin(t * Math.PI) * 0.9, feetX() * unit, GROUND * unit);
+            trip.rotate(Math.sin(t * Math.PI) * 0.9, (LEFT + 13) * unit, GROUND * unit); // tipping over his front foot
             drawBody(trip, pet, unit, mood);
             trip.dispose();
             return;
@@ -220,7 +237,7 @@ public final class Sprite {
             case LIE, SLEEP -> 2;
             default -> 0;
         };
-        double lift = pet.lift();
+        double lift = Math.min(pet.lift(), Math.max(0, 7 - hatHeight(pet.hat()))); // (a tall hat: smaller hops, so it fits)
         double top = GROUND - 2 - 8 + drop - lift; // his body is 8 tall, on legs 2 tall
         // His one dance: bobbing his body down and up to the beat, feet planted (dancing, music time, the disco ball)
         boolean dancing = mood == Pet.Mood.DANCE || mood == Pet.Mood.VIBE || made(pet, Creation.Effect.DISCO) || made(pet, Creation.Effect.MUSIC);
@@ -243,7 +260,11 @@ public final class Sprite {
         box(g, unit, LEFT, top, 13, 8, body);
         drawShirt(g, unit, pet.shirt(), top, mood);
         // Arms: out to the sides, or up in the air when he's happy
-        if (mood == Pet.Mood.DANCE || made(pet, Creation.Effect.DISCO) || made(pet, Creation.Effect.MUSIC) || mood == Pet.Mood.JUGGLE) {
+        boolean holdingClock = pet.clockMs() >= 0 && (mood == Pet.Mood.IDLE || mood == Pet.Mood.SIT || mood == Pet.Mood.HAPPY || mood == Pet.Mood.LOVED
+                || mood == Pet.Mood.BLUSH || mood == Pet.Mood.BOOPED || mood == Pet.Mood.HICCUP || mood == Pet.Mood.REMIND);
+        if (holdingClock) {
+            // (both hands are on his little clock: see drawClock)
+        } else if (mood == Pet.Mood.DANCE || made(pet, Creation.Effect.DISCO) || made(pet, Creation.Effect.MUSIC) || mood == Pet.Mood.JUGGLE) {
             // hands going up and down in turns (dancing, or tossing balls)
             boolean up = (pet.time() / (mood == Pet.Mood.JUGGLE ? 140 : 180)) % 2 == 0;
             box(g, unit, LEFT - 2, top + (up ? 0 : 3), 1, 2, body);
@@ -336,7 +357,7 @@ public final class Sprite {
             double eyeX = LEFT + x + ex;
             double eyeY = top + 2 + ey;
             if (pet.eyesShut()) {
-                box(g, unit, LEFT + x, top + 3.5, 1, 0.5, EYE);
+                box(g, unit, eyeX, top + 3.5, 1, 0.5, EYE); // (shut where they were looking)
             } else if (mood == Pet.Mood.BLUSH) {
                 // happy squinty eyes: little upside-down Vs
                 box(g, unit, LEFT + x - 0.5, top + 3, 0.6, 0.6, EYE);
@@ -350,7 +371,7 @@ public final class Sprite {
                 double a = pet.time() / 110.0 * (x == 3 ? 1 : -1);
                 for (int k = 0; k < 2; k++) {
                     double b = a + k * Math.PI;
-                    box(g, unit, cx - 0.35 + Math.cos(b) * 0.65, cy - 0.35 + Math.sin(b) * 0.65, 0.7, 0.7, EYE);
+                    box(g, unit, cx - 0.45 + Math.cos(b) * 0.75, cy - 0.45 + Math.sin(b) * 0.75, 0.9, 0.9, EYE);
                 }
             } else if (pet.eyesLit()) {
                 // excited: his eyes just go big and wide
@@ -439,7 +460,7 @@ public final class Sprite {
             }
         }
 
-        drawHat(g, unit, pet.hat(), top);
+        if (!noHat && mood != Pet.Mood.CARRY) drawHat(g, unit, pet.hat(), top); // (no hat through the moving box)
 
         // Woozy: little yellow birds flying round and round his head
         if (mood == Pet.Mood.WOOZY) {
@@ -480,7 +501,11 @@ public final class Sprite {
         }
 
         // Birthday: a cake by his side, and his party blower going out and back from his mouth
-        if (pet.birthdayToday() && mood != Pet.Mood.WORK && mood != Pet.Mood.PEEK) {
+        boolean standingStill = switch (mood) { // (the cake stays on the ground: not carried off on adventures)
+            case IDLE, SIT, LIE, SLEEP, HAPPY, BIRTHDAY, LOVED, BLUSH, BOOPED, HICCUP, PARTY, DANCE, WAVE, SNEEZE, YELLED, ANNOYED, SAD -> true;
+            default -> false;
+        };
+        if (pet.birthdayToday() && standingStill && !noHat && pet.tripping() < 0) {
             Color cake = new Color(250, 225, 200), icing = new Color(255, 140, 180);
             box(g, unit, LEFT - 3.5, GROUND - 3, 3.5, 3, cake);
             box(g, unit, LEFT - 3.5, GROUND - 3, 3.5, 0.8, icing);
@@ -616,10 +641,13 @@ public final class Sprite {
     public static void drawTurned(Graphics2D g, Pet pet, int unit, double angle) {
         Graphics2D turned = (Graphics2D) g.create();
         if (angle != 0) {
-            turned.translate(0, (2 * GROUND - HEIGHT - 9) * unit * (1 - Math.cos(angle)) / 2); // so his head lands on the ground
+            double drop = Math.max(0, 6 * (1 - Math.cos(angle)) / 2 - 3 * Math.abs(Math.sin(angle))); // so his head lands on the ground
+            turned.translate(0, drop * unit);
             turned.rotate(angle, WIDTH * unit / 2.0, HEIGHT * unit / 2.0);
         }
+        noHat = Math.abs(Math.IEEEremainder(angle, Math.PI * 2)) > Math.PI / 2;
         draw(turned, pet, unit);
+        noHat = false;
         turned.dispose();
     }
 
@@ -818,7 +846,7 @@ public final class Sprite {
     private static void drawGuitar(Graphics2D g, Pet pet, int unit, double top, boolean bass) {
         Color wood = bass ? new Color(40, 40, 48) : new Color(205, 135, 60), edge = bass ? new Color(170, 30, 40) : new Color(140, 85, 35);
         Color neck = new Color(110, 70, 40), fret = new Color(210, 200, 170);
-        double bx = LEFT + 6.5, by = top + 4.6;
+        double bx = LEFT + (bass ? 4.5 : 6), by = top + 4.6; // (so the head of the neck stays in the window)
         // the neck, going up to his right
         double len = bass ? 9 : 7.5;
         for (double d = 0; d < len; d += 0.5) box(g, unit, bx + 3 + d, by + 0.6 - d * 0.55, 0.8, 0.8, neck);

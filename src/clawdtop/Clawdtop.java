@@ -41,6 +41,7 @@ public final class Clawdtop {
     private final Pet pet = new Pet(System.nanoTime());
     private final Beeps beeps = new Beeps();
     private boolean wasPlaying; // on his piano (or guitar, or drums) last frame
+    private boolean fxStill;    // the ducks and explosions overlay hasn't changed since it was last drawn
     private boolean rightWasDown; // the right mouse button, last frame
     private String heldLine;      // something he wanted to say while he was asking you something
     private final Tips tips = new Tips();
@@ -647,7 +648,9 @@ public final class Clawdtop {
         if (ducks.active() || explosion.active()) {
             Rectangle screen = screenBounds();
             ducks.tick(FRAME_MS, groundY, screen.x, screen.x + screen.width);
-            if (duckWindow != null) duckWindow.repaint();
+            boolean still = ducks.settled() && !explosion.active();
+            if (duckWindow != null && (!still || !fxStill)) duckWindow.repaint(); // (once they've all landed: drawn once, then left be)
+            fxStill = still;
         } else if (duckWindow != null && duckWindow.isVisible()) {
             duckWindow.setVisible(false);
         }
@@ -2099,7 +2102,8 @@ public final class Clawdtop {
     /** Where he is on the screen, for pointing bubbles at (his window, without the room it keeps above him for hats). */
     private Rectangle head() {
         Rectangle r = window.getBounds();
-        int room = 3 * settings.unit();
+        double hat = Sprite.hatHeight(pet.hat());
+        int room = (int) Math.round(Math.max(0, Math.min(3, 6 - hat)) * settings.unit()); // (room for a tall hat under the bubble)
         return new Rectangle(r.x, r.y + room, r.width, r.height - room);
     }
 
