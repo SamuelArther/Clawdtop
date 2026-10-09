@@ -1,6 +1,7 @@
-Fix: two monitors with different scaling.
+Fix: his bubbles and boxes stay where you can see them.
 
-- With two monitors at different scaling (like a laptop at 150% and a monitor at 100%), he worked out where windows and desktop icons were using his own monitor's scaling, so on the other monitor he could aim at empty space between the screens. Now each spot uses its own monitor's scaling: sitting on a window while cleaning, desktop songs and tidying, watching a video, and tackling a taskbar button.
+- His speech bubbles, the ask box, tic-tac-toe, his piano and the sticky note now keep clear of the Mac menu bar and Dock, and a Windows taskbar at the top or side of the screen (before, near the top they could slide underneath).
+- Opening "Ask me a question" tidies away whatever he was saying, so it doesn't sit behind the box.
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 

@@ -535,7 +535,7 @@ public final class Clawdtop {
                 settings.set(option, String.valueOf(allowed));
                 pet.say(allowed ? (option.equals("seeing") ? "Yay! Movie buddy!" : "Yay! Let's hear it!") : "Okay, I won't. (It's in my options if you change your mind.)");
             });
-        }, head(), screenBounds());
+        }, head(), popupBounds());
     }
 
     /** Every frame or so: reacting to what he sees and hears (a jump at the scary bits, bopping along to music). */
@@ -782,7 +782,7 @@ public final class Clawdtop {
                                 settings.setFlag("brainOk", true);
                                 pet.say("Getting it ready now... I'll answer as soon as it's done.");
                                 prepareBrain(() -> answer(question, false));
-                            }, head(), screenBounds());
+                            }, head(), popupBounds());
                 } else if (problem2 != null) {
                     // no brain yet: he gets it ready (with a notice), then answers
                     pet.say("I need my brain for that! Getting it ready now...\nI'll answer as soon as it's done.");
@@ -920,7 +920,7 @@ public final class Clawdtop {
             if (items.size() > 1) { // which one?
                 java.util.List<String> some = items.subList(0, Math.min(3, items.size()));
                 pet.speak();
-                bubble.ask("Which one did you finish?", some.toArray(new String[0]), choice -> doneTodo(some.get(choice)), head(), screenBounds());
+                bubble.ask("Which one did you finish?", some.toArray(new String[0]), choice -> doneTodo(some.get(choice)), head(), popupBounds());
                 bubble.expireIn(30_000);
                 return true;
             }
@@ -1021,7 +1021,7 @@ public final class Clawdtop {
                 } catch (Exception cant) {
                     pet.say("Hmm, I couldn't lock it from here.");
                 }
-            }, head(), screenBounds());
+            }, head(), popupBounds());
             return true;
         }
         return false;
@@ -1092,7 +1092,7 @@ public final class Clawdtop {
         int x = a, y = b;
         quizAsked++;
         askBox.show("Question " + quizAsked + " of 10:   " + x + " x " + y + " = ?", "Type the answer and press Enter (Never mind stops the quiz)", "Answer",
-                head(), screenBounds(), typed -> {
+                head(), popupBounds(), typed -> {
                     String digits = typed.replaceAll("[^0-9-]", "");
                     if (digits.equals(String.valueOf(x * y))) {
                         quizRight++;
@@ -1173,11 +1173,11 @@ public final class Clawdtop {
                             bubble.ask("Done! " + made.getFileName() + "\n" + Handy.size(picture) + " became " + Handy.size(made) + ". It's right next to the original.",
                                     new String[] {"Show me", "OK"}, c -> {
                                         if (c == 0) FindFile.showInFolder(made);
-                                    }, head(), screenBounds());
+                                    }, head(), popupBounds());
                             bubble.expireIn(30_000);
                         });
                     });
-                }, head(), screenBounds());
+                }, head(), popupBounds());
         bubble.expireIn(30_000);
     }
 
@@ -1209,11 +1209,11 @@ public final class Clawdtop {
                             bubble.ask("Unzipped! " + done.files() + (done.files() == 1 ? " file" : " files") + " in the folder \"" + done.folder().getFileName() + "\".",
                                     new String[] {"Show me", "OK"}, c -> {
                                         if (c == 0) FindFile.open(done.folder());
-                                    }, head(), screenBounds());
+                                    }, head(), popupBounds());
                             bubble.expireIn(30_000);
                         });
                     });
-                }, head(), screenBounds());
+                }, head(), popupBounds());
         bubble.expireIn(30_000);
     }
 
@@ -1235,7 +1235,7 @@ public final class Clawdtop {
                 if (choice != 0) return;
                 stickNote("");
                 pet.say("Down it comes! One less thing.");
-            }, head(), screenBounds());
+            }, head(), popupBounds());
         });
     }
 
@@ -1265,7 +1265,7 @@ public final class Clawdtop {
                     if (choice == 0) FindFile.showInFolder(file);
                     else if (choice == 1) FindFile.open(file);
                     else if (more) showFound(found, i + 1, words, home);
-                }, head(), screenBounds());
+                }, head(), popupBounds());
         bubble.expireIn(60_000);
     }
 
@@ -1333,7 +1333,7 @@ public final class Clawdtop {
         bubble.ask("Your download's done!\n" + file.getFileName() + " (" + FindFile.size(size) + ")", new String[] {"Open it", "Show me", "OK"}, choice -> {
             if (choice == 0) FindFile.open(file);
             else if (choice == 1) FindFile.showInFolder(file);
-        }, head(), screenBounds());
+        }, head(), popupBounds());
         bubble.expireIn(30_000);
     }
 
@@ -1691,7 +1691,7 @@ public final class Clawdtop {
                             Object[] firstOne = tidyQueue.peek();
                             pet.say("Tidy time! HUP!");
                             body.perchAt((Double) firstOne[1], (Double) firstOne[2]);
-                        }, head(), screenBounds());
+                        }, head(), popupBounds());
             });
         });
     }
@@ -1742,7 +1742,7 @@ public final class Clawdtop {
         if (game != null && game.showing()) return;
         pet.say("You're X. I'm O. Good luck. (You'll need it.)");
         game = new TicTacToe(new java.util.Random());
-        game.show(head(), screenBounds(), result -> {
+        game.show(head(), popupBounds(), result -> {
             String[] lines = switch (result) {
                 case "you" -> new String[] {"Nooo! Best of three?", "You won?! I demand a rematch.", "Okay, you're good at this."};
                 case "clawd" -> new String[] {"Crab victory!", "I win! Crabs are great at corners.", "Ha! Good game though."};
@@ -2026,7 +2026,10 @@ public final class Clawdtop {
         }
         if (settings.on("askMe") && job == null) {
             JMenuItem ask = new JMenuItem("Ask me a question...");
-            ask.addActionListener(e -> askBox.show("Ask me anything!", head(), screenBounds(), this::answer));
+            ask.addActionListener(e -> {
+                if (!bubble.asking()) bubble.hide(); // (whatever he was saying: out of the way of your question)
+                askBox.show("Ask me anything!", head(), popupBounds(), this::answer);
+            });
             menu.add(ask);
         }
 
@@ -2068,7 +2071,7 @@ public final class Clawdtop {
             });
             piano.add(folder);
             JMenuItem mine = new JMenuItem("Let me play!");
-            mine.addActionListener(e -> yourPiano.show(head(), screenBounds(), note -> {
+            mine.addActionListener(e -> yourPiano.show(head(), popupBounds(), note -> {
                 beeps.piano(note, 400); // you are playing it: it always makes a sound
                 pet.listened();
             }));
@@ -2193,13 +2196,13 @@ public final class Clawdtop {
         }
         if (!settings.todos().isEmpty()) todoMenu.addSeparator();
         JMenuItem addOne = new JMenuItem("Add something...");
-        addOne.addActionListener(e -> askBox.show("What do you need to do?", "Like \"homework\" or \"call Grandma\"", "Add it", head(), screenBounds(), this::addTodo));
+        addOne.addActionListener(e -> askBox.show("What do you need to do?", "Like \"homework\" or \"call Grandma\"", "Add it", head(), popupBounds(), this::addTodo));
         todoMenu.add(addOne);
         useful.add(todoMenu);
         JMenuItem noteItem = new JMenuItem(settings.text("sticky").isEmpty() ? "Stick up a note..." : "Take down the sticky note");
         noteItem.addActionListener(e -> {
             if (settings.text("sticky").isEmpty()) {
-                askBox.show("What should the note say?", "Like \"dentist at 4\" (click the note when you're done with it)", "Stick it up", head(), screenBounds(), text -> {
+                askBox.show("What should the note say?", "Like \"dentist at 4\" (click the note when you're done with it)", "Stick it up", head(), popupBounds(), text -> {
                     if (text.isBlank()) return;
                     stickNote(Brain.noBadWords(text));
                     pet.say("Stuck it up! Click the note when you're done with it.");
@@ -2214,7 +2217,7 @@ public final class Clawdtop {
         breatheItem.addActionListener(e -> breathe());
         useful.add(breatheItem);
         JMenuItem findItem = new JMenuItem("Find a file...");
-        findItem.addActionListener(e -> askBox.show("What's the file called?", "Part of the name is fine, like \"essay\" or \"birthday\"", "Find it", head(), screenBounds(), text -> {
+        findItem.addActionListener(e -> askBox.show("What's the file called?", "Part of the name is fine, like \"essay\" or \"birthday\"", "Find it", head(), popupBounds(), text -> {
             java.util.List<String> words = FindFile.wordsIn("find my " + text);
             if (words != null) findFile(words);
         }));
@@ -2279,7 +2282,7 @@ public final class Clawdtop {
                         if (Shop.buy(settings, item)) {
                             useItems();
                             pet.poke();
-                            bubble.show("Yay, " + item.name().toLowerCase(java.util.Locale.ROOT) + "! Thank you!", head(), screenBounds());
+                            bubble.show("Yay, " + item.name().toLowerCase(java.util.Locale.ROOT) + "! Thank you!", head(), popupBounds());
                         }
                     });
                 }
@@ -2595,7 +2598,7 @@ public final class Clawdtop {
     private void tellJoke() {
         lastJokeAt = System.currentTimeMillis();
         jokeJitter = (long) (Math.random() * 120_000);
-        bubble.show(nextJoke(), head(), screenBounds());
+        bubble.show(nextJoke(), head(), popupBounds());
         pet.speak();
     }
 
@@ -2655,7 +2658,7 @@ public final class Clawdtop {
                     bubble.ask("Your " + full.getPath().replace("\\", "") + " drive is nearly full (" + Cleaner.size(full.getUsableSpace()) + " left).\n"
                             + "Want me to clean out a folder?", new String[] {"Yes, clean one", "Not now"}, c -> {
                                 if (c == 0) startCleaning();
-                            }, head(), screenBounds());
+                            }, head(), popupBounds());
                 }
             });
         });
@@ -2663,7 +2666,7 @@ public final class Clawdtop {
 
     private void startCleaning() {
         if (!Cleaner.canRecycle()) {
-            bubble.show("I can't reach the Recycle Bin on this computer,\nso I won't clean anything.", head(), screenBounds());
+            bubble.show("I can't reach the Recycle Bin on this computer,\nso I won't clean anything.", head(), popupBounds());
             return;
         }
         job = new CleanJob(new CleanJob.Ui() {
@@ -2680,12 +2683,12 @@ public final class Clawdtop {
             }
 
             public void say(String text) {
-                bubble.show(text, head(), screenBounds());
+                bubble.show(text, head(), popupBounds());
                 pet.speak();
             }
 
             public void ask(String text, String[] buttons, java.util.function.IntConsumer answer) {
-                bubble.ask(text, buttons, answer, head(), screenBounds());
+                bubble.ask(text, buttons, answer, head(), popupBounds());
                 pet.speak();
             }
 
@@ -2719,6 +2722,11 @@ public final class Clawdtop {
         double left = topLeft.x, right = topRight.x, top = topLeft.y;
         if (top < screen.y + 4) top = screen.y + 34;
         return new double[] {left + (right - left) * 0.72, top + 1};
+    }
+
+    /** Where his bubbles and boxes may go: his monitor, minus the taskbar (and on a Mac, the Dock and the menu bar). */
+    private Rectangle popupBounds() {
+        return usable(window.getGraphicsConfiguration());
     }
 
     private Rectangle screenBounds() {
@@ -2982,7 +2990,7 @@ public final class Clawdtop {
                             }
                         });
                     });
-                }, head(), screenBounds());
+                }, head(), popupBounds());
     }
 
     /** Puts the app's window back, all at once. */
@@ -3138,7 +3146,7 @@ public final class Clawdtop {
 
         int unit = settings.unit();
         if (boxed) {
-            if (welcome != null && welcome.showing()) welcome.follow(head(), screenBounds());
+            if (welcome != null && welcome.showing()) welcome.follow(head(), popupBounds());
             return; // nothing to do until he's out
         }
         if (greetWhenHome && body.state() == Body.State.HOME) {
@@ -3147,7 +3155,7 @@ public final class Clawdtop {
             String hi = settings.restored()
                     ? "Hii.......... I think I remember you...." + (settings.name().isEmpty() ? "" : " " + settings.name() + ", right?")
                     : "Hi" + (settings.name().isEmpty() ? "" : " " + settings.name()) + "!! I'm so happy to be here!";
-            bubble.show(hi, head(), screenBounds());
+            bubble.show(hi, head(), popupBounds());
             if (brainBusy && lastBrainNote != null) { // what he's been up to in his box: getting his brain ready
                 javax.swing.Timer later = new javax.swing.Timer(7000, e -> { if (brainBusy && lastBrainNote != null) pet.say(lastBrainNote); });
                 later.setRepeats(false);
@@ -3222,7 +3230,7 @@ public final class Clawdtop {
             tellAboutDownloads();
             countScreenTime(nowMs);
         }
-        sticky.place(window.getX(), window.getY(), window.getWidth(), window.getHeight(), screenBounds(), bubble.bounds());
+        sticky.place(window.getX(), window.getY(), window.getWidth(), window.getHeight(), popupBounds(), bubble.bounds());
         if (newTick && ticks % 90 == 20) watchDesktopForSongs();
         desktopTrips();
         if (newTick && ticks % 3 == 0) react(nowMs);
@@ -3248,7 +3256,7 @@ public final class Clawdtop {
         if (movingOut && body.state() == Body.State.OUT) System.exit(0); // gone to the new computer
         if (huffed && body.state() == Body.State.HOME) {
             huffed = false;
-            bubble.show("...okay. I'm better now.", head(), screenBounds());
+            bubble.show("...okay. I'm better now.", head(), popupBounds());
         }
         double eyesX = window.getX() + Sprite.eyesX() * unit;
         double eyesY = window.getY() + Sprite.eyesY() * unit;
@@ -3284,10 +3292,10 @@ public final class Clawdtop {
         } else if (line == null && !heldLines.isEmpty() && !bubble.showing()) {
             line = heldLines.poll();
         }
-        if (line != null) bubble.show(line, head(), screenBounds());
+        if (line != null) bubble.show(line, head(), popupBounds());
         bubble.tick();
-        if (bubble.showing()) bubble.follow(head(), screenBounds());
-        if (welcome != null && welcome.showing()) welcome.follow(head(), screenBounds());
+        if (bubble.showing()) bubble.follow(head(), popupBounds());
+        if (welcome != null && welcome.showing()) welcome.follow(head(), popupBounds());
         canvas.repaint();
     }
 
@@ -3316,7 +3324,7 @@ public final class Clawdtop {
     /** clawd move: he's off to the new computer. He picks up a box and walks off the edge of the screen. */
     private void moveOut() {
         if (job != null) job.stop(body, pet);
-        bubble.show("Off to the new place! Bye!", head(), screenBounds());
+        bubble.show("Off to the new place! Bye!", head(), popupBounds());
         movingOut = true;
         moveOutPending = true; // off he goes once he's back on the taskbar (he might be riding, or falling)
     }
@@ -3474,9 +3482,9 @@ public final class Clawdtop {
                 greetWhenHome = true;
                 }).show();
             });
-            welcome.start(head(), screenBounds());
+            welcome.start(head(), popupBounds());
         } else if (!settings.name().isEmpty() && pet.takeLineIfAny() == null && !birthdayHiding) {
-            bubble.show("Hi again, " + settings.name() + "!", head(), screenBounds());
+            bubble.show("Hi again, " + settings.name() + "!", head(), popupBounds());
         }
     }
 
@@ -3542,7 +3550,7 @@ public final class Clawdtop {
             case "menu" -> jobs().show(canvas, at.width / 2, at.height / 3);
             case "settings menu" -> jobs().show(canvas, at.width / 2, at.height / 3);
             case "close menus" -> javax.swing.MenuSelectionManager.defaultManager().clearSelectedPath();
-            case "ask" -> askBox.show("Ask me anything!", at, screenBounds(), this::answer);
+            case "ask" -> askBox.show("Ask me anything!", at, popupBounds(), this::answer);
             case "type" -> askBox.field().setText("why is the sky blue?");
             case "close ask" -> askBox.hide();
             case "tip" -> pet.say("Win+Shift+S takes a screenshot of part of the screen.");
@@ -3551,7 +3559,7 @@ public final class Clawdtop {
             case "guitar" -> pet.play(Piano.Instrument.GUITAR, Piano.SONGS[1]);
             case "bass" -> pet.play(Piano.Instrument.BASS, Piano.SONGS[4]);
             case "drums" -> pet.play(Piano.Instrument.DRUMS, Piano.BEATS[0]);
-            case "your piano" -> yourPiano.show(head(), screenBounds(), note -> {
+            case "your piano" -> yourPiano.show(head(), popupBounds(), note -> {
                 beeps.piano(note, 400);
                 pet.listened();
                 smokeNotes++;
