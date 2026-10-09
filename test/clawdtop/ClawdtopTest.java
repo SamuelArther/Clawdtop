@@ -705,6 +705,9 @@ public class ClawdtopTest {
                 .getFontMetrics(new java.awt.Font("Dialog", java.awt.Font.PLAIN, 13));
         List<String> noteLines = Sticky.wrap("Dentist at 4, then pick up Grandma from the airport and buy milk eggs bread cheese apples", noteFont, 106, 5);
         check("sticky note wraps", noteLines.size() <= 5 && noteLines.stream().allMatch(l -> noteFont.stringWidth(l) <= 106) && noteLines.get(0).startsWith("Dentist"), true);
+        java.awt.Rectangle wide = new java.awt.Rectangle(0, 0, 2000, 1000);
+        check("sticky note beside him, and out from under his bubble", Sticky.spotX(1800, 100, wide, null) + " " + Sticky.spotX(1800, 100, wide, new java.awt.Rectangle(1500, 700, 380, 90))
+                + " " + Sticky.spotX(1800, 100, wide, new java.awt.Rectangle(1900, 700, 50, 90)) + " " + Sticky.spotX(20, 100, wide, null), "1676 1364 1676 112");
         check("sticky note one huge word", Sticky.wrap("Supercalifragilisticexpialidocious", noteFont, 60, 5).size() > 1, true);
         // the desktop: reading icon spots (Windows' script and Finder say the same shape), sorting files for Neat
         Desktop.Layout desk = Desktop.read("DESKTOP|/home/me/Desktop\nskin|177,2\nmy song.mid|2427,1032\nnot an icon\n");

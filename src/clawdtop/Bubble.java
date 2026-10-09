@@ -151,6 +151,11 @@ final class Bubble {
         return window.isVisible();
     }
 
+    /** Where the bubble is on the screen (null when it's not up). */
+    java.awt.Rectangle bounds() {
+        return window.isVisible() ? window.getBounds() : null;
+    }
+
     /** Whether a question is waiting for an answer. */
     boolean asking() {
         return window.isVisible() && buttons.length > 0;

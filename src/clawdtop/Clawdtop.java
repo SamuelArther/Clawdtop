@@ -2871,7 +2871,7 @@ public final class Clawdtop {
             tellAboutDownloads();
             countScreenTime(nowMs);
         }
-        sticky.place(window.getX(), window.getY(), window.getWidth(), window.getHeight(), screenBounds());
+        sticky.place(window.getX(), window.getY(), window.getWidth(), window.getHeight(), screenBounds(), bubble.bounds());
         if (newTick && ticks % 90 == 20) watchDesktopForSongs();
         desktopTrips();
         if (newTick && ticks % 3 == 0) react(nowMs);

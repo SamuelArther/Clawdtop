@@ -89,13 +89,28 @@ final class Sticky {
         return window.isVisible();
     }
 
-    /** Keeps it beside him (to his left, or his right if there's no room). */
-    void place(int clawdX, int clawdY, int clawdW, int clawdH, java.awt.Rectangle screen) {
+    /**
+     * Keeps it beside him (to his left, or his right if there's no room), and out from under his speech bubble
+     * (bubble: where it is, or null): it slides along, a little at a time, so it never jumps.
+     */
+    void place(int clawdX, int clawdY, int clawdW, int clawdH, java.awt.Rectangle screen, java.awt.Rectangle bubble) {
         if (!window.isVisible()) return;
-        int x = clawdX - WIDTH + 8, y = clawdY + clawdH - HEIGHT - 14;
-        if (x < screen.x) x = clawdX + clawdW - 8;
+        int x = spotX(clawdX, clawdW, screen, bubble), y = clawdY + clawdH - HEIGHT - 14;
         y = Math.max(screen.y, Math.min(y, screen.y + screen.height - HEIGHT));
-        if (window.getX() != x || window.getY() != y) window.setLocation(x, y);
+        int nowX = window.getX(), step = Math.abs(x - nowX) > 400 ? Math.abs(x - nowX) : 40; // (glides; a big move, like a new screen: straight there)
+        int nextX = nowX + Math.max(-step, Math.min(step, x - nowX));
+        if (nowX != nextX || window.getY() != y) window.setLocation(nextX, y);
+    }
+
+    /** Where the note goes across: beside him, and if his bubble would cover it, beside the bubble instead. */
+    static int spotX(int clawdX, int clawdW, java.awt.Rectangle screen, java.awt.Rectangle bubble) {
+        int x = clawdX - WIDTH + 8;
+        if (x < screen.x) x = clawdX + clawdW - 8;
+        if (bubble != null && bubble.x < x + WIDTH && bubble.x + bubble.width > x) { // under the bubble: off to its side
+            int left = bubble.x - WIDTH - 4, right = bubble.x + bubble.width + 4;
+            x = left >= screen.x ? left : right + WIDTH <= screen.x + screen.width ? right : x;
+        }
+        return x;
     }
 
     /** The note's words in lines that fit, at most this many (the last one ends "..." if it didn't all fit). */
