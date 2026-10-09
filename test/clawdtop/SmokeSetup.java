@@ -21,6 +21,7 @@ public final class SmokeSetup {
     static int n;
 
     public static void main(String[] args) throws Exception {
+        System.setProperty("apple.awt.UIElement", "true"); // (as when he starts for real: no Dock icon on a Mac)
         out = new File(args[0]);
         out.mkdirs();
         Path home = Files.createTempDirectory("clawdtop-smoke");
