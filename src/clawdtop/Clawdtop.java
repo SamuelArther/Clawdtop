@@ -1354,6 +1354,19 @@ public final class Clawdtop {
         RandomAccessFile lockFile = new RandomAccessFile(folder.resolve("running.lock").toFile(), "rw");
         FileLock lock = lockFile.getChannel().tryLock();
         if (lock == null) return;
+        // If anything ever goes wrong, a note of it goes in clawd.log (to help fix it), and he carries on
+        Path log = folder.resolve("clawd.log");
+        Thread.setDefaultUncaughtExceptionHandler((thread, e) -> {
+            try {
+                if (Files.exists(log) && Files.size(log) > 200_000) Files.delete(log);
+                java.io.StringWriter trace = new java.io.StringWriter();
+                e.printStackTrace(new java.io.PrintWriter(trace));
+                Files.writeString(log, java.time.LocalDateTime.now() + " (" + thread.getName() + ")\n" + trace + "\n",
+                        java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
+            } catch (IOException ignored) {
+                // can't write it down either
+            }
+        });
         // So the clawd command can find him (clawd stop, clawd status)
         Path pid = folder.resolve("running.pid");
         Files.writeString(pid, String.valueOf(ProcessHandle.current().pid()));
