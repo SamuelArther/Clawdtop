@@ -1,8 +1,10 @@
-Clawdtop 7.0: everything from the big overnight update, polished.
+Clawdtop 8.0: give him your files.
 
-- Since 1.0: a to-do list, sticky notes, reminders at a time, finding files, download alerts, a times-table quiz, breathing, eye breaks, a morning rundown, desktop tidying, dropping pictures and zips on him, defining words, a color picker, and lots of handy quick answers.
-- Works properly on a Mac and with two monitors, and setup asks before his big brain download.
-- After updating, he tells you once what's new. Type "help" in his ask box (double-click him) to see it all.
+- Drop a song, zip or picture on him, or drag one near him on the desktop: he jumps up and grabs it. Songs go in his songs and he plays them. Zips he tears open and the folder appears in front of him. Pictures he files away (Useful > Pictures you gave me) and gives you a smaller copy.
+- Fun > My songs: every song he has, click to play.
+- Piano sounds (Grand, Electric piano, Harpsichord) and guitar sounds (Normal, Rock, Electric).
+- Jam sessions record every part, and the whole band plays every note. Silence at the start and end of songs is cut.
+- Fixes: no tips while asleep, menus open on click, feet stay down when he breathes, video menus don't scare him, tackled windows stay hidden.
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 
