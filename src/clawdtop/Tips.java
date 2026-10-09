@@ -42,6 +42,32 @@ public final class Tips {
             "\"cd ..\" goes up one folder.",
             "Ctrl+R in PowerShell searches old commands.");
 
+    // the same, with a Mac's keys (Cmd and Option instead of Ctrl and Alt)
+    private static final List<String> VS_CODE_MAC = List.of(
+            "Cmd+P opens any file by name.",
+            "Cmd+Shift+P finds any command.",
+            "Option+Up/Down moves the line you're on.",
+            "Cmd+D picks the next match too, so you can edit both.",
+            "F2 renames something everywhere it's used.",
+            "Ctrl+` opens the terminal right here.",
+            "Shift+Option+F tidies up the whole file.",
+            "Cmd+/ turns lines into comments (and back).");
+
+    private static final List<String> TERMINAL_MAC = List.of(
+            "Up arrow brings back the last command.",
+            "Tab finishes file and folder names for you.",
+            "Cmd+K clears the screen.",
+            "Ctrl+C stops whatever's running.",
+            "Cmd+T opens a new tab.",
+            "\"cd ..\" goes up one folder.",
+            "Ctrl+R searches your old commands.");
+
+    private static final List<String> INTELLIJ_MAC = List.of(
+            "Shift twice: search everything.",
+            "Option+Enter fixes what's under the cursor.",
+            "Cmd+Option+L tidies up the file.",
+            "Shift+F6 renames something everywhere.");
+
     private static final List<String> INTELLIJ = List.of(
             "Shift twice: search everything.",
             "Alt+Enter fixes what's under the cursor.",
@@ -133,9 +159,9 @@ public final class Tips {
         return List.copyOf(mixed);
     }
 
-    private static final List<String> FOR_VS_CODE = mix(VS_CODE, CODING, ERRORS);
-    private static final List<String> FOR_TERMINAL = mix(TERMINAL, GIT, ERRORS);
-    private static final List<String> FOR_INTELLIJ = mix(INTELLIJ, CODING, ERRORS);
+    private static final List<String> FOR_VS_CODE = mix(Platform.MAC ? VS_CODE_MAC : VS_CODE, CODING, ERRORS);
+    private static final List<String> FOR_TERMINAL = mix(Platform.MAC ? TERMINAL_MAC : TERMINAL, GIT, ERRORS);
+    private static final List<String> FOR_INTELLIJ = mix(Platform.MAC ? INTELLIJ_MAC : INTELLIJ, CODING, ERRORS);
     private static final List<String> FOR_GITHUB = mix(GITHUB, GIT, List.of());
 
     private final Map<String, Integer> next = new HashMap<>();
