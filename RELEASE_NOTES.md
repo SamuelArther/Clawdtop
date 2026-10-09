@@ -1,8 +1,8 @@
-Fix: he asks before getting his brain.
+Fix: moving him to another computer is safer.
 
-- His brain (Ollama, a free download of about 2 GB) used to start downloading right after setup without asking. Now setup asks first, and if you said "not now", he asks again only when you ask a question that needs it. Everything else works without it.
-- A download that stalls no longer hangs forever (he gives up after a minute and says why), and leftover download files get cleaned up.
-- If the disk is nearly full, he says so instead of "is the internet on?".
+- When Clawd arrives on the new computer, it now shows which computer he came from and asks "Is that your other computer?" before letting him in. Nobody else on the wifi can slip their own save in.
+- Lots of wrong code guesses make the new computer go quiet for a minute.
+- The new computer stops waiting after 10 minutes (instead of listening forever), and tells you to click Allow if your computer asks about the network.
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 

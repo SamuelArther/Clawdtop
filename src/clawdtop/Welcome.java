@@ -148,24 +148,43 @@ final class Welcome {
         return movedIn;
     }
 
+    private javax.swing.Timer giveUpWaiting;
+
     void askMove() {
         String code = Transfer.newCode();
         try {
-            waiting = new Transfer.Waiting(code, token -> javax.swing.SwingUtilities.invokeLater(() -> {
+            Transfer.Waiting[] w = {null};
+            w[0] = new Transfer.Waiting(code, token -> javax.swing.SwingUtilities.invokeLater(() -> {
+                String from = w[0].from();
                 stopWaiting();
-                if (settings.useToken(token)) {
-                    movedIn = true;
-                    beep.accept(Pet.Beep.HAPPY);
-                    askNewHome(settings.homeNamed() ? settings.home() : "your old computer");
-                }
+                // (he only moves in once you say that's your computer: nobody else on the wifi can slip their own save in)
+                show(new String[] {"Clawd's arriving from " + (from.isEmpty() ? "another computer" : from) + "!", "Is that your other computer?"}, null,
+                        button("Yes, let him in", () -> {
+                            if (settings.useToken(token)) {
+                                movedIn = true;
+                                beep.accept(Pet.Beep.HAPPY);
+                                askNewHome(settings.homeNamed() ? settings.home() : "your old computer");
+                            }
+                        }),
+                        button("No!", () -> show(new String[] {"Okay, I didn't let that in."}, null, button("Back", this::askName))));
             }));
+            waiting = w[0];
         } catch (java.io.IOException e) {
             show(new String[] {"I couldn't open the door for the move.", "(Is another Clawd already waiting?)"}, null,
                     button("Back", this::askName));
             return;
         }
+        if (giveUpWaiting != null) giveUpWaiting.stop();
+        giveUpWaiting = new javax.swing.Timer(10 * 60_000, e -> { // (not listening on the wifi forever)
+            if (waiting == null) return;
+            stopWaiting();
+            show(new String[] {"I stopped waiting for the move (it's been 10 minutes).", "Want to try again?"}, null,
+                    button("Try again", this::askMove), button("Back", this::askName));
+        });
+        giveUpWaiting.setRepeats(false);
+        giveUpWaiting.start();
         show(new String[] {"Moving in! On your old computer, open a terminal and type:", "    clawd move",
-                "Then type this code: " + code, "(Both computers on the same wifi.)"}, null,
+                "Then type this code: " + code, "(Both computers on the same wifi. If this computer asks whether Java may use", "the network, click Allow.)"}, null,
                 button("Cancel", () -> {
                     stopWaiting();
                     askName();

@@ -310,6 +310,7 @@ public class ClawdtopTest {
             check("the right one sends his save token across", Transfer.send(loop, 47921, moveCode, SaveToken.make(java.util.Map.of("name", "Sam"))), true);
             for (int i = 0; i < 50 && arrived[0] == null; i++) Thread.sleep(20);
             check("and the new computer has him", SaveToken.read(arrived[0]).get("name"), "Sam");
+            check("and knows which computer he came from (to ask you first)", newComputer.from().contains("127.0.0.1") || !newComputer.from().isEmpty(), true);
         }
 
         // ---- Moving house ----

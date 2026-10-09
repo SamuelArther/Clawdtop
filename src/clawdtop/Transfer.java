@@ -37,6 +37,12 @@ final class Transfer {
         private final DatagramSocket finder;
         private final ServerSocket mover;
         private volatile boolean open = true;
+        private volatile String from = ""; // which computer sent him (shown, so you can say whether it's yours)
+
+        /** The computer the save token came from ("Sams-Laptop (192.168.1.20)"), once it's come. */
+        String from() {
+            return from;
+        }
 
         /** Waits for a computer with this code; gotToken gets the save token (on a background thread). */
         Waiting(String code, InetAddress on, int findPort, int movePort, Consumer<String> gotToken) throws IOException {
@@ -46,6 +52,8 @@ final class Transfer {
             mover = new ServerSocket(movePort, 4, on);
             Thread answer = new Thread(() -> {
                 byte[] buffer = new byte[256];
+                int wrongFinds = 0;
+                long quietUntil = 0;
                 while (open) {
                     try {
                         DatagramPacket p = new DatagramPacket(buffer, buffer.length);
@@ -53,7 +61,11 @@ final class Transfer {
                         String[] asked = new String(p.getData(), 0, p.getLength(), StandardCharsets.UTF_8).strip().split(" ");
                         // "CLAWDTOP-FIND <nonce> <proof>": the other computer knows the code (without saying it out loud)
                         if (asked.length == 3 && asked[0].equals("CLAWDTOP-FIND")) {
-                            if (!asked[2].equals(proof(code, "find:" + asked[1]))) continue; // (a mistyped code: just no answer)
+                            if (System.currentTimeMillis() < quietUntil) continue; // (lots of wrong guesses lately: not answering for a bit)
+                            if (!asked[2].equals(proof(code, "find:" + asked[1]))) { // (a mistyped code: just no answer)
+                                if (++wrongFinds % 20 == 0) quietUntil = System.currentTimeMillis() + 60_000; // (someone guessing codes: a minute's quiet)
+                                continue;
+                            }
                             byte[] here = ("CLAWDTOP-HERE " + proof(code, "here:" + asked[1])).getBytes(StandardCharsets.UTF_8);
                             finder.send(new DatagramPacket(here, here.length, p.getAddress(), p.getPort()));
                         }
@@ -80,6 +92,9 @@ final class Transfer {
                             continue;
                         }
                         out.println("OK");
+                        InetAddress them = s.getInetAddress();
+                        String name = them.getHostName();
+                        from = name.equals(them.getHostAddress()) ? name : name + " (" + them.getHostAddress() + ")";
                         gotToken.accept(token);
                         return;
                     } catch (IOException e) {
