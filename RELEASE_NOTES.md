@@ -1,10 +1,9 @@
-Fix: he understands what you meant.
+Fix: reminders and your to-do list understand you better.
 
-- Questions with "or" in them ("who's taller, LeBron or Jordan?") go to his brain instead of him just picking one.
-- "show my to-do list" shows it (it used to add an item called "list"). "to-do: X" still adds.
-- "where are my keys" or "find my phone" aren't file searches anymore; "find pictures of my dog" finds them.
-- Places he doesn't know the time zone of get looked up instead of a shrug.
-- Fixed a rare crash when adding a to-do.
+- "remind me at 9 tonight to..." is 9 at night now (it could pick 9 in the morning). "this evening", "this afternoon" and "in the morning" work too.
+- Crossing things off understands "I'm done with the dishes", "I just finished my homework" and "cross the dishes off my list".
+- If more than one thing matches ("homework"), he asks which one.
+- Questions like "did grandma call?" no longer cross off "call grandma".
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 

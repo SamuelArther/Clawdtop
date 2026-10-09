@@ -838,6 +838,12 @@ public class ClawdtopTest {
                 + " / " + Reminders.parse("remind me at noon to eat", twoPm).when() + " / " + Reminders.parse("remind me at 9am to wake up", twoPm).when()
                 + " / " + Reminders.parse("remind me to feed my cat at 7:30", twoPm).what() + " / " + Reminders.parse("remind me at 13pm to x", twoPm),
                 "1 hour / 5 hours 30 minutes / 22 hours / 19 hours / feed your cat / null");
+        java.time.LocalTime eightAm = java.time.LocalTime.of(8, 0);
+        check("tonight means pm", Reminders.parse("remind me at 9 tonight to call mom", eightAm).when() + " / " + Reminders.parse("remind me to read at 7 this evening", eightAm).when()
+                + " / " + Reminders.parse("remind me at 9 to call mom", eightAm).when(), "13 hours / 11 hours / 1 hour");
+        List<String> chores = List.of("call grandma", "math homework", "science homework", "do the dishes");
+        check("crossing off", Extras.todosMatching("the dishes", chores) + " " + Extras.todosMatching("grandma call", chores) + " " + Extras.todosMatching("homework", chores)
+                + " " + Extras.todosMatching("math homework", chores) + " " + Extras.todosMatching("it", chores), "[do the dishes] [] [math homework, science homework] [math homework] []");
         Reminders.Reminder oven = Reminders.parse("Remind me in 10 minutes to check the oven.");
         check("remind me in 10 minutes to...", oven.inMs() + " " + oven.when() + " / " + oven.what(), "600000 10 minutes / check the oven");
         Reminders.Reminder cat = Reminders.parse("remind me to feed my cat in half an hour");

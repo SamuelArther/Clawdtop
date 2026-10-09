@@ -171,6 +171,27 @@ final class Extras {
         return Character.toUpperCase(line.charAt(0)) + line.substring(1);
     }
 
+    // ---- Your to-do list ----
+
+    /**
+     * The items on your list a phrase is about ("the dishes" -> "do the dishes"): the words you said, in that order, as
+     * whole words in it. Just the one if it's said exactly.
+     */
+    static List<String> todosMatching(String phrase, List<String> todos) {
+        String want = phrase.toLowerCase(Locale.ROOT).replaceAll("^(the|my|a|an|all|all the|all my) ", "").replaceAll("[.!]+$", "").strip();
+        if (want.length() < 3 || want.matches("(it|that|this|them|those|everything|all|stuff|something|nothing|good|great|well|my best)")) return List.of();
+        for (String t : todos) if (t.toLowerCase(Locale.ROOT).equals(want)) return List.of(t);
+        String[] said = want.split("\\s+");
+        List<String> found = new ArrayList<>();
+        for (String t : todos) {
+            String[] words = t.toLowerCase(Locale.ROOT).split("[^a-z0-9']+");
+            int at = 0;
+            for (String w : words) if (at < said.length && w.equals(said[at])) at++; // (in order: "grandma call" isn't "call grandma")
+            if (at == said.length) found.add(t);
+        }
+        return found;
+    }
+
     // ---- Opening apps ----
 
     /** "Open the calculator": what to open (for Useful.open), by app, for this computer. Null if he doesn't know it. */

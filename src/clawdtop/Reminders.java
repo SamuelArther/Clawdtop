@@ -73,14 +73,18 @@ final class Reminders {
     }
 
     private static final String CLOCK = "(\\d{1,2})(?::(\\d{2}))? ?(am|pm|a\\.m|p\\.m)?|noon|midnight";
-    private static final Pattern AT_TO = Pattern.compile("^(?:please )?remind me (?:at|around) (" + CLOCK + ")(?: today| tonight)? (?:to|about|that) (.+)$");
-    private static final Pattern TO_AT = Pattern.compile("^(?:please )?remind me (?:to|about) (.+?) (?:at|around) (" + CLOCK + ")(?: today| tonight)?$");
+    private static final String WHEN = "(?: today| tonight| this morning| this afternoon| this evening| in the morning| in the afternoon| in the evening| at night)?";
+    private static final Pattern AT_TO = Pattern.compile("^(?:please )?remind me (?:at|around) (" + CLOCK + ")" + WHEN + " (?:to|about|that) (.+)$");
+    private static final Pattern TO_AT = Pattern.compile("^(?:please )?remind me (?:to|about) (.+?) (?:at|around) (" + CLOCK + ")" + WHEN + "$");
 
     static Reminder parse(String said, java.time.LocalTime now) {
         String s = said.toLowerCase(Locale.ROOT).strip().replaceAll("[.!?]+$", "").replaceAll("\\s+", " ");
         Matcher m;
-        if ((m = AT_TO.matcher(s)).matches()) return at(m.group(1), now, m.group(5));
-        if ((m = TO_AT.matcher(s)).matches()) return at(m.group(2), now, m.group(1));
+        // "tonight", "this evening", "in the afternoon" (no am/pm said): the afternoon or evening one; "this morning": the morning one
+        String part = s.matches(".*\\b(tonight|this afternoon|this evening|in the afternoon|in the evening|at night)\\b.*") ? "pm"
+                : s.matches(".*\\b(this morning|in the morning)\\b.*") ? "am" : null;
+        if ((m = AT_TO.matcher(s)).matches()) return at(m.group(1), now, m.group(5), part);
+        if ((m = TO_AT.matcher(s)).matches()) return at(m.group(2), now, m.group(1), part);
         if ((m = IN_TO.matcher(s)).matches()) return make(m.group(1), m.group(2) == null ? "this is your reminder" : m.group(2));
         if ((m = TO_IN.matcher(s)).matches()) return make(m.group(2), m.group(1));
         if ((m = IN_FIRST.matcher(s)).matches()) return make(m.group(1), m.group(2));
@@ -89,7 +93,7 @@ final class Reminders {
     }
 
     /** A reminder at a time of day ("3pm", "7:30", "noon"): the next time it's that time (a bare "3" is whichever 3 comes next). */
-    private static Reminder at(String clock, java.time.LocalTime now, String what) {
+    private static Reminder at(String clock, java.time.LocalTime now, String what, String part) {
         String t = clock.strip();
         Matcher c = Pattern.compile(CLOCK).matcher(t);
         if (!c.matches()) return null;
@@ -101,6 +105,7 @@ final class Reminders {
             hour = Integer.parseInt(c.group(1));
             if (c.group(2) != null) minute = Integer.parseInt(c.group(2));
             half = c.group(3);
+            if (half == null && part != null && hour >= 1 && hour <= 12) half = part; // ("9 tonight": 9 pm)
             if (hour > 23 || minute > 59 || (half != null && (hour == 0 || hour > 12))) return null;
             if (half != null) hour = hour % 12 + (half.startsWith("p") ? 12 : 0);
         }

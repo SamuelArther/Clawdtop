@@ -806,11 +806,19 @@ public final class Clawdtop {
             pet.say("Your list is wiped clean!");
             return true;
         }
-        java.util.regex.Matcher crossed = java.util.regex.Pattern.compile("^(?:i )?(?:finished|did|done with|done|completed|cross off|check off|tick off|crossed off) (.+?)(?: off)?(?: my list)?$").matcher(q);
-        if (crossed.matches()) {
-            String item = todoMatching(crossed.group(1));
-            if (item != null) {
-                doneTodo(item);
+        java.util.regex.Matcher crossed = java.util.regex.Pattern.compile("^(?:i'?m |i'?ve |i have |i just |i |just )*(?:finally )?(?:finished|did|done with|done|completed|cross off|check off|tick off|crossed off|cross|check|tick)"
+                + " (.+?)(?: off)?(?: (?:of |from )?(?:my |the )?(?:to-?do |to do )?list)?$").matcher(q);
+        if (crossed.matches() && !question.strip().endsWith("?")) { // ("did grandma call?" is a question, not a done)
+            java.util.List<String> items = Extras.todosMatching(crossed.group(1), settings.todos());
+            if (items.size() == 1) {
+                doneTodo(items.get(0));
+                return true;
+            }
+            if (items.size() > 1) { // which one?
+                java.util.List<String> some = items.subList(0, Math.min(3, items.size()));
+                pet.speak();
+                bubble.ask("Which one did you finish?", some.toArray(new String[0]), choice -> doneTodo(some.get(choice)), head(), screenBounds());
+                bubble.expireIn(30_000);
                 return true;
             }
         }
@@ -931,18 +939,6 @@ public final class Clawdtop {
         if (settings.on("earnPoints")) settings.earn(Shop.ASK);
         pet.party(list.isEmpty() ? "Crossed off: " + item + "\nAND YOUR LIST IS EMPTY! You did it all!" : "Crossed off: " + item + "! Nice!\n" + list.size() + " to go.");
         Diary.write("Got something done: " + item + ".");
-    }
-
-    /** The item on your list a phrase is about ("the dishes" -> "do the dishes"), or null. */
-    private String todoMatching(String phrase) {
-        String want = phrase.toLowerCase(java.util.Locale.ROOT).replaceAll("^(the|my|a|an) ", "").strip();
-        if (want.length() < 3 || want.matches("(it|that|this|them|those|everything|all|stuff|something|nothing|good|great|well)")) return null;
-        for (String t : settings.todos()) if (t.toLowerCase(java.util.Locale.ROOT).equals(want)) return t;
-        for (String t : settings.todos()) { // every word you said is a whole word in it ("dishes" -> "do the dishes")
-            java.util.List<String> words = java.util.Arrays.asList(t.toLowerCase(java.util.Locale.ROOT).split("[^a-z0-9']+"));
-            if (java.util.Arrays.stream(want.split("\\s+")).allMatch(words::contains)) return t;
-        }
-        return null;
     }
 
     /** Puts up his sticky note (or takes it down, for ""). */
