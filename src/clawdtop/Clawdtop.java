@@ -2630,17 +2630,24 @@ public final class Clawdtop {
         }
     }
 
-    /** Opens a submenu (as if you'd waited on it). */
+    /** Opens a submenu (as if you'd waited on it): the menus it's in, then it, then its own menu. */
     static void openSubmenu(javax.swing.JMenu sub) {
-        MenuSelectionManager manager = MenuSelectionManager.defaultManager();
-        MenuElement[] path = manager.getSelectedPath();
-        for (int i = 0; i < path.length; i++) {
-            if (path[i] != sub) continue;
-            MenuElement[] open = java.util.Arrays.copyOf(path, i + 2);
-            open[i + 1] = sub.getPopupMenu();
-            manager.setSelectedPath(open);
-            return;
+        MenuSelectionManager.defaultManager().setSelectedPath(pathTo(sub));
+    }
+
+    /** The menu path down to a submenu's own menu (its popup, the submenu, the popup that's in, and so on up). */
+    static MenuElement[] pathTo(javax.swing.JMenu sub) {
+        java.util.ArrayDeque<MenuElement> path = new java.util.ArrayDeque<>();
+        path.addFirst(sub.getPopupMenu());
+        path.addFirst(sub);
+        java.awt.Container in = sub.getParent();
+        while (in instanceof JPopupMenu popup) {
+            path.addFirst(popup);
+            if (!(popup.getInvoker() instanceof javax.swing.JMenu above)) break;
+            path.addFirst(above);
+            in = above.getParent();
         }
+        return path.toArray(new MenuElement[0]);
     }
 
     /** The shop: what Clawd Points buy (and putting on what he already has). */
@@ -3906,8 +3913,8 @@ public final class Clawdtop {
         // just updated? He says so once, and how to see what's new (not on a brand-new install: that's setup's job)
         String lastVersion = settings.text("version");
         if (settings.met() && !Updater.VERSION.equals(lastVersion)) {
-            greetings.add(() -> pet.say("New me! I'm Clawdtop " + Updater.VERSION + " now.\nI can keep a to-do list, stick up notes, find your files,\n"
-                    + "remind you at a time, and lots more.\nType \"help\" in my ask box (double-click me) to see it all!"));
+            greetings.add(() -> pet.say("New me! I'm Clawdtop " + Updater.VERSION + " now.\nDrop a song, a zip or a picture on me (or near me)\n"
+                    + "and watch what I do with it!\nType \"help\" in my ask box (double-click me) to see it all!"));
         }
         if (!Updater.VERSION.equals(lastVersion)) settings.setText("version", Updater.VERSION);
         welcomeStarted = !settings.met();

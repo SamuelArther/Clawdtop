@@ -276,7 +276,8 @@ public final class Sprite {
             int[] xs = {0, 2, 10, 12};
             for (int i = 0; i < 4; i++) {
                 double up = (walking || running) && (i % 2 == 0) == step ? (running ? 1 : 0.5) : 0;
-                box(g, unit, LEFT + xs[i], GROUND - legs - lift - up + bob, 1, legs - bob, body);
+                double planted = pet.breathing() ? lift : 0; // (breathing: his body rises, his feet stay on the ground)
+                box(g, unit, LEFT + xs[i], GROUND - legs - lift - up + bob, 1, legs - bob + planted, body);
             }
         }
         // Body

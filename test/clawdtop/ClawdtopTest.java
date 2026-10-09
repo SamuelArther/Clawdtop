@@ -166,6 +166,26 @@ public class ClawdtopTest {
         menu.add(useful);
         Clawdtop.openOnClick(menu);
         check("submenus wait for a click", useful.getDelay() == Integer.MAX_VALUE && inner.getDelay() == Integer.MAX_VALUE, true);
+        check("and a click opens the right one", java.util.Arrays.asList(Clawdtop.pathTo(inner)),
+                java.util.List.of(menu, useful, useful.getPopupMenu(), inner, inner.getPopupMenu()));
+
+        // breathing: his body rises a little, his feet stay on the ground
+        Pet breather = new Pet(4);
+        breather.takeBeep();
+        boolean breathedIn = false, feetDown = true;
+        for (int f = 0; f < 120; f++) {
+            breather.tick(33, 0, 0, false, false);
+            if (breather.mood() != Pet.Mood.IDLE) continue;
+            breathedIn |= breather.breathing();
+            java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(Sprite.WIDTH * 4, Sprite.HEIGHT * 4, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+            Graphics2D gg = img.createGraphics();
+            Sprite.draw(gg, breather, 4);
+            gg.dispose();
+            boolean touching = false;
+            for (int x = 0; x < img.getWidth(); x++) touching |= (img.getRGB(x, Sprite.GROUND * 4 - 1) >>> 24) != 0;
+            feetDown &= touching;
+        }
+        check("breathing: body up, feet still on the ground", breathedIn + " " + feetDown, "true true");
 
         // his piano and guitar sounds
         for (String sound : Beeps.PIANO_SOUNDS) loudness("piano: " + sound, Beeps.piano(sound, 60, 500));

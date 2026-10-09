@@ -1720,6 +1720,14 @@ public final class Pet {
         return lookY;
     }
 
+    /** Whether he's up off the ground just from breathing in (then only his body rises: his feet stay put). */
+    public boolean breathing() {
+        return lift() > 0 && switch (mood) {
+            case HAPPY, REMIND, SCARED, HICCUP, STRETCH, FREAKOUT, DANCE, WALK -> false; // (real hops and steps)
+            default -> true;
+        };
+    }
+
     /** How high he is off the ground right now, in his own pixels (bouncing when happy, breathing otherwise). */
     public float lift() {
         if (mood == Mood.HAPPY) return (float) Math.abs(Math.sin(time / 130.0)) * 3;
