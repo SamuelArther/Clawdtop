@@ -411,6 +411,15 @@ public final class Body {
         set(State.AWAY);
     }
 
+    /** Riding your cursor and you right-click: he lets go and drops down, landing on his feet, then walks home. */
+    public void dropOff() {
+        if (state != State.RIDE) return;
+        headFirst = false;
+        vx = 0;
+        vy = 0;
+        set(State.FALL);
+    }
+
     /** His home moved (like a spot you gave him for the app in front): he walks over instead of popping there. */
     public void walkHome() {
         if (state == State.HOME) set(State.WALK);

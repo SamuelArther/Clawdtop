@@ -5,6 +5,10 @@
 
 A tiny desktop buddy: Clawd sits on top of your taskbar, right above the clock, and keeps you company.
 
+**[Download Clawd](https://github.com/SamuelArther/Clawdtop/releases/latest)** (Windows, Mac or Linux; needs
+Java 22 or newer). Unzip it anywhere and double-click `Clawdtop.bat` (Windows) or `Clawdtop.command` (Mac). He checks
+for a newer version of himself when he starts, and asks before he updates.
+
 - He stands around, breathes and blinks, and **his eyes follow your cursor**.
 - Leave him alone for a while and he **sits down**, then **lies down**, then **falls asleep** (with little z's).
   Tap him (or move your mouse near him) and he wakes up.
@@ -16,6 +20,13 @@ A tiny desktop buddy: Clawd sits on top of your taskbar, right above the clock, 
 - **Give him a ride:** hold your cursor on the taskbar's top edge right next to him and he hops on and rides along
   wherever you go. Bring him back down to the taskbar and stop, and he hops off and walks home. **Shake** the cursor
   and he flies off, lands head first, lies there seeing stars, flips back up and walks home to his perch.
+  **Right-click** while he's riding and he just drops down (on his feet) and walks home.
+- **He opens your apps.** Start an app and its window stays invisible for a second while Clawd charges along the
+  taskbar and tackles its icon: the app pops open, there's an explosion, and he goes flying. (Turn it off in his
+  options if you'd rather he didn't.)
+- **Spots for each app:** drag him somewhere while an app is in front, right-click, and pick **Sit here when ... is in
+  front** (or just for that one window or tab). He walks over whenever you switch to it, and back after.
+- **Zoom past him** with the cursor and his eyes swirl while little birds fly round his head.
 - **He cleans folders.** Click him and pick **Clean a folder...**: he hops onto your cursor, you open the folder in
   File Explorer, and he hops onto that window, pulls out his laptop and looks through it. Then he asks before anything
   goes: once for plain junk (temp files, Windows' thumbnail caches, unfinished downloads, Mac leftovers, empty
@@ -47,8 +58,8 @@ A tiny desktop buddy: Clawd sits on top of your taskbar, right above the clock, 
   (25 minutes, headphones on, no interruptions) is in his menu.
 - **Run a lap:** he sprints along the taskbar, up the wall, across the top of the screen upside down, down the other
   side and home, sweating more and more. **Music time:** headphones on, bobbing to the beat.
-- **His mini piano:** he plays songs (or makes one up), and you can play yours ("Let me play!": click the keys, or type
-  A to K). **Drop a MIDI file on him** and he runs to get it and plays the tune.
+- **His mini piano, guitar, bass and drums:** he plays songs (or makes one up), and you can play yours ("Let me play!":
+  click the keys, or type A to K). **Drop a MIDI file on him** and he runs to get it and plays the whole thing.
 - **Useful bits:** "How's my computer?", an "Open..." menu for handy places, water and stretch reminders (off at
   first), a nudge when the computer's been on for a week, and a warning when a drive is nearly full.
 - **Games:** full-screen game? He sits in the bottom corner, over your ammo, and watches. He also reads your game
@@ -67,18 +78,21 @@ A tiny desktop buddy: Clawd sits on top of your taskbar, right above the clock, 
 - Full-screen videos? He gets out of the way until you're back.
 
 **Click** him to say hi. **Drag** him along the taskbar to move him. **Right-click** for his menu: beeps and tips on or off,
-start with Windows, small / normal / big, back above the clock, and "Bye, Clawd" to close him.
+start with Windows, small / normal / big, back above the clock, spots for the app you're in, and "Bye, Clawd" to close him.
 
 ## Running him
 
-**Windows:** below. **Mac or Linux:** `./build.sh`, then `./Clawdtop.sh` (or double-click `Clawdtop.command` on a
-Mac). Everything works there except cleaning folders and checking your math on Calculator (Windows only for now).
+The easy way: **[download the latest release](https://github.com/SamuelArther/Clawdtop/releases/latest)**, unzip it,
+and double-click `Clawdtop.bat` (Windows), `Clawdtop.command` (Mac) or run `./Clawdtop.sh` (Linux). Everything works
+on Mac and Linux except cleaning folders, checking your math on Calculator and the taskbar tackle (Windows only).
 
+You need Java 22 or newer (free from [Adoptium](https://adoptium.net); `Clawdtop.bat` opens the page for you if it's
+missing). If you have [Kelp](https://github.com/KelpSquid/kelp) and have played Minecraft 26.3 with it, you already
+have Java 25 and don't need anything else.
 
-You need Java 22 or newer. If you have [Kelp](https://github.com/KelpSquid/kelp) and have played Minecraft 26.3 with
-it, you already have Java 25 and don't need anything else.
+From the code instead:
 
-1. Run `build.bat`. It builds `build\Clawdtop.jar` and checks everything works.
+1. Run `build.bat` (or `./build.sh`). It builds `build\Clawdtop.jar` and checks everything works.
 2. Run `Clawdtop.bat` to start him (or `build.bat run` to do both).
 
 Turn on **Start with Windows** in his menu and he'll be there every time you sign in.
@@ -99,6 +113,8 @@ Once he's run, any new terminal knows the `clawd` command:
 | `clawd diary` | what he got up to lately |
 | `clawd creations` | the little programs he's coded, and where they are |
 | `clawd move` | moves him to another computer on your wifi |
+| `clawd version` | which version of him you have |
+| `clawd update` | gets the newest version of him now |
 | `clawd uninstall` | gives you a **save token**, then he says goodbye and crumbles away; the command and his settings go too |
 
 Set him up again later and paste your save token in when he asks: he'll (sort of) remember you.

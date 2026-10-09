@@ -92,6 +92,7 @@ final class Options {
             Option.pick("Brain", "brain", "Brain size (all under 2 GB of memory)", "Normal", "Tiny", "Normal", "Smart"),
             Option.on("Brain", "webSearch", "Look things up online when you ask him something (Wikipedia, DuckDuckGo)", false),
             // Being useful
+            Option.on("Useful", "updates", "Checks for a newer version of him when he starts", true),
             Option.on("Useful", "water", "Reminds you to drink water (every hour)", false),
             Option.on("Useful", "stretch", "Reminds you to stretch (every 2 hours)", false),
             Option.on("Useful", "restart", "Says when the computer hasn't restarted in a week", true),

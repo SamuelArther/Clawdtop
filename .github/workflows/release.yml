@@ -1,0 +1,39 @@
+name: release
+# Push a tag like v1.0.0 and this builds Clawd (for Java 22 and up), tests him, and publishes the release:
+# Clawdtop.jar on its own (what his update check downloads) and a zip with the starters and the README.
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Make sure the version in the code matches the tag
+        run: |
+          grep -q "VERSION = \"${GITHUB_REF_NAME#v}\"" src/clawdtop/Updater.java || { echo "Updater.VERSION isn't ${GITHUB_REF_NAME#v}"; exit 1; }
+      - name: Build and test
+        run: |
+          javac --release 22 -Xlint:-options -d build/classes src/clawdtop/*.java
+          jar --create --file build/Clawdtop.jar --manifest manifest.txt -C build/classes .
+          javac -d build/test-classes -cp build/classes src/clawdtop/*.java test/clawdtop/*.java
+          java -Djava.awt.headless=true --enable-native-access=ALL-UNNAMED -cp build/test-classes clawdtop.ClawdtopTest
+      - name: Package
+        run: |
+          mkdir -p dist/Clawdtop
+          cp build/Clawdtop.jar Clawdtop.bat Clawdtop.sh Clawdtop.command README.md dist/Clawdtop/
+          chmod +x dist/Clawdtop/Clawdtop.sh dist/Clawdtop/Clawdtop.command
+          (cd dist && zip -qr "Clawdtop-${GITHUB_REF_NAME}.zip" Clawdtop)
+          cp build/Clawdtop.jar dist/Clawdtop.jar
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "dist/Clawdtop-${GITHUB_REF_NAME}.zip" dist/Clawdtop.jar \
+            --title "Clawd ${GITHUB_REF_NAME#v}" --notes-file RELEASE_NOTES.md

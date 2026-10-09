@@ -585,6 +585,14 @@ public class ClawdtopTest {
             hit = tackler.takeTackled();
         }
         check("he charges the icon and dives onto it", hit + " " + (Math.abs(tackler.x() - 400) < 1), "true true");
+        check("versions compare like numbers", Updater.newer("1.0.10", "1.0.9") + " " + Updater.newer("v1.1", "1.0.0") + " "
+                + Updater.newer("1.0.0", "1.0.0") + " " + Updater.newer("0.9.9", "1.0.0"), "true true false false");
+        Updater.Release rel = Updater.parse("{\"tag_name\":\"v1.2.0\",\"body\":\"Popcorn!\\nAnd more.\",\"assets\":[{\"browser_download_url\":"
+                + "\"https://github.com/SamuelArther/Clawdtop/releases/download/v1.2.0/Clawdtop-v1.2.0.zip\"},{\"browser_download_url\":"
+                + "\"https://github.com/SamuelArther/Clawdtop/releases/download/v1.2.0/Clawdtop.jar\"}]}");
+        check("he reads GitHub's latest release", rel.version() + " | " + rel.jarUrl().endsWith("/v1.2.0/Clawdtop.jar") + " | " + rel.notes(),
+                "1.2.0 | true | Popcorn!\nAnd more.");
+        check("and a release without his jar doesn't count", Updater.parse("{\"tag_name\":\"v2\",\"assets\":[]}"), null);
         check("launchers count", Games.launcher("steam.exe") + " " + Games.launcher("EADesktop.exe") + " " + Games.launcher("notepad.exe"), "true true false");
 
         // ---- Being useful ----

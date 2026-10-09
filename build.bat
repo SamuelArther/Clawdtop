@@ -12,7 +12,7 @@ if not exist "%JAVA_BIN%\javac.exe" (
 )
 if exist build\classes rmdir /s /q build\classes
 if exist build\test-classes rmdir /s /q build\test-classes
-"%JAVA_BIN%\javac.exe" -d build\classes src\clawdtop\*.java || (pause & exit /b 1)
+"%JAVA_BIN%\javac.exe" --release 22 -Xlint:-options -d build\classes src\clawdtop\*.java || (pause & exit /b 1)
 "%JAVA_BIN%\jar.exe" --create --file build\Clawdtop.jar --manifest manifest.txt -C build\classes . || (pause & exit /b 1)
 "%JAVA_BIN%\javac.exe" -d build\test-classes -cp build\classes src\clawdtop\*.java test\clawdtop\*.java || (pause & exit /b 1)
 "%JAVA_BIN%\java.exe" -Djava.awt.headless=true --enable-native-access=ALL-UNNAMED -cp build\test-classes clawdtop.ClawdtopTest || (pause & exit /b 1)

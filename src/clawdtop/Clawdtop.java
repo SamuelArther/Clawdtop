@@ -41,6 +41,7 @@ public final class Clawdtop {
     private final Pet pet = new Pet(System.nanoTime());
     private final Beeps beeps = new Beeps();
     private boolean wasPlaying; // on his piano (or guitar, or drums) last frame
+    private boolean rightWasDown; // the right mouse button, last frame
     private final Tips tips = new Tips();
     private final Bubble bubble = new Bubble();
     private String lastKind;
@@ -1376,6 +1377,45 @@ public final class Clawdtop {
         });
     }
 
+    /** On start (once a day): is there a newer Clawd? Then he asks if you'd like it. */
+    private void checkForUpdate() {
+        if (!settings.on("updates") || System.getProperty("clawdtop.home") != null) return; // (not in test runs)
+        if (!settings.once("update:" + java.time.LocalDate.now())) return;
+        worker.execute(() -> {
+            Updater.Release release = Updater.check();
+            if (release != null) SwingUtilities.invokeLater(() -> offerUpdate(release, 0));
+        });
+    }
+
+    private void offerUpdate(Updater.Release release, int tries) {
+        if ((pet.busyNow() || bubble.asking() || body.state() != Body.State.HOME) && tries < 40) { // in a bit
+            javax.swing.Timer later = new javax.swing.Timer(15_000, e -> offerUpdate(release, tries + 1));
+            later.setRepeats(false);
+            later.start();
+            return;
+        }
+        pet.speak();
+        bubble.ask("There's a new me! Version " + release.version() + " is out.\nWant me to update? (takes a few seconds)",
+                new String[] {"Update!", "Not now"}, choice -> {
+                    if (choice != 0) {
+                        pet.say("Okay! I'll ask again another day.");
+                        return;
+                    }
+                    pet.say("Updating... be right back!");
+                    worker.execute(() -> {
+                        boolean ok = Updater.install(release);
+                        SwingUtilities.invokeLater(() -> {
+                            if (ok) {
+                                Diary.write("Updated myself to version " + release.version() + ". New me, who dis?");
+                                System.exit(0); // the helper puts the new me in place and starts me again
+                            } else {
+                                pet.say("Hmm, the update didn't download.\nI'll try again next time.");
+                            }
+                        });
+                    });
+                }, head(), screenBounds());
+    }
+
     /** Puts the app's window back, all at once. */
     private void endTackle() {
         long w = tackleWindow;
@@ -1407,6 +1447,9 @@ public final class Clawdtop {
         boolean moved = !mouse.equals(lastMouse);
         lastMouse = mouse;
         closeMenuOnClickAway(mouse);
+        boolean right = Foreground.rightButtonDown();
+        if (right && !rightWasDown && body.state() == Body.State.RIDE) body.dropOff(); // right-click: he hops down (no flick needed)
+        rightWasDown = right;
         watchForLaunch();
 
         // Twice a second: what's in front (a coding app makes him happy; a full-screen game or video hides him)
@@ -1705,6 +1748,10 @@ public final class Clawdtop {
             long w = tackleWindow;
             if (w != 0) WindowTricks.reveal(w, tackleStyle);
         }));
+        Updater.tidy();
+        javax.swing.Timer updates = new javax.swing.Timer(20_000, e -> checkForUpdate()); // once he's settled in
+        updates.setRepeats(false);
+        updates.start();
         try {
             java.nio.file.Files.createDirectories(songsFolder().resolve("veterans")); // so you can see where songs go
         } catch (IOException ignored) {

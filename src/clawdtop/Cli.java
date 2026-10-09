@@ -124,6 +124,22 @@ public final class Cli {
                 else for (String l : lines) out.println(l.endsWith(":") ? ORANGE + l + RESET : l);
             }
             case "joke" -> out.println(new Jokes(System.nanoTime()).next());
+            case "version", "-v", "--version" -> out.println("Clawd " + Updater.VERSION);
+            case "update" -> {
+                out.println("Looking for a newer me...");
+                Updater.Release release = Updater.check();
+                if (release == null) out.println("You've got the newest me already (" + Updater.VERSION + ").");
+                else {
+                    out.println("Version " + release.version() + " is out! Downloading...");
+                    boolean on = running().isPresent();
+                    if (on) stop(false);
+                    if (Updater.install(release)) out.println("Done! He's coming back as " + release.version() + ".");
+                    else {
+                        out.println("Hmm, the download didn't work. Try again in a bit.");
+                        if (on) start();
+                    }
+                }
+            }
             case "help", "-h", "--help", "/?" -> help();
             default -> {
                 out.println("I don't know \"" + command + "\". Here's what I can do:");
@@ -211,6 +227,7 @@ public final class Cli {
         out.println("  Beeps:       " + onOff(s.sounds()));
         out.println("  Tips:        " + onOff(s.tips()));
         out.println("  With Windows:" + " " + onOff(Startup.on()));
+        out.println("  Version:     " + Updater.VERSION);
     }
 
     private static String onOff(boolean on) {
