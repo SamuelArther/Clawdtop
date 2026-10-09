@@ -452,7 +452,17 @@ public final class Clawdtop {
     }
 
     /** A MIDI file you dropped on him: read it (in the background), then he fetches it and plays it. */
+    /** A jam track: it has "jam" in its name (or lives in the jams folder). Any other song file is a piano song. */
+    static boolean isJam(java.io.File f) {
+        return f.getName().toLowerCase(java.util.Locale.ROOT).contains("jam")
+                || (f.getParentFile() != null && f.getParentFile().getName().equalsIgnoreCase("jams"));
+    }
+
     void playDropped(java.io.File midi) {
+        if (isJam(midi)) { // a jam track: a jam session (or, if he's recorded it before, it plays again)
+            jamTo(midi, settings.jamRecorded(midi.getName()));
+            return;
+        }
         worker.execute(() -> {
             Piano.Song song = Piano.fromMidi(midi);
             SwingUtilities.invokeLater(() -> {
@@ -881,7 +891,8 @@ public final class Clawdtop {
                 });
                 piano.add(item);
             }
-            java.util.List<java.io.File> yours = songs(songsFolder());
+            java.util.List<java.io.File> yours = new java.util.ArrayList<>(songs(songsFolder()));
+            yours.removeIf(Clawdtop::isJam); // (jam tracks are in Jam session)
             if (!yours.isEmpty()) {
                 piano.addSeparator();
                 for (java.io.File f : yours) {
@@ -925,7 +936,8 @@ public final class Clawdtop {
                 sing.add(item);
             }
             fun.add(sing);
-            java.util.List<java.io.File> jams = songs(songsFolder().resolve("jams"));
+            java.util.List<java.io.File> jams = new java.util.ArrayList<>(songs(songsFolder().resolve("jams")));
+            for (java.io.File f : songs(songsFolder())) if (isJam(f)) jams.add(f); // (anything with "jam" in its name is a jam track)
             javax.swing.JMenu jam = new javax.swing.JMenu("Jam session");
             for (java.io.File f : jams) {
                 boolean done = settings.jamRecorded(f.getName());
