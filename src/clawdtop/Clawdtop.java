@@ -328,6 +328,7 @@ public final class Clawdtop {
 
     private boolean inCorner; // sitting in the corner, watching your full-screen game
     private String lastMonitors; // all the monitors (above their taskbars) last time he looked
+    private boolean offEdge;     // walked off past his monitor's edge: out of sight till he's back
     private final java.util.List<Object[]> reminders = new java.util.ArrayList<>(); // {due ms, what}
     private long focusUntil;    // the focus timer runs out then (0: off)
     private long stopwatchFrom; // the stopwatch started then (0: off)
@@ -3169,7 +3170,8 @@ public final class Clawdtop {
                 job.tick(frameMs, body, pet);
                 if (job.over()) job = null;
             }
-            body.setCeiling(screen.y);
+            Rectangle area = usable(window.getGraphicsConfiguration()); // (laps and falls keep off a Mac's menu bar and a side taskbar or Dock)
+            body.setCeiling(area.y);
             body.setUnit(unit);
             body.setMistakes(settings.on("mistakes"));
             if (moveOutPending && body.state() == Body.State.HOME) walkOffToMove();
@@ -3182,7 +3184,7 @@ public final class Clawdtop {
             }
             // (away from home on another monitor, the floor is that monitor's taskbar: a fall there lands on it, not in mid-air)
             double floor = body.state() == Body.State.HOME ? groundY : floorUnder(body.x());
-            body.tick(frameMs, mouse.x, mouse.y, homeX, floor, 12 * unit, screen.x, screen.x + screen.width);
+            body.tick(frameMs, mouse.x, mouse.y, homeX, floor, 12 * unit, area.x, area.x + area.width);
             pet.follow(body.state());
             creations();
             if (body.takeMissed()) pet.say("Missed! ...I meant to do that.");
@@ -3206,6 +3208,19 @@ public final class Clawdtop {
             if (body.state() != Body.State.HOME || window.getX() != (int) Math.round(homeX - Sprite.feetX() * unit)) {
                 window.setLocation((int) Math.round(body.x() - Sprite.feetX() * unit),
                         (int) Math.round(body.y() - window.getHeight() + unit));
+            }
+            // walking off the edge (stomping off, moving out) or back in: out of sight once he's past his own monitor's
+            // edge, rather than strolling along the next monitor
+            Body.State st = body.state();
+            Rectangle home = monitorFor((int) Math.round(homeX)).getBounds();
+            boolean pastEdge = (st == Body.State.AWAY || st == Body.State.OUT || st == Body.State.WALK)
+                    && (body.x() < home.x - 2 || body.x() > home.x + home.width + 2);
+            if (pastEdge && !offEdge) {
+                offEdge = true;
+                window.setVisible(false);
+            } else if (!pastEdge && offEdge) {
+                offEdge = false;
+                if (!hidden && !boxed) window.setVisible(true);
             }
         }
         earnPoints(mouse, moved);
