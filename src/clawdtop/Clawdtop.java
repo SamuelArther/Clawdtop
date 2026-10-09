@@ -786,9 +786,17 @@ public final class Clawdtop {
     private int tidyStage, tidiedCount;                          // 1: hopping to the next one
     private long tidySince;
 
+    /**
+     * Whether he can see where things are on the desktop without asking: Windows, or a Mac where you've let him ask Finder
+     * (macOS checks the first time, so that first time is when you ask him to tidy, not out of nowhere).
+     */
+    private boolean desktopReadable() {
+        return Platform.WINDOWS || (Platform.MAC && settings.flag("finderOk"));
+    }
+
     /** Every few seconds: a song file dragged near him on the desktop? He goes and gets it. */
     private void watchDesktopForSongs() {
-        if (!Platform.WINDOWS || lookingAtDesktop || fetchStage != 0 || tidyStage != 0 || job != null || hidden || boxed
+        if (!desktopReadable() || lookingAtDesktop || fetchStage != 0 || tidyStage != 0 || job != null || hidden || boxed
                 || body.state() != Body.State.HOME || pet.busyNow()) return;
         Path folder = desktopFolder != null ? desktopFolder : Path.of(System.getProperty("user.home"), "Desktop");
         boolean anySongs;
@@ -818,7 +826,8 @@ public final class Clawdtop {
                     Path file = Desktop.fileFor(icon, layout.folder());
                     if (file == null || !Piano.isMidi(file.toFile())) continue;
                     if (only != null && !file.getFileName().toString().startsWith(only)) continue;
-                    double x = screen.x + icon.x() / scale + 37, y = screen.y + icon.y() / scale + 8;
+                    double[] at = Desktop.spot(icon, screen, scale);
+                    double x = at[0], y = at[1];
                     boolean near = Math.abs(x - homeX) < 3 * tile && groundY - y < 3.5 * tile && y < groundY;
                     Boolean before = songNearHim.put(file.toString(), near);
                     // dragged in close (or just put down there): off he goes. (Not for ones already there when he started)
@@ -897,10 +906,12 @@ public final class Clawdtop {
             SwingUtilities.invokeLater(() -> {
                 lookingAtDesktop = false;
                 if (layout == null) {
-                    pet.say("Hmm, I can't see your desktop right now.");
+                    pet.say(Platform.MAC ? "Hmm, I can't see your desktop. (Mac: System Settings > Privacy & Security >\nAutomation, and let Clawdtop use Finder.)"
+                            : "Hmm, I can't see your desktop right now.");
                     return;
                 }
                 desktopFolder = layout.folder();
+                if (Platform.MAC && !settings.flag("finderOk")) settings.setFlag("finderOk", true); // (now he can watch for songs too)
                 Rectangle screen = screenBounds();
                 double scale = window.getGraphicsConfiguration().getDefaultTransform().getScaleX();
                 java.util.List<Object[]> todo = new java.util.ArrayList<>();
@@ -909,7 +920,8 @@ public final class Clawdtop {
                     Path file = Desktop.fileFor(icon, layout.folder());
                     if (file == null || !seen.add(file) || Desktop.category(file) == null) continue;
                     if (only != null && !file.getFileName().toString().startsWith(only)) continue;
-                    todo.add(new Object[] {file, screen.x + icon.x() / scale + 37, screen.y + icon.y() / scale + 8});
+                    double[] at = Desktop.spot(icon, screen, scale);
+                    todo.add(new Object[] {file, at[0], at[1]});
                 }
                 if (todo.isEmpty()) {
                     pet.say("Your desktop's already neat! (Shortcuts and folders stay where they are.)");
@@ -1392,7 +1404,7 @@ public final class Clawdtop {
         // Useful
         javax.swing.JMenu useful = new javax.swing.JMenu("Useful");
         if (job == null) {
-            if (Platform.WINDOWS) {
+            if (Platform.WINDOWS || Platform.MAC) {
                 JMenuItem tidyUp = new JMenuItem("Tidy my desktop");
                 tidyUp.addActionListener(e -> tidyDesktop());
                 useful.add(tidyUp);

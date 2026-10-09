@@ -646,6 +646,11 @@ public class ClawdtopTest {
         check("long release notes read fine", Updater.parse("{\"tag_name\":\"v1.2.0\",\"body\":\"" + longNotes + "\",\"assets\":[{\"browser_download_url\":"
                 + "\"https://x/v1.2.0/Clawdtop.jar\"}]}").notes().length() > 50_000, true);
         check("and a release without his jar doesn't count", Updater.parse("{\"tag_name\":\"v2\",\"assets\":[]}"), null);
+        // the desktop: reading icon spots (Windows' script and Finder say the same shape), sorting files for Neat
+        Desktop.Layout desk = Desktop.read("DESKTOP|/home/me/Desktop\nskin|177,2\nmy song.mid|2427,1032\nnot an icon\n");
+        check("desktop read", desk.folder().getFileName() + " " + desk.icons(), "Desktop [Icon[name=skin, x=177, y=2], Icon[name=my song.mid, x=2427, y=1032]]");
+        check("neat types", Desktop.category(Path.of("a.PNG")) + " " + Desktop.category(Path.of("b.mid")) + " " + Desktop.category(Path.of("c.lnk"))
+                + " " + Desktop.category(Path.of("desktop.ini")) + " " + Desktop.category(Path.of("d.weird")), "Pictures Music null null Other");
         check("launchers count", Games.launcher("steam.exe") + " " + Games.launcher("EADesktop.exe") + " " + Games.launcher("notepad.exe"), "true true false");
 
         // ---- Being useful ----

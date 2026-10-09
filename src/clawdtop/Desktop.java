@@ -110,8 +110,35 @@ final class Desktop {
         return new Layout(folder, icons);
     }
 
-    /** Reads the desktop (Windows; null elsewhere, or if it couldn't). Takes about half a second: not on the Swing thread. */
+    /** The script that asks Finder (Mac) for the desktop's icons: name|x,y, the middle of each icon, in points. */
+    static final String FINDER_SCRIPT = String.join("\n",
+            "set out to \"\"",
+            "tell application \"Finder\"",
+            "  repeat with i in (get items of desktop)",
+            "    try",
+            "      set p to desktop position of i",
+            "      set out to out & (name of i) & \"|\" & ((item 1 of p) as integer) & \",\" & ((item 2 of p) as integer) & linefeed",
+            "    end try",
+            "  end repeat",
+            "end tell",
+            "return out");
+
+    /**
+     * Reads the desktop (Windows: its icon list; Mac: asks Finder, which macOS checks with you the first time; null on
+     * Linux, or if it couldn't). Takes about half a second: not on the Swing thread.
+     */
     static Layout look() {
+        if (Platform.MAC) {
+            try {
+                Process p = new ProcessBuilder("osascript", "-e", FINDER_SCRIPT).redirectErrorStream(true).start();
+                String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+                if (!p.waitFor(60, java.util.concurrent.TimeUnit.SECONDS) || p.exitValue() != 0) return null; // (not allowed)
+                Layout icons = read(out);
+                return new Layout(Path.of(System.getProperty("user.home"), "Desktop"), icons.icons());
+            } catch (Exception cant) {
+                return null;
+            }
+        }
         if (!Platform.WINDOWS) return null;
         try {
             Process p = new ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden",
@@ -123,6 +150,15 @@ final class Desktop {
         } catch (Exception cant) {
             return null;
         }
+    }
+
+    /**
+     * Where an icon is on the screen, in Java's pixels: {x, y} of the top middle of its picture (where he lands on it).
+     * Windows says the icon's top-left in real pixels; Finder says its middle in points.
+     */
+    static double[] spot(Icon icon, java.awt.Rectangle screen, double scale) {
+        if (Platform.MAC) return new double[] {icon.x(), icon.y() - 28};
+        return new double[] {screen.x + icon.x() / scale + 37, screen.y + icon.y() / scale + 8};
     }
 
     /** The file an icon is showing (its name, with or without the extension), or null if it isn't a plain file there. */
