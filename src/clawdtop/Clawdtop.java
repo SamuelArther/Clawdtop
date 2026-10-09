@@ -252,6 +252,37 @@ public final class Clawdtop {
     }
     private final Piano yourPiano = new Piano();
 
+    /** Where your MIDI files go for his piano (and, in "veterans", the songs he plays on Veterans Day). */
+    static Path songsFolder() {
+        return Settings.folder().resolve("songs");
+    }
+
+    /** The MIDI files in a folder, by name. */
+    static java.util.List<java.io.File> songs(Path folder) {
+        java.io.File[] files = folder.toFile().listFiles((dir, name) -> Piano.isMidi(new java.io.File(name)));
+        if (files == null) return java.util.List.of();
+        java.util.List<java.io.File> list = new java.util.ArrayList<>(java.util.List.of(files));
+        list.sort(java.util.Comparator.comparing(java.io.File::getName, String.CASE_INSENSITIVE_ORDER));
+        return list;
+    }
+
+    private long nextVeteransSong; // on Veterans Day: when he plays the next service song (0: not today)
+
+    /** Veterans Day: a service song now and then through the day (from songs/veterans). */
+    private void veteransSongs(long now) {
+        java.time.LocalDate d = java.time.LocalDate.now();
+        if (d.getMonthValue() != 11 || d.getDayOfMonth() != 11 || nextVeteransSong == 0 || now < nextVeteransSong) return;
+        if (pet.busyNow()) return; // in a moment
+        java.util.List<java.io.File> marches = songs(songsFolder().resolve("veterans"));
+        nextVeteransSong = now + (60 + new java.util.Random().nextInt(60)) * 60_000L; // then again in an hour or two
+        if (marches.isEmpty()) return;
+        java.io.File march = marches.get(new java.util.Random().nextInt(marches.size()));
+        worker.execute(() -> {
+            Piano.Song song = Piano.fromMidi(march);
+            if (song != null) SwingUtilities.invokeLater(() -> pet.playPiano(song));
+        });
+    }
+
     /** A MIDI file you dropped on him: read it (in the background), then he fetches it and plays it. */
     void playDropped(java.io.File midi) {
         worker.execute(() -> {
@@ -558,6 +589,25 @@ public final class Clawdtop {
                 });
                 piano.add(item);
             }
+            java.util.List<java.io.File> yours = songs(songsFolder());
+            if (!yours.isEmpty()) {
+                piano.addSeparator();
+                for (java.io.File f : yours) {
+                    JMenuItem item = new JMenuItem(f.getName().replaceAll("(?i)\\.midi?$", ""));
+                    item.addActionListener(e -> playDropped(f));
+                    piano.add(item);
+                }
+            }
+            JMenuItem folder = new JMenuItem("Your songs folder (put MIDI files in it)...");
+            folder.addActionListener(e -> {
+                try {
+                    java.nio.file.Files.createDirectories(songsFolder());
+                    java.awt.Desktop.getDesktop().open(songsFolder().toFile());
+                } catch (Exception ignored) {
+                    // no file browser here
+                }
+            });
+            piano.add(folder);
             JMenuItem mine = new JMenuItem("Let me play!");
             mine.addActionListener(e -> yourPiano.show(head(), screenBounds(), note -> {
                 beeps.piano(note, 400); // you are playing it: it always makes a sound
@@ -625,35 +675,47 @@ public final class Clawdtop {
     /** The shop: what Clawd Points buy (and putting on what he already has). */
     private javax.swing.JMenu shop() {
         javax.swing.JMenu shop = new javax.swing.JMenu("Shop (" + settings.points() + " Clawd Points)");
-        Shop.Kind last = null;
-        for (Shop.Item item : Shop.ITEMS) {
-            if (last != null && item.kind() != last) shop.addSeparator();
-            last = item.kind();
-            boolean owned = settings.owns(item.id());
-            String slot = item.kind() == Shop.Kind.HAT ? "hat" : item.kind() == Shop.Kind.HUT ? "hut" : null;
-            JMenuItem entry;
-            if (owned && slot != null) {
-                boolean on = settings.wearing(slot).equals(item.id());
-                entry = new JCheckBoxMenuItem(item.name(), on);
-                entry.addActionListener(e -> {
-                    settings.setWearing(slot, on ? "" : item.id());
-                    useItems();
-                });
-            } else if (owned) {
-                entry = new JMenuItem(item.name() + " (learned!)");
-                entry.setEnabled(false);
-            } else {
-                entry = new JMenuItem(item.name() + " - " + item.price() + " points: " + item.about());
-                entry.setEnabled(settings.points() >= item.price());
-                entry.addActionListener(e -> {
-                    if (Shop.buy(settings, item)) {
+        for (Shop.Kind kind : Shop.Kind.values()) {
+            javax.swing.JMenu section = new javax.swing.JMenu(switch (kind) {
+                case HAT -> "Hats";
+                case SHIRT -> "Shirts";
+                case HUT -> "Huts";
+                case TRICK -> "Tricks";
+            });
+            String slot = switch (kind) {
+                case HAT -> "hat";
+                case SHIRT -> "shirt";
+                case HUT -> "hut";
+                case TRICK -> null;
+            };
+            for (Shop.Item item : Shop.ITEMS) {
+                if (item.kind() != kind) continue;
+                boolean owned = settings.owns(item.id());
+                JMenuItem entry;
+                if (owned && slot != null) {
+                    boolean on = settings.wearing(slot).equals(item.id());
+                    entry = new JCheckBoxMenuItem(item.name(), on);
+                    entry.addActionListener(e -> {
+                        settings.setWearing(slot, on ? "" : item.id());
                         useItems();
-                        pet.poke();
-                        bubble.show("Yay, " + item.name().toLowerCase(java.util.Locale.ROOT) + "! Thank you!", head(), screenBounds());
-                    }
-                });
+                    });
+                } else if (owned) {
+                    entry = new JMenuItem(item.name() + " (learned!)");
+                    entry.setEnabled(false);
+                } else {
+                    entry = new JMenuItem(item.name() + " - " + item.price() + " points: " + item.about());
+                    entry.setEnabled(settings.points() >= item.price());
+                    entry.addActionListener(e -> {
+                        if (Shop.buy(settings, item)) {
+                            useItems();
+                            pet.poke();
+                            bubble.show("Yay, " + item.name().toLowerCase(java.util.Locale.ROOT) + "! Thank you!", head(), screenBounds());
+                        }
+                    });
+                }
+                section.add(entry);
             }
-            shop.add(entry);
+            shop.add(section);
         }
         return shop;
     }
@@ -733,6 +795,9 @@ public final class Clawdtop {
         java.time.LocalDate todayNow = java.time.LocalDate.now();
         if (todayNow.getMonthValue() == 11 && todayNow.getDayOfMonth() == 11 && settings.once("veterans:" + todayNow.getYear())) {
             pet.salute();
+            nextVeteransSong = System.currentTimeMillis() + 7000; // and straight after the salute, a song
+        } else if (todayNow.getMonthValue() == 11 && todayNow.getDayOfMonth() == 11 && nextVeteransSong == 0) {
+            nextVeteransSong = System.currentTimeMillis() + 60_000;
         }
         Holidays.Holiday holiday = Holidays.on(todayNow);
         if (holiday != null && settings.on("holidays") && !settings.seen(holiday.id() + ":" + todayNow.getYear())
@@ -880,6 +945,7 @@ public final class Clawdtop {
     /** Puts on his hat and hut, and lets him use the tricks he's learned. */
     private void useItems() {
         pet.setItems(settings.owns("juggling") && !settings.serious(), settings.owns("waving") && !settings.serious(), settings.wearing("hat"));
+        pet.setShirt(settings.wearing("shirt"));
         int unit = settings.unit();
         hut.show(settings.wearing("hut"), unit, (int) Math.round(homeX - Sprite.feetX() * unit + 2 * unit), (int) Math.round(groundY),
                 !boxed && !hidden && !farewell);
@@ -1168,6 +1234,7 @@ public final class Clawdtop {
         if (ticks % 300 == 150) checkTimes();
         if (ticks % 900 == 450 && focusUntil == 0) remindMe(nowMs);
         if (ticks % 15 == 7) checkReminders();
+        if (ticks % 30 == 11) veteransSongs(nowMs);
         // The screen changed (another monitor, a new resolution, the taskbar moved)? Back to his spot on it
         if (ticks % 90 == 30 && body.state() == Body.State.HOME && !inCorner) {
             Rectangle usable = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
@@ -1306,6 +1373,11 @@ public final class Clawdtop {
     }
 
     void start() {
+        try {
+            java.nio.file.Files.createDirectories(songsFolder().resolve("veterans")); // so you can see where songs go
+        } catch (IOException ignored) {
+            // no songs folder, then
+        }
         useOptions();
         pet.setColor(settings.awtColor());
         pet.setPersonality(settings.personality());
@@ -1417,6 +1489,10 @@ public final class Clawdtop {
                 smokeNotes++;
             });
             case "salute" -> pet.salute();
+            case "veterans" -> {
+                pet.salute();
+                nextVeteransSong = System.currentTimeMillis() + 7000;
+            }
             case "christmas" -> pet.celebrate("Merry Christmas!", Holidays.on(java.time.LocalDate.of(2026, 12, 25)).show());
             case "focus" -> focus(true);
             case "lap" -> {

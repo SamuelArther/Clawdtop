@@ -7,7 +7,7 @@ import java.util.List;
  * around), and you spend them on hats, a hut to sit by, and new tricks.
  */
 final class Shop {
-    enum Kind { HAT, HUT, TRICK }
+    enum Kind { HAT, SHIRT, HUT, TRICK }
 
     /** Something to buy: its id (kept in settings), name, kind and price. */
     record Item(String id, String name, Kind kind, int price, String about) {
@@ -27,6 +27,14 @@ final class Shop {
             new Item("grad", "Graduation cap", Kind.HAT, 60, "Clawd, PhD"),
             new Item("wizard", "Wizard hat", Kind.HAT, 75, "with stars on"),
             new Item("viking", "Viking helmet", Kind.HAT, 90, "horns and all"),
+            new Item("tee-red", "Red t-shirt", Kind.SHIRT, 15, "a classic"),
+            new Item("tee-star", "Star t-shirt", Kind.SHIRT, 25, "blue, with a gold star"),
+            new Item("stripes", "Striped shirt", Kind.SHIRT, 25, "very sailor"),
+            new Item("heart-tee", "Heart t-shirt", Kind.SHIRT, 30, "he loves you"),
+            new Item("hoodie", "Hoodie", Kind.SHIRT, 40, "for coding at night"),
+            new Item("jersey", "Number 1 jersey", Kind.SHIRT, 45, "the best crab"),
+            new Item("hawaiian", "Hawaiian shirt", Kind.SHIRT, 50, "vacation mode"),
+            new Item("tuxedo", "Tiny tuxedo", Kind.SHIRT, 80, "with a bow tie"),
             new Item("cardboard-hut", "Cardboard hut", Kind.HUT, 20, "like his box, but cozier"),
             new Item("wooden-hut", "Wooden hut", Kind.HUT, 60, "with a little window"),
             new Item("castle", "Tiny castle", Kind.HUT, 150, "with a flag on top"),

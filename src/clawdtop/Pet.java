@@ -898,9 +898,24 @@ public final class Pet {
         this.hat = hat == null ? "" : hat;
     }
 
+    private String shirt = "";
+
+    public void setShirt(String id) {
+        shirt = id == null ? "" : id;
+    }
+
+    /** The shirt he's wearing ("" for none). On Veterans Day: a mini army uniform. */
+    public String shirt() {
+        java.time.LocalDate d = java.time.LocalDate.now();
+        if (d.getMonthValue() == 11 && d.getDayOfMonth() == 11) return "army";
+        return shirt;
+    }
+
     /** The hat he's wearing ("" for none, or a seasonal one if it's that time of year and he has none on). */
     public String hat() {
         if (birthdayToday) return "birthday";
+        java.time.LocalDate today = java.time.LocalDate.now();
+        if (today.getMonthValue() == 11 && today.getDayOfMonth() == 11) return "army-cap"; // Veterans Day
         if (!hat.isEmpty()) return hat;
         if (mood == Mood.SLEEP) { // a nightcap, at night
             int hour = java.time.LocalTime.now().getHour();

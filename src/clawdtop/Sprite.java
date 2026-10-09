@@ -232,6 +232,7 @@ public final class Sprite {
         }
         // Body
         box(g, unit, LEFT, top, 13, 8, body);
+        drawShirt(g, unit, pet.shirt(), top, mood);
         // Arms: out to the sides, or up in the air when he's happy
         if (mood == Pet.Mood.DANCE || made(pet, Creation.Effect.DISCO) || made(pet, Creation.Effect.MUSIC) || mood == Pet.Mood.JUGGLE) {
             // hands going up and down in turns (dancing, or tossing balls)
@@ -860,6 +861,75 @@ public final class Sprite {
         }
     }
 
+    /** His shirt: the bottom part of his body, in its colors (his arms are its sleeves). */
+    private static void drawShirt(Graphics2D g, int unit, String shirt, double top, Pet.Mood mood) {
+        if (shirt.isEmpty()) return;
+        double y = top + 4.5, h = 3.5;
+        Color base = switch (shirt) {
+            case "tee-red" -> new Color(210, 50, 55);
+            case "tee-star" -> new Color(60, 110, 210);
+            case "stripes", "tuxedo" -> Color.WHITE;
+            case "heart-tee" -> new Color(250, 245, 245);
+            case "hoodie" -> new Color(120, 125, 135);
+            case "jersey" -> new Color(40, 160, 90);
+            case "hawaiian" -> new Color(40, 170, 200);
+            case "army" -> new Color(95, 110, 60);
+            default -> new Color(200, 200, 200);
+        };
+        box(g, unit, LEFT, y, 13, h, base);
+        switch (shirt) {
+            case "tee-star" -> {
+                Color gold = new Color(255, 214, 102);
+                box(g, unit, LEFT + 6, y + 0.6, 1, 2.4, gold);
+                box(g, unit, LEFT + 5, y + 1.4, 3, 0.9, gold);
+            }
+            case "stripes" -> {
+                for (int i = 0; i < 3; i++) box(g, unit, LEFT, y + 0.4 + i * 1.1, 13, 0.5, new Color(40, 70, 160));
+            }
+            case "heart-tee" -> {
+                Color red = new Color(225, 50, 70);
+                box(g, unit, LEFT + 5.2, y + 0.7, 1.1, 1, red);
+                box(g, unit, LEFT + 6.7, y + 0.7, 1.1, 1, red);
+                box(g, unit, LEFT + 5.2, y + 1.5, 2.6, 0.9, red);
+                box(g, unit, LEFT + 5.9, y + 2.3, 1.2, 0.7, red);
+            }
+            case "hoodie" -> {
+                Color dark = new Color(95, 100, 110);
+                box(g, unit, LEFT + 3.5, y + 2, 6, 1.2, dark); // the front pocket
+                box(g, unit, LEFT + 5.4, y + 0.1, 0.3, 1.4, Color.WHITE); // drawstrings
+                box(g, unit, LEFT + 7.3, y + 0.1, 0.3, 1.4, Color.WHITE);
+            }
+            case "jersey" -> {
+                box(g, unit, LEFT + 6, y + 0.6, 1, 2.4, Color.WHITE); // a big 1
+                box(g, unit, LEFT + 5.3, y + 0.6, 0.8, 0.7, Color.WHITE);
+                box(g, unit, LEFT, y, 13, 0.4, Color.WHITE);
+            }
+            case "hawaiian" -> {
+                Color[] flowers = {new Color(255, 120, 170), new Color(255, 230, 100), Color.WHITE};
+                for (int i = 0; i < 6; i++) box(g, unit, LEFT + 0.8 + i * 2.1, y + 0.6 + (i % 2) * 1.4, 1, 1, flowers[i % 3]);
+            }
+            case "tuxedo" -> {
+                Color black = new Color(30, 30, 36);
+                box(g, unit, LEFT, y, 4.5, h, black);
+                box(g, unit, LEFT + 8.5, y, 4.5, h, black);
+                box(g, unit, LEFT + 5.4, y + 0.1, 0.9, 0.7, black); // bow tie
+                box(g, unit, LEFT + 6.7, y + 0.1, 0.9, 0.7, black);
+                box(g, unit, LEFT + 6.2, y + 0.25, 0.6, 0.45, black);
+                box(g, unit, LEFT + 6.3, y + 1.4, 0.4, 0.4, black); // buttons
+                box(g, unit, LEFT + 6.3, y + 2.4, 0.4, 0.4, black);
+            }
+            case "army" -> {
+                Color a = new Color(70, 85, 45), b = new Color(120, 110, 70);
+                box(g, unit, LEFT + 1, y + 0.5, 2.5, 1, a);
+                box(g, unit, LEFT + 7, y + 1.8, 3, 1, a);
+                box(g, unit, LEFT + 4, y + 2.4, 2, 0.8, b);
+                box(g, unit, LEFT + 10, y + 0.4, 2, 1, b);
+                box(g, unit, LEFT + 2, y + 0.2, 1.4, 0.5, new Color(220, 190, 80)); // a little patch
+            }
+            default -> { }
+        }
+    }
+
     /** Whether he's showing off something he made with this effect. */
     private static boolean made(Pet pet, Creation.Effect effect) {
         Creation c = pet.showing();
@@ -1140,6 +1210,13 @@ public final class Sprite {
                 box(g, unit, mid - 5.6, top - 3.6, 1, 1.6, horn);
                 box(g, unit, mid + 3.5, top - 2.2, 1.5, 1, horn);
                 box(g, unit, mid + 4.6, top - 3.6, 1, 1.6, horn);
+            }
+            case "army-cap" -> {
+                Color olive = new Color(85, 100, 55), dark = new Color(60, 72, 38);
+                box(g, unit, mid - 3.5, top - 2, 7, 2, olive);
+                box(g, unit, mid - 3.5, top - 0.6, 7, 0.6, dark);
+                box(g, unit, mid + 3, top - 0.7, 2.5, 0.7, dark); // the brim
+                box(g, unit, mid - 0.5, top - 1.6, 1, 0.8, new Color(220, 190, 80)); // a little badge
             }
             case "nightcap" -> {
                 // a floppy sleeping cap, drooping to one side, with a pom-pom
