@@ -39,6 +39,16 @@ public final class Clawdtop {
     private Settings settings = Settings.load();
     private long settingsChanged = Settings.changed();
     private final Pet pet = new Pet(System.nanoTime());
+    static { // his menus look like the rest of Windows
+        if (Platform.WINDOWS && !GraphicsEnvironment.isHeadless()) {
+            try {
+                javax.swing.UIManager.setLookAndFeel(javax.swing.UIManager.getSystemLookAndFeelClassName());
+            } catch (Exception keepTheDefault) {
+                // fine as it is
+            }
+        }
+    }
+
     private final Beeps beeps = new Beeps();
     private boolean wasPlaying; // on his piano (or guitar, or drums) last frame
     private boolean fxStill;    // the ducks and explosions overlay hasn't changed since it was last drawn
@@ -1422,7 +1432,7 @@ public final class Clawdtop {
         String t = f.title();
         int dash = t.lastIndexOf(" - ");
         if (dash >= 0 && t.length() - dash - 3 > 1 && t.length() - dash - 3 < 30) return t.substring(dash + 3).strip();
-        String a = f.app().replaceAll("(?i)\\.exe$", "");
+        String a = f.app().replaceAll("(?i)\\.exe$", "").replaceAll("([a-z])([A-Z])", "$1 $2"); // (WindowsTerminal: Windows Terminal)
         return a.isEmpty() ? "this app" : Character.toUpperCase(a.charAt(0)) + a.substring(1);
     }
 
