@@ -666,6 +666,28 @@ public class ClawdtopTest {
             }
         }
         check("song notes all end", ons + " on, " + offs + " off", "4 on, 4 off");
+        // handy extras: links, passwords, the time elsewhere, words, choosing, apps
+        check("clean link", Extras.cleanLink("https://example.com/a?id=5&utm_source=x&fbclid=abc#top"), "https://example.com/a?id=5#top");
+        check("clean link all tracking", Extras.cleanLink("https://shop.com/p?utm_medium=email&gclid=1"), "https://shop.com/p");
+        check("clean youtube share", Extras.cleanLink("https://youtu.be/dQw4w9WgXcQ?si=AbC123"), "https://youtu.be/dQw4w9WgXcQ");
+        check("keep feature elsewhere", Extras.cleanLink("https://site.com/x?feature=dark"), "https://site.com/x?feature=dark");
+        check("unwrap google link", Extras.cleanLink("https://www.google.com/url?q=https%3A%2F%2Fnews.com%2Fstory%3Futm_source%3Dg&sa=D"), "https://news.com/story");
+        check("not a link", Extras.cleanLink("hello there"), null);
+        String pw = Extras.password(new java.util.Random(7));
+        check("password", pw.length() + " " + pw.matches(".*[a-z].*") + pw.matches(".*[A-Z].*") + pw.matches(".*[2-9].*") + pw.matches(".*[!@#$%&*?\\-+=].*")
+                + " " + pw.matches(".*[0O1lI].*"), "16 truetruetruetrue false");
+        java.time.Instant noon = java.time.Instant.parse("2026-10-09T17:00:00Z");
+        check("time in tokyo", Extras.timeIn("What time is it in Tokyo?", noon, java.time.ZoneId.of("America/Chicago")),
+                "In Tokyo it's 2:00 AM on Saturday.\n(That's 14 hours ahead of you.)");
+        check("time in london", Extras.timeIn("what's the time in london", noon, java.time.ZoneId.of("America/Chicago")), "In London it's 6:00 PM.\n(That's 6 hours ahead of you.)");
+        check("not time in", Extras.timeIn("what time is it", noon, java.time.ZoneId.of("America/Chicago")), null);
+        check("word count", Extras.wordCount("one two  three\nfour"), "4 words, 19 characters.");
+        check("choose", Extras.choose("choose between pizza, tacos or burgers", new java.util.Random(1)) != null, true);
+        check("this or that", Extras.choose("pizza or tacos?", new java.util.Random(1)).matches(".*(Pizza|pizza|Tacos|tacos).*"), true);
+        check("a question with or", Extras.choose("is it cold or hot", new java.util.Random(1)), null);
+        check("pick a number isn't choosing", Extras.choose("pick a number between 1 and 5", new java.util.Random(1)), null);
+        check("open app", Extras.appFor("open the calculator") != null && Extras.appFor("open downloads").equals("folder:Downloads"), true);
+        check("open nothing", Extras.appFor("open sesame"), null);
         // the desktop: reading icon spots (Windows' script and Finder say the same shape), sorting files for Neat
         Desktop.Layout desk = Desktop.read("DESKTOP|/home/me/Desktop\nskin|177,2\nmy song.mid|2427,1032\nnot an icon\n");
         check("desktop read", desk.folder().getFileName() + " " + desk.icons(), "Desktop [Icon[name=skin, x=177, y=2], Icon[name=my song.mid, x=2427, y=1032]]");

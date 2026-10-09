@@ -759,6 +759,57 @@ public final class Clawdtop {
             else Useful.open("cmd:gnome-screenshot");
             return true;
         }
+        // the time somewhere else, choosing for you, opening an app
+        String elsewhere = Extras.timeIn(question, java.time.Instant.now(), java.time.ZoneId.systemDefault());
+        if (elsewhere != null) {
+            pet.say(elsewhere);
+            return true;
+        }
+        String picked = Extras.choose(question, new java.util.Random());
+        if (picked != null) {
+            pet.say(picked);
+            return true;
+        }
+        String app = Extras.appFor(question);
+        if (app != null) {
+            pet.say("Opening it!");
+            if (Platform.WINDOWS && !app.contains(":")) {
+                try {
+                    new ProcessBuilder("cmd.exe", "/c", "start", "\"\"", app).start(); // ("start": the way Windows opens things, asking first if it needs to)
+                } catch (IOException cant) {
+                    pet.say("Hmm, I couldn't open that one.");
+                }
+            } else Useful.open(app);
+            return true;
+        }
+        // things to do with what you copied: clean a link, count the words, save it, or a new password to paste
+        if (q.matches("(please )?(clean|fix|shorten|tidy|strip) (up )?(my|this|the|that)( copied)? (link|url)( i copied)?( up)?|remove (the )?tracking( from (my |this |the )?(link|url))?")) {
+            String copied = clipboardText();
+            String clean = Extras.cleanLink(copied);
+            if (clean == null) pet.say("Copy a link first (" + COPY_KEYS + "), then ask me again!");
+            else if (clean.equals(copied.strip())) pet.say("That link's already clean! No tracking junk on it.");
+            else {
+                setClipboard(clean);
+                pet.say("Cleaned! I took " + (copied.strip().length() - clean.length()) + " characters of tracking junk off it.\nIt's copied, ready to paste.");
+            }
+            return true;
+        }
+        if (q.matches("(please )?(make|generate|give|create|get)( me)? (a |an )?(new |strong |good |random )*password|new password|password (please|generator)")) {
+            String password = Extras.password(new java.security.SecureRandom());
+            setClipboard(password);
+            pet.say("Here's a strong one:\n" + password + "\nIt's copied, ready to paste. (I won't remember it!)");
+            return true;
+        }
+        if (q.matches("(count (my |the |these |those )?words|how many words( (did i copy|is (this|that)|are (in )?(this|that|these)|i copied))?|word count)")) {
+            String counted = Extras.wordCount(clipboardText());
+            pet.say(counted == null ? "Copy some text first (select it, then " + COPY_KEYS + "),
+and ask me again!" : "What you copied: " + counted);
+            return true;
+        }
+        if (q.matches("(please )?save (what i copied|my clipboard|the clipboard|what's (on )?my clipboard|this picture i copied)( to (a file|my desktop))?")) {
+            saveClipboard();
+            return true;
+        }
         // locking up
         if (q.matches("(please )?lock (my |the )?(computer|pc|screen|laptop|mac)( now)?")) {
             pet.speak();
@@ -775,6 +826,61 @@ public final class Clawdtop {
             return true;
         }
         return false;
+    }
+
+    /** How you copy, on this computer. */
+    static final String COPY_KEYS = Platform.MAC ? "Cmd+C" : "Ctrl+C";
+
+    /** The text you've copied, or "" if it isn't text. */
+    static String clipboardText() {
+        try {
+            var clip = java.awt.Toolkit.getDefaultToolkit().getSystemClipboard();
+            if (clip.isDataFlavorAvailable(java.awt.datatransfer.DataFlavor.stringFlavor)) {
+                return (String) clip.getData(java.awt.datatransfer.DataFlavor.stringFlavor);
+            }
+        } catch (Exception busy) {
+            // (another app has it open this instant)
+        }
+        return "";
+    }
+
+    static void setClipboard(String text) {
+        try {
+            var copied = new java.awt.datatransfer.StringSelection(text);
+            java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(copied, copied);
+        } catch (Exception busy) {
+            // (another app has it open this instant)
+        }
+    }
+
+    /** "Save what I copied": a copied picture (a screenshot, say) or text goes into a file on your desktop. */
+    private void saveClipboard() {
+        Path desktop = desktopFolder != null ? desktopFolder : Path.of(System.getProperty("user.home"), "Desktop");
+        String stamp = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HHmm"));
+        try {
+            var clip = java.awt.Toolkit.getDefaultToolkit().getSystemClipboard();
+            if (clip.isDataFlavorAvailable(java.awt.datatransfer.DataFlavor.imageFlavor)) {
+                java.awt.Image image = (java.awt.Image) clip.getData(java.awt.datatransfer.DataFlavor.imageFlavor);
+                java.awt.image.BufferedImage picture = new java.awt.image.BufferedImage(image.getWidth(null), image.getHeight(null), java.awt.image.BufferedImage.TYPE_INT_RGB);
+                java.awt.Graphics2D g = picture.createGraphics();
+                g.drawImage(image, 0, 0, null);
+                g.dispose();
+                Path to = Desktop.free(desktop.resolve("Copied picture " + stamp + ".png"));
+                javax.imageio.ImageIO.write(picture, "png", to.toFile());
+                pet.say("Saved! It's on your desktop:\n" + to.getFileName());
+                return;
+            }
+            String text = clipboardText();
+            if (!text.isEmpty()) {
+                Path to = Desktop.free(desktop.resolve("Copied text " + stamp + ".txt"));
+                java.nio.file.Files.writeString(to, text);
+                pet.say("Saved! It's on your desktop:\n" + to.getFileName());
+                return;
+            }
+            pet.say("There's nothing copied right now! Copy a picture or some text first.");
+        } catch (Exception cant) {
+            pet.say("Hmm, I couldn't save that one.");
+        }
     }
 
     // ---- The desktop: fetching a song you drag near him, and tidying everything into a Neat folder ----
@@ -2819,6 +2925,10 @@ public final class Clawdtop {
                 }
                 if (action.startsWith("answer ")) {
                     bubble.press(Integer.parseInt(action.substring(7)));
+                    return;
+                }
+                if (action.startsWith("say ")) { // (asking him something, as if typed in the ask box)
+                    answer(action.substring(4));
                     return;
                 }
                 if (action.startsWith("midi ")) {
