@@ -75,7 +75,7 @@ final class OptionsWindow {
             });
             list.add(row(o, settings, changed));
         }
-        JTabbedPane tabs = new JTabbedPane();
+        JTabbedPane tabs = new JTabbedPane(JTabbedPane.TOP, JTabbedPane.SCROLL_TAB_LAYOUT); // (one row of tabs, with arrows if they don't all fit)
         // (the handiest groups first: what he does for you, your privacy and his brain, then the fun stuff)
         java.util.List<String> first = java.util.List.of("Useful", "Privacy", "Brain", "Antics", "Reactions");
         java.util.List<Map.Entry<String, JPanel>> ordered = new java.util.ArrayList<>(groups.entrySet());

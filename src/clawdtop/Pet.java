@@ -1462,7 +1462,8 @@ public final class Pet {
             case "Army National Guard", "Air National Guard" -> "Always ready, always there!";
             default -> "";
         };
-        return thanks + "\n" + more + (motto.isEmpty() ? "" : " " + motto);
+        if (motto.isEmpty()) return thanks + "\n" + more;
+        return thanks + "\n" + more + ((more + " " + motto).length() > 45 ? "\n" : " ") + motto; // (a long one on its own line: not broken in half)
     }
 
     public boolean salute() {

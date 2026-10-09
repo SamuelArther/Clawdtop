@@ -333,6 +333,7 @@ public final class Clawdtop {
     private boolean inCorner; // sitting in the corner, watching your full-screen game
     private String lastMonitors; // all the monitors (above their taskbars) last time he looked
     private boolean offEdge;     // walked off past his monitor's edge: out of sight till he's back
+    private boolean redraw;      // something changed between his mood ticks: draw him this frame
     private final java.util.List<Object[]> reminders = new java.util.ArrayList<>(); // {due ms, what}
     private long focusUntil;    // the focus timer runs out then (0: off)
     private long stopwatchFrom; // the stopwatch started then (0: off)
@@ -980,7 +981,7 @@ public final class Clawdtop {
             pet.say("Let me look up \"" + word + "\"...");
             worker.execute(() -> {
                 String meaning = WebSearch.define(word);
-                SwingUtilities.invokeLater(() -> pet.say(meaning == null ? "Hmm, I couldn't find \"" + word + "\" in the dictionary. (Is it spelled right?)"
+                SwingUtilities.invokeLater(() -> pet.say(meaning == null ? "Hmm, I couldn't find \"" + word + "\" in the dictionary.\n(Is it spelled right?)"
                         : Brain.noBadWords(meaning)));
             });
             return true;
@@ -1268,7 +1269,7 @@ public final class Clawdtop {
                 String hex = Extras.hex(c);
                 setClipboard(hex);
                 pet.say("That's " + Extras.colorName(c) + "! " + hex + " (red " + c.getRed() + ", green " + c.getGreen() + ", blue " + c.getBlue() + ")\nI copied the code for you."
-                        + (Platform.MAC && c.getRed() + c.getGreen() + c.getBlue() == 0 ? "\n(All black? On a Mac I need Screen Recording permission to see colors.)" : ""));
+                        + (Platform.MAC && c.getRed() + c.getGreen() + c.getBlue() == 0 ? "\n(All black? On a Mac I need Screen Recording\npermission to see colors: System Settings > Privacy.)" : ""));
             } catch (Exception cant) {
                 pet.say("Hmm, I can't see the screen's colors on this computer.");
             }
@@ -3138,7 +3139,10 @@ public final class Clawdtop {
         near.grow(220, 220);
         boolean zone = Foreground.leftButtonDown() && near.contains(mouse) && dragFrom == Integer.MIN_VALUE && window.isShowing()
                 && !window.getBounds().contains(mouse) || (dropZone && Foreground.leftButtonDown()); // (stays on till you let go)
-        if (zone != dropZone) dropZone = zone;
+        if (zone != dropZone) {
+            dropZone = zone;
+            redraw = true; // (the drop zone's glow appears or goes)
+        }
         boolean right = Foreground.rightButtonDown();
         if (right && !rightWasDown && body.state() == Body.State.RIDE) body.dropOff(); // right-click: he hops down (no flick needed)
         rightWasDown = right;
@@ -3407,7 +3411,12 @@ public final class Clawdtop {
         bubble.tick();
         if (bubble.showing()) bubble.follow(head(), popupBounds());
         if (welcome != null && welcome.showing()) welcome.follow(head(), popupBounds());
-        canvas.repaint();
+        // drawn when something can have changed: his pose (it changes on his mood ticks), or every frame while he's on the
+        // move (falling, laps: his tilt changes all the time). Standing at home, the frames in between look the same.
+        if (newTick || redraw || body.state() != Body.State.HOME) {
+            redraw = false;
+            canvas.repaint();
+        }
     }
 
     /**
