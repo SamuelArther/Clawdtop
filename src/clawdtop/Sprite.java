@@ -68,7 +68,7 @@ public final class Sprite {
             // spun round by a zooming cursor: once all the way round
             Graphics2D spun = (Graphics2D) g.create();
             double p = Math.min(1, pet.moodTime() / 600.0);
-            spun.translate(0, -Math.sin(Math.PI * p) * 3 * unit); // a little hop, so he spins clear of the ground
+            spun.translate(0, -Math.pow(Math.sin(Math.PI * p), 0.3) * 3.2 * unit); // a hop, so he spins clear of the ground (corners and all)
             spun.rotate(p * Math.PI * 2, WIDTH * unit / 2.0, (GROUND - 5) * unit);
             drawBody(spun, pet, unit, mood);
             spun.dispose();
@@ -164,7 +164,7 @@ public final class Sprite {
 
     /** When the rocket trip happens (ms into LAUNCHPAD): it lands, the ramp slides out, he walks in, it shuts. */
     static final long ROCKET_LANDS = 500, RAMP_OUT = 900, WALKED_IN = 2100, SHUT = 2500;
-    private static final double ROCKET_X = LEFT + 13.5; // the rocket's middle, beside him, while it waits
+    private static final double ROCKET_X = LEFT + 13; // the rocket's middle, beside him, while it waits (fins inside his square)
 
     /**
      * His rocket trip: a rocket drops in beside him, standing up; a ramp slides out of its door (like the Pikmin ship),
@@ -180,12 +180,15 @@ public final class Sprite {
             drawRocket(g, unit, x, GROUND - 1.5, 0, true, true, pet, 0);
             return;
         }
-        double drop = (1 - ease(t / (double) ROCKET_LANDS)) * -16;
+        double drop = (1 - ease(t / (double) ROCKET_LANDS)) * -6;
+        Graphics2D landing = (Graphics2D) g.create();
+        landing.setComposite(java.awt.AlphaComposite.SrcOver.derive((float) Math.min(1, t / (double) ROCKET_LANDS * 1.4))); // (fading in as it drops)
         double ramp = t < RAMP_OUT ? 0 : t < WALKED_IN ? ease((t - RAMP_OUT) / 300.0) : 1 - ease((t - WALKED_IN) / 300.0);
         boolean doorOpen = t >= RAMP_OUT - 100 && t < SHUT;
         boolean inside = t >= WALKED_IN;
         double shake = t > SHUT + 300 ? Math.sin(t / 25.0) * 0.15 : 0;
-        drawRocket(g, unit, ROCKET_X + shake, GROUND + drop, ramp, t > SHUT + 600, inside, pet, doorOpen ? 1 : 0);
+        drawRocket(landing, unit, ROCKET_X + shake, GROUND + drop, ramp, t > SHUT + 600, inside, pet, doorOpen ? 1 : 0);
+        landing.dispose();
         if (!inside) {
             // him, then walking up the ramp and in through the door (the rocket hides what's gone in)
             double walk = t < RAMP_OUT + 300 ? 0 : ease((t - RAMP_OUT - 300) / (double) (WALKED_IN - RAMP_OUT - 300));
@@ -663,8 +666,10 @@ public final class Sprite {
             Color[] colors = {new Color(255, 214, 102), new Color(120, 220, 255), new Color(255, 120, 170), new Color(140, 230, 140)};
             for (int i = 0; i < 14; i++) {
                 double t = (pet.moodTime() / 1400.0 + i * 0.13) % 1;
-                double x = (i * 7.3) % WIDTH + Math.sin(t * 8 + i) * 0.8;
-                box(g, unit, x, -1 + t * (GROUND + 1), 0.6, 0.6, colors[i % colors.length]);
+                double x = 1 + (i * 7.3) % (WIDTH - 3) + Math.sin(t * 8 + i) * 0.8; // (all of it inside his square)
+                Color c = colors[i % colors.length];
+                int alpha = (int) (255 * Math.min(1, t / 0.15)); // (it fades in up top, rather than popping in at the edge)
+                box(g, unit, x, t * GROUND, 0.6, 0.6, new Color(c.getRed(), c.getGreen(), c.getBlue(), alpha));
             }
         }
 

@@ -1437,12 +1437,17 @@ public final class Pet {
         return clockUp;
     }
 
-    /** Ooh, a file being dragged over him (it might be music!). */
+    /** Ooh, a file being dragged over him (a song? a zip? a picture?). */
     public void sniff() {
+        sniff("Ooh! Is that for me?!");
+    }
+
+    /** A little excited hop, saying something (or, null, just the hop: he's already said what he's doing). */
+    public void sniff(String says) {
         if (busy() || mood == Mood.SLEEP || mood == Mood.HAPPY) return;
-        line = "Ooh! Is that music?!";
+        if (says != null) line = says;
         wants = Beep.HAPPY;
-        set(Mood.HAPPY, 900); // a little excited hop
+        set(Mood.HAPPY, 900);
     }
 
     /** Stops playing (you clicked him). */

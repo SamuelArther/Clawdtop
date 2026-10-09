@@ -1379,7 +1379,7 @@ public final class Clawdtop {
     /** "Find my essay": he looks (on his helper thread, a few seconds at most) and shows you what he found. */
     private void findFile(java.util.List<String> words) {
         pet.say("Looking for \"" + String.join(" ", words) + "\"...");
-        pet.sniff();
+        pet.sniff(null); // (a hop: off he goes to look)
         Path home = Path.of(System.getProperty("user.home"));
         worker.execute(() -> {
             java.util.List<Path> found = FindFile.search(words, FindFile.places(home), 5000);
