@@ -842,6 +842,11 @@ public final class Clawdtop {
     /** Things he codes: the file fills in as he types; then what he made does its thing (or gets deleted). */
     private void creations() {
         if (pet.takeWantsToCreate() && job == null && body.state() == Body.State.HOME && !hidden && !inCorner) makeSomething(false);
+        if (pet.takeWantsToJam() && job == null && body.state() == Body.State.HOME && !hidden && !inCorner && mayBeep()) { // a jam, all by himself
+            java.util.List<java.io.File> tracks = new java.util.ArrayList<>(songs(songsFolder().resolve("jams")));
+            for (java.io.File f : songs(songsFolder())) if (isJam(f)) tracks.add(f);
+            if (!tracks.isEmpty()) jamTo(tracks.get(new java.util.Random().nextInt(tracks.size())), false);
+        }
         Creation typing = pet.coding();
         if (typing != null && newTick && ticks % 20 == 0) writeCreation(typing, pet.codingProgress());
         Creation made = pet.takeMade();
@@ -2322,6 +2327,11 @@ public final class Clawdtop {
      * things on cue. Call on the Swing thread.
      */
     void smoke(String action) {
+        if (action.startsWith("jam ")) { // jam to a file: "jam C:\...\closet_jam.mid" (records the parts), "jam again ..." (just plays it)
+            boolean again = action.startsWith("jam again ");
+            jamTo(new java.io.File(action.substring(again ? 10 : 4)), again);
+            return;
+        }
         Rectangle at = head();
         switch (action) {
             case "menu" -> jobs().show(canvas, at.width / 2, at.height / 3);
@@ -2342,6 +2352,16 @@ public final class Clawdtop {
                 smokeNotes++;
             });
             case "salute" -> pet.salute();
+            case "salute me" -> pet.saluteYou("Tester", "Army National Guard", "Retired");
+            case "sing" -> pet.play(Piano.Instrument.VOICE, Piano.SONGS[0]);
+            case "sing army" -> answer("sing the army song");
+            case "cpdance" -> pet.smokeMood(Pet.Mood.CPDANCE, 5200);
+            case "watch" -> pet.watch(true);
+            case "scare" -> pet.scare();
+            case "stop watching" -> pet.watch(false);
+            case "offer seeing" -> offerSense("Ooh, a video! Want me to watch this with you?", "seeing", "askedSeeing",
+                    "Can Clawd see your screen?", "(test) He takes a quick look at how bright your screen is.");
+            case "yes" -> bubble.press(0);
             case "veterans" -> {
                 pet.salute();
                 nextVeteransSong = System.currentTimeMillis() + 7000;

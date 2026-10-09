@@ -369,8 +369,9 @@ public final class Pet {
                     line = "Okay... here it comes.";
                     set(Mood.JAM, 1500);
                 } else if (jamStep == JAM_SLAM && moodFor >= JAM_SLAM_AT && moodFor - ms < JAM_SLAM_AT) {
-                    wants = Beep.CLICKED; // SLAM
-                    line = "And... GO!";
+                    wants = Beep.CLICKED; // SLAM: and he shows you what he made
+                    String[] made = {"Check it out! I made a track!", "Okay, listen to THIS.", "I made this. For you. Listen!"};
+                    line = jamFresh ? made[random.nextInt(made.length)] : "Here it goes!";
                 } else if (jamStep == JAM_SLAM && moodFor > nextChange) {
                     jamStep = JAM_PLAYING;
                     set(Mood.JAM, Math.max(4000, jamSong.fullMs()) + 600);
@@ -526,6 +527,8 @@ public final class Pet {
                     playPiano(random.nextInt(3) == 0 ? null : Piano.SONGS[random.nextInt(Piano.SONGS.length)]); // a little tune, just because
                 } else if (moodFor > Math.min(15_000, nextChange / 2) && prefs.on("music") && random.nextInt(70_000) == 0) {
                     vibe(); // feeling the music
+                } else if (moodFor > Math.min(25_000, nextChange * 2 / 3) && prefs.on("jamSessions") && random.nextInt(200_000) == 0) {
+                    wantsToJam = true; // in the mood to make a track (the window picks one of the jam tracks)
                 } else if (moodFor > 12_000 && prefs.on("cpDance") && random.nextInt(150_000) == 0) {
                     line = random.nextBoolean() ? "*hits the dance*" : null; // the Club Penguin dance, out of nowhere
                     wants = Beep.HAPPY;
@@ -1136,6 +1139,7 @@ public final class Pet {
     public boolean jam(Piano.Song full, java.util.List<Piano.Part> parts) {
         if (busy() || mood == Mood.SLEEP || full == null || full.midi() == null) return false;
         jamParts = parts;
+        jamFresh = true;
         jamSong = full;
         jamming = true;
         jamStep = JAM_SETUP;
@@ -1149,6 +1153,7 @@ public final class Pet {
     public boolean jamAgain(Piano.Song full) {
         if (busy() || mood == Mood.SLEEP || full == null || full.midi() == null) return false;
         jamSong = full;
+        jamFresh = false;
         jamming = true;
         jamStep = JAM_TYPING;
         line = "Ooh, this one! Let me find it...";
@@ -1165,6 +1170,15 @@ public final class Pet {
     }
 
     private boolean jamRecorded;
+    private boolean wantsToJam;
+    private boolean jamFresh; // he's just recorded it (so he shows it off), not playing one he made before
+
+    /** Whether he's in the mood for a jam session, all by himself (once). */
+    public boolean takeWantsToJam() {
+        boolean w = wantsToJam;
+        wantsToJam = false;
+        return w;
+    }
 
     /** Records the next part (piano, guitar, bass, drums), or after the last one, gets ready to slam the button. */
     private void nextJamPart() {
@@ -1407,6 +1421,11 @@ public final class Pet {
     }
 
     /** Veterans Day. */
+    /** For the screen test: straight into a mood. */
+    void smokeMood(Mood m, long howLong) {
+        set(m, howLong);
+    }
+
     /** A salute for you, for your service (once a day, the first time he sees you). */
     public boolean saluteYou(String name, String branch, String how) {
         if (busy() || mood == Mood.SLEEP) return false;

@@ -38,6 +38,7 @@ final class Options {
             Option.on("Antics", "blush", "Gets shy when the cursor rests on him", true),
             Option.on("Antics", "boop", "Goes cross-eyed when you swipe across his face (boop!)", false),
             Option.on("Antics", "morning", "A big good-morning stretch each day", true),
+            Option.on("Antics", "jamSessions", "Now and then, a jam session all by himself (with your jam tracks)", true),
             Option.on("Antics", "cpDance", "Now and then, out of nowhere, the Club Penguin dance", true),
             Option.on("Antics", "tackle", "Tackles the taskbar icon of apps you open (it pops open when he hits it)", false),
             Option.on("Antics", "bigSurprises", "Big surprises on his own (a rocket, a flying carpet, a duck flood, pop-ups)", false),

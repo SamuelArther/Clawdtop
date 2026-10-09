@@ -20,6 +20,17 @@ public final class SmokeQuick {
         Path home = Files.createTempDirectory("clawdtop-smoke");
         System.setProperty("clawdtop.home", home.toString());
         Files.writeString(home.resolve("settings.properties"), "met=true\nname=Tester\nbeeps=false\ntips=false\nmetDate=2026-10-08\n");
+        String songs = System.getProperty("smoke.songs"); // (a songs folder to copy in, for singing and jamming)
+        if (songs != null) {
+            Path from = Path.of(songs);
+            try (var walk = Files.walk(from)) {
+                for (Path f : walk.toList()) {
+                    Path to = home.resolve("songs").resolve(from.relativize(f).toString());
+                    if (Files.isDirectory(f)) Files.createDirectories(to);
+                    else Files.copy(f, to);
+                }
+            }
+        }
         Clawdtop[] clawd = new Clawdtop[1];
         SwingUtilities.invokeAndWait(() -> {
             clawd[0] = new Clawdtop();
@@ -31,7 +42,10 @@ public final class SmokeQuick {
         Thread.sleep(3000);
         for (int i = 1; i < args.length; i++) {
             String[] step = args[i].split("\\|");
-            if (!step[0].isEmpty()) SwingUtilities.invokeAndWait(() -> clawd[0].smoke(step[0]));
+            if (step[0].equals("key enter")) { // (answering a system dialog, like the permission box)
+                robot.keyPress(java.awt.event.KeyEvent.VK_ENTER);
+                robot.keyRelease(java.awt.event.KeyEvent.VK_ENTER);
+            } else if (!step[0].isEmpty()) SwingUtilities.invokeAndWait(() -> clawd[0].smoke(step[0]));
             Thread.sleep((long) (Double.parseDouble(step[1]) * 1000));
             ImageIO.write(robot.createScreenCapture(all), "png", new File(out, String.format("%02d %s.png", i, step[2])));
         }

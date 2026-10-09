@@ -282,9 +282,12 @@ final class Piano {
         try {
             javax.sound.midi.Sequence seq = javax.sound.midi.MidiSystem.getSequence(file);
             java.util.TreeMap<Long, Integer> top = new java.util.TreeMap<>(); // start tick -> highest note
+            long lastNote = 0; // when the last note ends (some files go on in silence for minutes after)
             for (javax.sound.midi.Track track : seq.getTracks()) {
                 for (int i = 0; i < track.size(); i++) {
                     javax.sound.midi.MidiEvent e = track.get(i);
+                    if (e.getMessage() instanceof javax.sound.midi.ShortMessage any && (any.getCommand() == javax.sound.midi.ShortMessage.NOTE_ON
+                            || any.getCommand() == javax.sound.midi.ShortMessage.NOTE_OFF)) lastNote = Math.max(lastNote, e.getTick());
                     if (e.getMessage() instanceof javax.sound.midi.ShortMessage m && m.getCommand() == javax.sound.midi.ShortMessage.NOTE_ON
                             && m.getData2() > 0 && m.getChannel() != 9) { // (channel 10 is drums)
                         top.merge(e.getTick(), m.getData1(), Math::max);
@@ -307,7 +310,8 @@ final class Piano {
             }
             String name = file.getName().replaceAll("(?i)\\.midi?$", "").replace('_', ' ');
             name = SERVICE_SONGS.getOrDefault(name.toLowerCase(java.util.Locale.ROOT), name); // army.mid -> its real title
-            return new Song("your " + (name.length() > 30 ? name.substring(0, 30) : name), notes, ms, 1, file, seq.getMicrosecondLength() / 1000);
+            long songMs = Math.min(seq.getMicrosecondLength() / 1000, (long) (lastNote * msPerTick) + 600); // (ends with its last note)
+            return new Song("your " + (name.length() > 30 ? name.substring(0, 30) : name), notes, ms, 1, file, songMs);
         } catch (Exception notMidi) {
             return null;
         }
