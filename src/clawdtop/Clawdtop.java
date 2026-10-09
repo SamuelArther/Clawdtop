@@ -40,6 +40,7 @@ public final class Clawdtop {
     private long settingsChanged = Settings.changed();
     private final Pet pet = new Pet(System.nanoTime());
     private final Beeps beeps = new Beeps();
+    private boolean wasPlaying; // on his piano (or guitar, or drums) last frame
     private final Tips tips = new Tips();
     private final Bubble bubble = new Bubble();
     private String lastKind;
@@ -1583,6 +1584,9 @@ public final class Clawdtop {
         boolean overHim = Math.abs(mouse.x - eyesX) < 7 * unit && Math.abs(mouse.y - eyesY) < 4 * unit && body.state() == Body.State.HOME;
         pet.hover(overHim && !moved, FRAME_MS);
         pet.tick(FRAME_MS, mouse.x - eyesX, mouse.y - eyesY, moved, devApp);
+        boolean playingNow = pet.mood() == Pet.Mood.PIANO;
+        if (wasPlaying && !playingNow) beeps.stopAll(); // he stopped: so does the music
+        wasPlaying = playingNow;
         int note = pet.takeNote();
         if (note > 0 && mayBeep() && pet.playingMidi() == null) beeps.play(pet.instrument(), note, pet.noteLength());
         playMidi(pet.playingMidi());

@@ -10,11 +10,111 @@ import java.util.concurrent.Executors;
 public final class Beeps {
     private static final float RATE = 44100;
     private static final double VOLUME = 0.12; // quiet: he's a desk buddy, not an alarm
-    private final ExecutorService player = Executors.newSingleThreadExecutor(r -> {
+    private final ExecutorService player = Executors.newSingleThreadExecutor(r -> { // makes the sounds (off the screen's thread)
         Thread t = new Thread(r, "Clawdtop beeps");
         t.setDaemon(true);
         return t;
     });
+
+    // One speaker line, kept open while there's sound, with every note mixed in on time: notes overlap and ring out
+    // like a real instrument instead of waiting their turn (which made songs drag on, and keep going after he'd stopped)
+    private record Voice(short[] samples, long batch) {
+    }
+
+    private final java.util.concurrent.ConcurrentLinkedQueue<Voice> incoming = new java.util.concurrent.ConcurrentLinkedQueue<>();
+    private final java.util.concurrent.atomic.AtomicLong batch = new java.util.concurrent.atomic.AtomicLong();
+    private volatile long cutBefore; // anything from before this batch is cut off (he stopped playing)
+    private Thread mixer;
+
+    /** Stops everything he's playing right now, straight away. */
+    public void stopAll() {
+        cutBefore = batch.incrementAndGet();
+    }
+
+    private void mix(byte[] pcm) {
+        short[] s = new short[pcm.length / 2];
+        for (int i = 0; i < s.length; i++) s[i] = (short) ((pcm[i * 2] & 0xFF) | pcm[i * 2 + 1] << 8);
+        incoming.add(new Voice(s, batch.get()));
+        synchronized (incoming) {
+            if (mixer == null || !mixer.isAlive()) {
+                mixer = new Thread(this::runMixer, "Clawdtop speaker");
+                mixer.setDaemon(true);
+                mixer.start();
+            }
+            incoming.notifyAll();
+        }
+    }
+
+    private void runMixer() {
+        final int chunk = 441; // 10 ms at a time
+        java.util.List<int[]> positions = new java.util.ArrayList<>(); // {voice index} kept alongside
+        java.util.List<Voice> voices = new java.util.ArrayList<>();
+        int[] sum = new int[chunk];
+        byte[] out = new byte[chunk * 2];
+        SourceDataLine line = null;
+        long quietMs = 0;
+        try {
+            while (true) {
+                for (Voice v; (v = incoming.poll()) != null; ) {
+                    voices.add(v);
+                    positions.add(new int[] {0});
+                }
+                for (int i = voices.size() - 1; i >= 0; i--) {
+                    if (voices.get(i).batch() < cutBefore) {
+                        voices.remove(i);
+                        positions.remove(i);
+                    }
+                }
+                if (voices.isEmpty()) {
+                    if (line != null && quietMs > 1500) { // quiet a while: let the speaker go
+                        line.drain();
+                        line.close();
+                        line = null;
+                    }
+                    if (line == null) {
+                        synchronized (incoming) {
+                            while (incoming.isEmpty()) incoming.wait();
+                        }
+                        continue;
+                    }
+                    java.util.Arrays.fill(out, (byte) 0);
+                    line.write(out, 0, out.length); // a moment of silence keeps the timing steady
+                    quietMs += 10;
+                    continue;
+                }
+                quietMs = 0;
+                if (line == null) {
+                    AudioFormat format = new AudioFormat(RATE, 16, 1, true, false);
+                    line = AudioSystem.getSourceDataLine(format);
+                    line.open(format, chunk * 2 * 8); // about 80 ms of buffer: quick to answer
+                    line.start();
+                }
+                java.util.Arrays.fill(sum, 0);
+                for (int i = voices.size() - 1; i >= 0; i--) {
+                    short[] s = voices.get(i).samples();
+                    int[] pos = positions.get(i);
+                    int n = Math.min(chunk, s.length - pos[0]);
+                    for (int k = 0; k < n; k++) sum[k] += s[pos[0] + k];
+                    pos[0] += n;
+                    if (pos[0] >= s.length) {
+                        voices.remove(i);
+                        positions.remove(i);
+                    }
+                }
+                for (int k = 0; k < chunk; k++) {
+                    int v = Math.max(-32768, Math.min(32767, sum[k]));
+                    out[k * 2] = (byte) v;
+                    out[k * 2 + 1] = (byte) (v >> 8);
+                }
+                line.write(out, 0, out.length);
+            }
+        } catch (Exception noSound) {
+            // no speakers, or they're busy: he just stays quiet (next sound tries again)
+            incoming.clear();
+        } finally {
+            if (line != null) line.close();
+        }
+    }
 
     private String voice = "Normal";
     private int volume = 5;
@@ -30,15 +130,7 @@ public final class Beeps {
         String v = voice;
         int vol = volume;
         player.execute(() -> {
-            byte[] sound = voiced(make(beep), v, vol);
-            try (SourceDataLine line = AudioSystem.getSourceDataLine(new AudioFormat(RATE, 16, 1, true, false))) {
-                line.open();
-                line.start();
-                line.write(sound, 0, sound.length);
-                line.drain();
-            } catch (Exception noSound) {
-                // no speakers, or they're busy: he just stays quiet
-            }
+            mix(voiced(make(beep), v, vol));
         });
     }
 
@@ -84,15 +176,7 @@ public final class Beeps {
                 case DRUMS -> drum(midi);
                 default -> note(midi, ms);
             };
-            byte[] sound = voiced(raw, "Normal", vol);
-            try (SourceDataLine line = AudioSystem.getSourceDataLine(new AudioFormat(RATE, 16, 1, true, false))) {
-                line.open();
-                line.start();
-                line.write(sound, 0, sound.length);
-                line.drain();
-            } catch (Exception noSound) {
-                // quiet
-            }
+            mix(voiced(raw, "Normal", vol));
         });
     }
 
