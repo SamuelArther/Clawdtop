@@ -1,7 +1,7 @@
-Fix: starting him on Windows.
+Fix: starting with your computer keeps working.
 
-- Clawdtop.bat now uses the first Java that's new enough. Before, an older Java found first (like Java 21, or an old JAVA_HOME) made it say "too old" even with Java 25 installed. It also looks in the usual install folders.
-- Opened Clawdtop.bat straight from inside the zip? It now tells you to unzip it first (Extract All), instead of confusing advice.
+- Windows: after a Java update (or if you moved his folder), signing in showed an error box. Now he falls back to whichever Java you have, and if his folder's gone, nothing pops up.
+- Mac: starting at login uses the Mac's own Java launcher (survives Java updates), fixes itself if his folder moves, and works with "&" in folder names.
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 

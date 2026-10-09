@@ -428,8 +428,11 @@ public class ClawdtopTest {
         Files.writeString(home.resolve("settings.properties"), "size=Huge\nx=nope\n");
         Settings odd = Settings.load();
         check("odd settings fall back to normal", odd.size() + " " + odd.x(), "Normal -1");
-        check("the Windows startup script runs Java with no window", Startup.script("C:\\Java\\bin\\javaw.exe", "C:\\Clawdtop\\Clawdtop.jar"),
-                "Set shell = CreateObject(\"WScript.Shell\")\r\nshell.Run \"\"\"C:\\Java\\bin\\javaw.exe\"\" --enable-native-access=ALL-UNNAMED -jar \"\"C:\\Clawdtop\\Clawdtop.jar\"\"\", 0, False\r\n");
+        String startScript = Startup.script("C:\\Java\\bin\\javaw.exe", "C:\\Clawdtop\\Clawdtop.jar");
+        check("the Windows startup script runs Java with no window, only if he's still there", startScript.contains("If fso.FileExists(jar) Then")
+                + " " + startScript.contains("If Not fso.FileExists(java) Then java = \"javaw\"") + " " + startScript.contains("On Error Resume Next")
+                + " " + startScript.contains("jar = \"C:\\Clawdtop\\Clawdtop.jar\""), "true true true true");
+        check("the Mac login file is safe XML", Platform.macLogin("/usr/bin/java", "/Users/me/Tom & Jerry/Clawdtop.jar").contains("Tom &amp; Jerry"), true);
 
         // ---- Meeting him the first time ----
         Files.deleteIfExists(home.resolve("settings.properties"));

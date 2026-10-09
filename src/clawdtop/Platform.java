@@ -275,21 +275,47 @@ final class Platform {
                 Files.deleteIfExists(file);
                 return;
             }
-            Path jar = Install.jar();
-            if (jar == null) return;
-            String java = Install.java().toString();
-            String text = MAC
-                    ? "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
-                            + "<plist version=\"1.0\"><dict>\n<key>Label</key><string>com.clawdtop</string>\n"
-                            + "<key>ProgramArguments</key><array><string>" + java + "</string><string>--enable-native-access=ALL-UNNAMED</string>"
-                            + "<string>-jar</string><string>" + jar + "</string></array>\n<key>RunAtLoad</key><true/>\n</dict></plist>\n"
-                    : "[Desktop Entry]\nType=Application\nName=Clawdtop\nComment=Clawd, on your taskbar\nExec=\"" + java
-                            + "\" --enable-native-access=ALL-UNNAMED -jar \"" + jar + "\"\nX-GNOME-Autostart-enabled=true\n";
+            String text = loginText();
+            if (text == null) return;
             Files.createDirectories(file.getParent());
             Files.writeString(file, text, StandardCharsets.UTF_8);
         } catch (IOException e) {
             // it just won't start by itself
         }
+    }
+
+    /** If he starts at login, makes sure it still points at this jar and a Java that's there (they move: updates, folders). */
+    static void refreshStartsAtLogin() {
+        if (!startsAtLogin()) return;
+        String text = loginText();
+        if (text == null) return;
+        try {
+            if (!text.equals(Files.readString(loginFile(), StandardCharsets.UTF_8))) Files.writeString(loginFile(), text, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            // leave it
+        }
+    }
+
+    /** What the login file says (null if he isn't running from his jar). */
+    private static String loginText() {
+        Path jar = Install.jar();
+        if (jar == null || !jar.toString().endsWith(".jar")) return null;
+        // (a Mac's /usr/bin/java always runs the newest Java installed, so a Java update doesn't break it)
+        String java = MAC && Files.isExecutable(Path.of("/usr/bin/java")) ? "/usr/bin/java" : Install.java().toString();
+        return MAC ? macLogin(java, jar.toString()) : "[Desktop Entry]\nType=Application\nName=Clawdtop\nComment=Clawd, on your taskbar\nExec=\"" + java
+                + "\" --enable-native-access=ALL-UNNAMED -jar \"" + jar + "\"\nX-GNOME-Autostart-enabled=true\n";
+    }
+
+    /** The Mac's login file (a LaunchAgent), with the paths made safe for its XML ("&" and friends). */
+    static String macLogin(String java, String jar) {
+        return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
+                + "<plist version=\"1.0\"><dict>\n<key>Label</key><string>com.clawdtop</string>\n"
+                + "<key>ProgramArguments</key><array><string>" + xml(java) + "</string><string>--enable-native-access=ALL-UNNAMED</string>"
+                + "<string>-jar</string><string>" + xml(jar) + "</string></array>\n<key>RunAtLoad</key><true/>\n</dict></plist>\n";
+    }
+
+    private static String xml(String s) {
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
     }
 
     // ---- The clawd command ----

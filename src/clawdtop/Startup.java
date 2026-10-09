@@ -56,7 +56,11 @@ final class Startup {
 
     /** If it's on, makes sure the script still points at this Java and this jar (they can move, like after an update). */
     static void refresh() {
-        if (!Platform.WINDOWS || !on()) return;
+        if (!Platform.WINDOWS) {
+            Platform.refreshStartsAtLogin();
+            return;
+        }
+        if (!on()) return;
         Path script = script();
         String text = command();
         if (script == null || text == null) return;
@@ -84,8 +88,19 @@ final class Startup {
         }
     }
 
+    /**
+     * The script: starts him if his jar is still there (if it's been moved or deleted: nothing, no error box), with the
+     * Java he last ran on, or (if that's gone, like after a Java update) whichever Java the computer has.
+     */
     static String script(String java, String jar) {
         return "Set shell = CreateObject(\"WScript.Shell\")\r\n"
-                + "shell.Run \"\"\"" + java + "\"\" --enable-native-access=ALL-UNNAMED -jar \"\"" + jar + "\"\"\", 0, False\r\n";
+                + "Set fso = CreateObject(\"Scripting.FileSystemObject\")\r\n"
+                + "java = \"" + java.replace("\"", "\"\"") + "\"\r\n"
+                + "jar = \"" + jar.replace("\"", "\"\"") + "\"\r\n"
+                + "If fso.FileExists(jar) Then\r\n"
+                + "  If Not fso.FileExists(java) Then java = \"javaw\"\r\n"
+                + "  On Error Resume Next\r\n"
+                + "  shell.Run \"\"\"\" & java & \"\"\" --enable-native-access=ALL-UNNAMED -jar \"\"\" & jar & \"\"\"\", 0, False\r\n"
+                + "End If\r\n";
     }
 }
