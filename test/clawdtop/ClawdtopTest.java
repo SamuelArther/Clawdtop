@@ -572,6 +572,19 @@ public class ClawdtopTest {
         check("and not-music isn't", Piano.fromMidi(home.resolve("settings.properties").toFile()) + " " + Piano.isMidi(midiFile), "null true");
         Pet player = new Pet(4);
         player.takeBeep();
+        player.setPrefs(new Pet.Prefs() { // (no little mistakes, for this check)
+            public boolean on(String key) {
+                return !key.equals("mistakes") && Boolean.parseBoolean(Options.find(key).start());
+            }
+
+            public int number(String key) {
+                return Integer.parseInt(Options.find(key).start());
+            }
+
+            public String choice(String key) {
+                return Options.find(key).start();
+            }
+        });
         check("he fetches it", player.fetch(fromMidi) + " " + player.mood(), "true FETCH");
         java.util.List<Integer> played = new java.util.ArrayList<>();
         for (int i = 0; i < 400 && (player.mood() == Pet.Mood.FETCH || player.mood() == Pet.Mood.PIANO); i++) {
@@ -580,6 +593,19 @@ public class ClawdtopTest {
             if (note > 0) played.add(note);
         }
         check("then plays every note of it on his piano", played.toString(), "[60, 60, 67, 67, 69, 69, 67]");
+        int wrong = 0;
+        for (int seed = 0; seed < 30; seed++) {
+            Pet clumsy = new Pet(seed);
+            clumsy.play(Piano.Instrument.GUITAR, Piano.SONGS[0]);
+            java.util.List<Integer> notesHeard = new java.util.ArrayList<>();
+            for (int i = 0; i < 300 && clumsy.mood() == Pet.Mood.PIANO; i++) {
+                clumsy.tick(33, 0, 0, false, false);
+                int n = clumsy.takeNote();
+                if (n > 0) notesHeard.add(n);
+            }
+            if (!notesHeard.equals(java.util.Arrays.stream(Piano.SONGS[0].notes()).boxed().toList())) wrong++;
+        }
+        check("now and then he plays a wrong note (but not every time)", wrong > 2 && wrong < 25, true);
         Pet pianist = new Pet(4);
         pianist.playPiano(Piano.SONGS[0]);
         for (int i = 0; i < 60; i++) pianist.tick(33, 0, 0, false, false);

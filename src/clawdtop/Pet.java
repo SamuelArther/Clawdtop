@@ -259,6 +259,10 @@ public final class Pet {
                 }
             }
             case CODING -> {
+                if (!deleting && !typo && moodFor > 6000 && prefs.on("mistakes") && random.nextInt(900) == 0) {
+                    typo = true;
+                    line = random.nextBoolean() ? "...oops, typo." : "Wait. That's not how you spell \"function\".";
+                }
                 // the big finish: hand way up... and SLAM the button. That's when it happens.
                 if (slam() >= SLAM_HIT && slamBefore < SLAM_HIT) wants = Beep.CLAP;
                 slamBefore = slam();
@@ -315,6 +319,11 @@ public final class Pet {
                         if (into >= at && songNote < i + 1) {
                             songNote = i + 1;
                             note = song.notes()[i];
+                            if (i == mistakeAt) { // whoops, a wrong note
+                                note = instrument == Piano.Instrument.DRUMS ? (note == Piano.CRASH ? Piano.TOM : Piano.CRASH) : note + (random.nextBoolean() ? 1 : -1);
+                                String[] oops = {"Oops.", "...nobody heard that.", "That was jazz.", "I meant to do that."};
+                                line = oops[random.nextInt(oops.length)];
+                            }
                             noteMs = (int) (song.beats()[i] * song.beatMs());
                             noteAt = moodFor;
                         }
@@ -391,7 +400,14 @@ public final class Pet {
                 }
             }
             case GOODBYE -> { }
-            case SAD, LOVED, JUGGLE, DANCE, WAVE, YELLED, ANNOYED, SPIN, PARTY -> { if (moodFor > nextChange) set(Mood.IDLE, idleTime()); }
+            case SAD, LOVED, JUGGLE, DANCE, WAVE, YELLED, ANNOYED, SPIN, PARTY -> {
+                if (mood == Mood.JUGGLE && !dropped && moodFor > 2800 && moodFor - ms <= 2800 && prefs.on("mistakes") && random.nextInt(3) == 0) {
+                    dropped = true; // whoops
+                    line = "Whoops!";
+                    wants = Beep.OOF;
+                }
+                if (moodFor > nextChange) set(Mood.IDLE, idleTime());
+            }
             case CARRY -> { }
             case UNPACK -> {
                 if (moodFor >= 2600 && !sang) {
@@ -463,6 +479,7 @@ public final class Pet {
                     clapped = false;
                     set(Mood.FLY, 5200); // a fly!
                 } else if (canJuggle && moodFor > 8000 && random.nextInt(2700) == 0) {
+                    dropped = false;
                     set(Mood.JUGGLE, 4500); // bored: a little juggling
                 } else if (canWave && moodFor > 6000 && random.nextInt(3600) == 0) {
                     wants = Beep.HELLO;
@@ -489,6 +506,12 @@ public final class Pet {
         }
 
         if (talking > 0) talking -= ms;
+        if (tripFor > 0) tripFor -= ms;
+        else if (mood == Mood.WALK && prefs.on("mistakes") && random.nextInt(1500) == 0) { // tripped over his own feet
+            tripFor = 700;
+            line = "Oof! I'm okay!";
+            wants = Beep.OOF;
+        }
 
         // A new color, a few seconds after it was picked: suddenly, with no warning. He freaks out.
         if (newColor != null && (newColorIn -= ms) <= 0) {
@@ -740,6 +763,7 @@ public final class Pet {
         if ((mood != Mood.IDLE && mood != Mood.SIT && mood != Mood.HAPPY && mood != Mood.LOVED) || coding != null || guilty != null) return false;
         coding = c;
         deleting = false;
+        typo = false;
         line = c.starting();
         set(Mood.CODING, CODING_TIME + random.nextInt(CODING_EXTRA));
         return true;
@@ -962,6 +986,19 @@ public final class Pet {
     }
 
     private Piano.Instrument instrument = Piano.Instrument.PIANO;
+    private int mistakeAt = -1;   // the note he'll mess up in this song (-1: none)
+    private long tripFor;         // tripping over his own feet (ms left)
+    private boolean typo, dropped; // a typo while coding; dropped a ball juggling (once each)
+
+    /** Whether he's tripping right now (walking home), and how far through it (0 to 1). */
+    public double tripping() {
+        return tripFor > 0 ? 1 - tripFor / 700.0 : -1;
+    }
+
+    /** Whether he dropped one of his juggling balls. */
+    public boolean droppedBall() {
+        return dropped;
+    }
 
     /** What he's playing on. */
     public Piano.Instrument instrument() {
@@ -974,6 +1011,8 @@ public final class Pet {
         instrument = on;
         if (which == null && on == Piano.Instrument.DRUMS) which = Piano.BEATS[random.nextInt(Piano.BEATS.length)];
         song = which != null ? which : Piano.madeUp(random);
+        // now and then he messes up one note (never the first or last)
+        mistakeAt = song.notes().length > 4 && prefs.on("mistakes") && random.nextInt(3) == 0 ? 1 + random.nextInt(song.notes().length - 2) : -1;
         songNote = 0;
         note = 0;
         line = song.name().startsWith("your ") ? "Ahem. This one's called " + song.name().substring(5) + "."

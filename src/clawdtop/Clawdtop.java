@@ -1289,9 +1289,11 @@ public final class Clawdtop {
             }
             body.setCeiling(screen.y);
             body.setUnit(unit);
+            body.setMistakes(settings.on("mistakes"));
             body.tick(FRAME_MS, mouse.x, mouse.y, homeX, groundY, 12 * unit, screen.x, screen.x + screen.width);
             pet.follow(body.state());
             creations();
+            if (body.takeMissed()) pet.say("Missed! ...I meant to do that.");
             if (body.takeBoom()) {
                 pet.boom();
                 Diary.write("My rocket exploded. I knew there was a bug in the code.");

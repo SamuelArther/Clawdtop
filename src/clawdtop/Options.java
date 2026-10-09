@@ -32,6 +32,7 @@ final class Options {
             Option.on("Antics", "flies", "Flies buzzing round him", true),
             Option.on("Antics", "creates", "Codes funny little things on his laptop", true),
             Option.on("Antics", "hiccups", "Hiccups now and then", true),
+            Option.on("Antics", "mistakes", "Little mistakes now and then (a wrong note, a trip, a typo...)", true),
             Option.on("Antics", "piano", "Plays his mini piano now and then", true),
             Option.on("Antics", "music", "Puts his headphones on and bobs to the beat now and then", true),
             Option.on("Antics", "blush", "Gets shy when the cursor rests on him", true),

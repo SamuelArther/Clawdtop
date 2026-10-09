@@ -109,7 +109,15 @@ public final class Body {
                 y = hopFromY + (cursorY - hopFromY) * t - Math.sin(Math.PI * t) * 40; // a little arc
                 if (t >= 1) {
                     stillFor = 0;
-                    set(State.RIDE);
+                    if (!onJob && oops.nextInt(10) == 0 && mistakes) { // missed the cursor: down he slides
+                        missed = true;
+                        headFirst = false;
+                        vx = 0;
+                        vy = 0;
+                        set(State.FALL);
+                    } else {
+                        set(State.RIDE);
+                    }
                 }
             }
             case RIDE -> {
@@ -301,6 +309,21 @@ public final class Body {
     }
 
     private boolean boom;
+    private boolean missed;
+    private boolean mistakes; // (off unless the window turns it on, so tests are steady)
+    private final java.util.Random oops = new java.util.Random();
+
+    /** Whether he makes the odd mistake (like missing the cursor when he hops on). */
+    public void setMistakes(boolean on) {
+        mistakes = on;
+    }
+
+    /** Whether he just missed the cursor (once). */
+    public boolean takeMissed() {
+        boolean m = missed;
+        missed = false;
+        return m;
+    }
 
     /** Off on his rocket (from home). */
     public void rocketRide() {

@@ -80,6 +80,15 @@ public final class Sprite {
             panic.dispose();
             return;
         }
+        if (pet.tripping() >= 0) {
+            // tripped: tipping over forwards, then back up
+            Graphics2D trip = (Graphics2D) g.create();
+            double t = pet.tripping();
+            trip.rotate(Math.sin(t * Math.PI) * 0.9, feetX() * unit, GROUND * unit);
+            drawBody(trip, pet, unit, mood);
+            trip.dispose();
+            return;
+        }
         if (mood == Pet.Mood.SHAKE) {
             // shaking it off: his whole body wobbles side to side, fast
             Graphics2D wobble = (Graphics2D) g.create();
@@ -552,6 +561,11 @@ public final class Sprite {
         if (mood == Pet.Mood.JUGGLE) {
             Color[] balls = {new Color(255, 214, 102), new Color(120, 220, 255), new Color(255, 140, 170)};
             for (int i = 0; i < 3; i++) {
+                if (pet.droppedBall() && i == 2) { // the one he dropped: bouncing away on the ground
+                    double f = Math.min(1, (pet.moodTime() - 2800) / 900.0);
+                    box(g, unit, LEFT + 12 + f * 5, GROUND - 1 - Math.abs(Math.sin(f * Math.PI * 2)) * 2 * (1 - f), 1, 1, balls[i]);
+                    continue;
+                }
                 double a = pet.moodTime() / 260.0 + i * Math.PI * 2 / 3;
                 box(g, unit, LEFT + 6 + Math.cos(a) * 5, top - 2.5 + Math.sin(a) * 2.2, 1, 1, balls[i]);
             }
