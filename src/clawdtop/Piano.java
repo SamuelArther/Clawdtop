@@ -48,6 +48,35 @@ final class Piano {
                     new int[] {64, 62, 60, 64, 62, 60, 60, 60, 60, 60, 62, 62, 62, 62, 64, 62, 60},
                     new double[] {1, 1, 2, 1, 1, 2, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1, 1, 2}, 300)};
 
+    /** What he can play. */
+    enum Instrument {
+        PIANO("piano"), GUITAR("guitar"), BASS("bass"), DRUMS("drums");
+
+        final String shown;
+
+        Instrument(String shown) {
+            this.shown = shown;
+        }
+    }
+
+    /** Drum notes (the usual MIDI drum numbers): bass drum, snare, closed hi-hat, crash cymbal, tom. */
+    static final int KICK = 36, SNARE = 38, HAT = 42, CRASH = 49, TOM = 45;
+
+    /** Beats for his drum set. */
+    static final Song[] BEATS = {
+            new Song("a rock beat",
+                    new int[] {KICK, HAT, SNARE, HAT, KICK, KICK, SNARE, HAT, KICK, HAT, SNARE, HAT, KICK, KICK, SNARE, CRASH},
+                    new double[] {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2}, 220),
+            new Song("a drum solo",
+                    new int[] {SNARE, SNARE, TOM, TOM, KICK, SNARE, TOM, KICK, SNARE, SNARE, SNARE, TOM, TOM, KICK, KICK, CRASH},
+                    new double[] {0.5, 0.5, 0.5, 0.5, 1, 0.5, 0.5, 1, 0.25, 0.25, 0.5, 0.5, 0.5, 0.5, 0.5, 2}, 240),
+            new Song("ba-dum-tss",
+                    new int[] {SNARE, TOM, CRASH},
+                    new double[] {1, 1, 2}, 220),
+            new Song("a march",
+                    new int[] {KICK, SNARE, SNARE, SNARE, KICK, SNARE, SNARE, SNARE, KICK, SNARE, KICK, SNARE, SNARE, SNARE, SNARE, CRASH},
+                    new double[] {1, 0.5, 0.5, 1, 1, 0.5, 0.5, 1, 1, 1, 1, 0.5, 0.5, 0.5, 0.5, 2}, 260)};
+
     /** A song he makes up on the spot (from the notes that always sound nice together). */
     static Song madeUp(Random random) {
         int[] scale = {60, 62, 64, 67, 69, 72, 74, 76};

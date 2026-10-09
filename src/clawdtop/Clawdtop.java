@@ -673,6 +673,26 @@ public final class Clawdtop {
             piano.addSeparator();
             piano.add(mine);
             fun.add(piano);
+            for (Piano.Instrument inst : new Piano.Instrument[] {Piano.Instrument.GUITAR, Piano.Instrument.BASS, Piano.Instrument.DRUMS}) {
+                javax.swing.JMenu menuFor = new javax.swing.JMenu(switch (inst) {
+                    case GUITAR -> "Guitar";
+                    case BASS -> "Bass";
+                    default -> "Drums";
+                });
+                JMenuItem rock = new JMenuItem(inst == Piano.Instrument.DRUMS ? "Play me a beat!" : "Play me something!");
+                rock.addActionListener(e -> {
+                    if (pet.play(inst, null) && settings.on("earnPoints")) settings.earn(Shop.SONG);
+                });
+                menuFor.add(rock);
+                for (Piano.Song song : inst == Piano.Instrument.DRUMS ? Piano.BEATS : Piano.SONGS) {
+                    JMenuItem item = new JMenuItem(song.name().substring(0, 1).toUpperCase(java.util.Locale.ROOT) + song.name().substring(1));
+                    item.addActionListener(e -> {
+                        if (pet.play(inst, song) && settings.on("earnPoints")) settings.earn(Shop.SONG);
+                    });
+                    menuFor.add(item);
+                }
+                fun.add(menuFor);
+            }
             JMenuItem lap = new JMenuItem("Run a lap!");
             lap.addActionListener(e -> {
                 if (pet.lap()) {
@@ -1328,7 +1348,7 @@ public final class Clawdtop {
         pet.hover(overHim && !moved, FRAME_MS);
         pet.tick(FRAME_MS, mouse.x - eyesX, mouse.y - eyesY, moved, devApp);
         int note = pet.takeNote();
-        if (note > 0 && mayBeep()) beeps.piano(note, pet.noteLength());
+        if (note > 0 && mayBeep()) beeps.play(pet.instrument(), note, pet.noteLength());
         Pet.Beep beep = pet.takeBeep();
         if (beep != null && mayBeep()) beeps.play(beep);
         String line = pet.takeLine();
@@ -1550,6 +1570,9 @@ public final class Clawdtop {
             case "tip" -> pet.say("Win+Shift+S takes a screenshot of part of the screen.");
             case "math" -> answer("what's 12 times 7?");
             case "piano" -> pet.playPiano(Piano.SONGS[0]);
+            case "guitar" -> pet.play(Piano.Instrument.GUITAR, Piano.SONGS[1]);
+            case "bass" -> pet.play(Piano.Instrument.BASS, Piano.SONGS[4]);
+            case "drums" -> pet.play(Piano.Instrument.DRUMS, Piano.BEATS[0]);
             case "your piano" -> yourPiano.show(head(), screenBounds(), note -> {
                 beeps.piano(note, 400);
                 pet.listened();

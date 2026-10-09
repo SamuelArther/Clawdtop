@@ -71,9 +71,20 @@ public final class Beeps {
 
     /** Plays one piano note (MIDI number, 60 is middle C) for ms, in the background. */
     public void piano(int midi, int ms) {
+        play(Piano.Instrument.PIANO, midi, ms);
+    }
+
+    /** Plays one note on one of his instruments (a drum, for the drum set), in the background. */
+    public void play(Piano.Instrument instrument, int midi, int ms) {
         int vol = volume;
         player.execute(() -> {
-            byte[] sound = voiced(note(midi, ms), "Normal", vol);
+            byte[] raw = switch (instrument) {
+                case GUITAR -> pluck(midi, ms, 0.996, 0.5);
+                case BASS -> pluck(midi - 24, ms, 0.998, 0.25);
+                case DRUMS -> drum(midi);
+                default -> note(midi, ms);
+            };
+            byte[] sound = voiced(raw, "Normal", vol);
             try (SourceDataLine line = AudioSystem.getSourceDataLine(new AudioFormat(RATE, 16, 1, true, false))) {
                 line.open();
                 line.start();
@@ -83,6 +94,56 @@ public final class Beeps {
                 // quiet
             }
         });
+    }
+
+    /** A plucked string (guitar or bass): a burst of noise bouncing along a "string" (the Karplus-Strong trick). */
+    static byte[] pluck(int midi, int ms, double sustain, double bright) {
+        double freq = 440 * Math.pow(2, (midi - 69) / 12.0);
+        int period = Math.max(2, (int) Math.round(RATE / freq));
+        int count = (int) (RATE * Math.min(1.4, ms / 1000.0 + 0.3));
+        double[] string = new double[period];
+        java.util.Random r = new java.util.Random(midi);
+        for (int i = 0; i < period; i++) string[i] = r.nextDouble() * 2 - 1;
+        byte[] out = new byte[count * 2];
+        for (int i = 0; i < count; i++) {
+            int k = i % period;
+            double now = string[k];
+            string[k] = sustain * ((1 - bright) * now + bright * string[(k + 1) % period]); // averaging: the string rings and mellows
+            double fade = Math.min(1, (count - i) / (RATE * 0.03));
+            int v = (int) (now * fade * VOLUME * 1.4 * 32767);
+            out[i * 2] = (byte) v;
+            out[i * 2 + 1] = (byte) (v >> 8);
+        }
+        return out;
+    }
+
+    /** A drum: the bass drum thumps (a falling tone), the snare crackles, the hi-hat ticks, the cymbal crashes. */
+    static byte[] drum(int which) {
+        double length = which == Piano.CRASH ? 0.7 : which == Piano.HAT ? 0.06 : which == Piano.KICK ? 0.25 : 0.18;
+        int count = (int) (RATE * length);
+        byte[] out = new byte[count * 2];
+        java.util.Random r = new java.util.Random(which);
+        double phase = 0;
+        for (int i = 0; i < count; i++) {
+            double t = i / RATE, f = i / (double) count;
+            double v = switch (which) {
+                case Piano.KICK -> {
+                    phase += (50 + 90 * Math.exp(-t * 30)) / RATE;
+                    yield Math.sin(2 * Math.PI * phase) * Math.exp(-t * 14);
+                }
+                case Piano.TOM -> {
+                    phase += (110 + 60 * Math.exp(-t * 20)) / RATE;
+                    yield Math.sin(2 * Math.PI * phase) * Math.exp(-t * 12);
+                }
+                case Piano.SNARE -> (r.nextDouble() * 2 - 1) * 0.7 * Math.exp(-t * 22) + Math.sin(2 * Math.PI * 185 * t) * 0.4 * Math.exp(-t * 30);
+                case Piano.HAT -> (r.nextDouble() * 2 - 1) * Math.exp(-t * 60) * 0.6;
+                default -> (r.nextDouble() * 2 - 1) * Math.exp(-t * 5) * 0.55; // crash
+            };
+            int s = (int) (v * (1 - f * 0.1) * VOLUME * 1.5 * 32767);
+            out[i * 2] = (byte) s;
+            out[i * 2 + 1] = (byte) (s >> 8);
+        }
+        return out;
     }
 
     /** A toy-piano note: a soft tone with a couple of overtones that rings and fades. */

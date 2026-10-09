@@ -958,11 +958,28 @@ public final class Pet {
 
     /** Plays a song on his mini piano (null: one he makes up). Returns whether he started. */
     public boolean playPiano(Piano.Song which) {
+        return play(Piano.Instrument.PIANO, which);
+    }
+
+    private Piano.Instrument instrument = Piano.Instrument.PIANO;
+
+    /** What he's playing on. */
+    public Piano.Instrument instrument() {
+        return instrument;
+    }
+
+    /** Plays a song (or, on the drums, a beat; null: one he makes up) on one of his instruments. */
+    public boolean play(Piano.Instrument on, Piano.Song which) {
         if (busy() || mood == Mood.SLEEP) return false;
+        instrument = on;
+        if (which == null && on == Piano.Instrument.DRUMS) which = Piano.BEATS[random.nextInt(Piano.BEATS.length)];
         song = which != null ? which : Piano.madeUp(random);
         songNote = 0;
         note = 0;
-        line = song.name().startsWith("your ") ? "Ahem. This one's called " + song.name().substring(5) + "." : "Here's " + song.name() + "!";
+        line = song.name().startsWith("your ") ? "Ahem. This one's called " + song.name().substring(5) + "."
+                : on == Piano.Instrument.DRUMS ? (song.name().equals("ba-dum-tss") ? "" : "Here's " + song.name() + "! One, two, three, four!")
+                : "Here's " + song.name() + (on == Piano.Instrument.PIANO ? "" : " on the " + on.shown) + "!";
+        if (line.isEmpty()) line = null;
         set(Mood.PIANO, PIANO_INTRO + song.length() + 700);
         return true;
     }
@@ -982,6 +999,12 @@ public final class Pet {
     public double pianoKey() {
         if (mood != Mood.PIANO || song == null || songNote == 0) return Double.NaN;
         return Piano.place(song.notes()[songNote - 1]);
+    }
+
+    /** The drum (or note) being hit right now, for drawing his drum set. */
+    public int drumHit() {
+        if (mood != Mood.PIANO || song == null || songNote == 0) return 0;
+        return song.notes()[songNote - 1];
     }
 
     public boolean pianoPressing() {

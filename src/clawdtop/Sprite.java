@@ -354,7 +354,14 @@ public final class Sprite {
                 box(g, unit, eyeX, eyeY, 1, 2, EYE);
             }
         }
-        if (mood == Pet.Mood.PIANO) drawPiano(g, pet, unit, top); // in front of him
+        if (mood == Pet.Mood.PIANO) { // his instrument
+            switch (pet.instrument()) {
+                case GUITAR -> drawGuitar(g, pet, unit, top, false);
+                case BASS -> drawGuitar(g, pet, unit, top, true);
+                case DRUMS -> drawDrums(g, pet, unit, top);
+                default -> drawPiano(g, pet, unit, top);
+            }
+        }
         if (mood == Pet.Mood.LAP || mood == Pet.Mood.PANT) {
             // sweat: more and more drops the longer he runs (and still dripping as he pants)
             int drops = mood == Pet.Mood.PANT ? 4 : (int) Math.min(6, pet.moodTime() / 700);
@@ -770,6 +777,72 @@ public final class Sprite {
             box(c, unit, kx + 1.7, sy - 2.9, 0.25, 1.4, new Color(255, 214, 102));
         }
         c.dispose();
+    }
+
+    /** His guitar (or bass: bigger, darker, a longer neck), held across him, and his hand strumming on each note. */
+    private static void drawGuitar(Graphics2D g, Pet pet, int unit, double top, boolean bass) {
+        Color wood = bass ? new Color(40, 40, 48) : new Color(205, 135, 60), edge = bass ? new Color(170, 30, 40) : new Color(140, 85, 35);
+        Color neck = new Color(110, 70, 40), fret = new Color(210, 200, 170);
+        double bx = LEFT + 6.5, by = top + 4.6;
+        // the neck, going up to his right
+        double len = bass ? 9 : 7.5;
+        for (double d = 0; d < len; d += 0.5) box(g, unit, bx + 3 + d, by + 0.6 - d * 0.55, 0.8, 0.8, neck);
+        for (int f = 1; f < 5; f++) box(g, unit, bx + 3 + f * len / 5, by + 0.6 - f * len / 5 * 0.55, 0.25, 0.8, fret);
+        box(g, unit, bx + 3 + len, by + 0.2 - len * 0.55, 1.4, 1.1, edge); // the head
+        // the body
+        box(g, unit, bx - 1, by - 0.6, 4.6, 3.6, edge);
+        box(g, unit, bx - 0.6, by - 0.2, 3.8, 2.8, wood);
+        box(g, unit, bx + 0.6, by + 0.6, 1.2, 1.2, new Color(30, 30, 34)); // the sound hole (or pickup)
+        // his hand strumming (up on each note), the other on the neck
+        boolean down = pet.pianoPressing();
+        box(g, unit, bx + 1.2, by + (down ? 1.4 : 0) - 0.4, 1.5, 1.5, hand);
+        box(g, unit, bx + 3 + len * 0.7, by - len * 0.7 * 0.55, 1.4, 1.4, hand);
+        if (down) {
+            box(g, unit, bx + 4, by - 3, 0.7, 0.6, new Color(255, 214, 102));
+            box(g, unit, bx + 4.5, by - 4.3, 0.25, 1.4, new Color(255, 214, 102));
+        }
+    }
+
+    /** His drum set in front of him: bass drum, snare, a tom, a hi-hat and a crash cymbal (they wobble when hit). */
+    private static void drawDrums(Graphics2D g, Pet pet, int unit, double top) {
+        Color shell = new Color(200, 40, 50), head = new Color(245, 240, 230), metal = new Color(230, 190, 70), stand = new Color(150, 150, 160);
+        int note = pet.drumHit();
+        boolean hit = pet.pianoPressing();
+        // cymbals on stands, at the sides
+        double crashTilt = hit && note == Piano.CRASH ? 0.6 : 0, hatTilt = hit && note == Piano.HAT ? 0.4 : 0;
+        box(g, unit, LEFT - 2.6, top + 2.4, 0.3, GROUND - top - 2.4, stand);
+        box(g, unit, LEFT - 4, top + 2 - hatTilt, 3, 0.5, metal);
+        box(g, unit, LEFT - 4, top + 2.6, 3, 0.4, metal);
+        box(g, unit, LEFT + 15.4, top + 0.6, 0.3, GROUND - top - 0.6, stand);
+        box(g, unit, LEFT + 13.8, top + 0.2 - crashTilt, 3.6, 0.5, metal);
+        // the bass drum, big, in the middle
+        g.setColor(shell);
+        g.fillOval((int) Math.round((LEFT + 3) * unit), (int) Math.round((GROUND - 6.2) * unit), 7 * unit, (int) Math.round(6.2 * unit));
+        g.setColor(head);
+        g.fillOval((int) Math.round((LEFT + 3.7) * unit), (int) Math.round((GROUND - 5.5) * unit), (int) Math.round(5.6 * unit), (int) Math.round(4.8 * unit));
+        box(g, unit, LEFT + 5.3, GROUND - 3.6, 2.4, 1.2, body); // a little crab logo (just orange)
+        box(g, unit, LEFT + 5.8, GROUND - 3.3, 0.4, 0.4, EYE);
+        box(g, unit, LEFT + 6.8, GROUND - 3.3, 0.4, 0.4, EYE);
+        if (hit && note == Piano.KICK) box(g, unit, LEFT + 3.4, GROUND - 6.8, 6.2, 0.3, new Color(255, 255, 255, 140)); // thump!
+        // the snare (left) and a tom (right), on top
+        box(g, unit, LEFT + 0.2, GROUND - 5.6 + (hit && note == Piano.SNARE ? 0.2 : 0), 3.2, 1.4, shell);
+        box(g, unit, LEFT + 0.2, GROUND - 5.8 + (hit && note == Piano.SNARE ? 0.2 : 0), 3.2, 0.4, head);
+        box(g, unit, LEFT + 9.6, GROUND - 6.4 + (hit && note == Piano.TOM ? 0.2 : 0), 2.8, 1.5, shell);
+        box(g, unit, LEFT + 9.6, GROUND - 6.6 + (hit && note == Piano.TOM ? 0.2 : 0), 2.8, 0.4, head);
+        // his hands with drumsticks, hitting whatever's playing
+        double target = switch (note) {
+            case Piano.HAT -> LEFT - 2.5;
+            case Piano.SNARE -> LEFT + 1.8;
+            case Piano.TOM -> LEFT + 11;
+            case Piano.CRASH -> LEFT + 15.6;
+            default -> LEFT + 6.5;
+        };
+        Color stick = new Color(235, 210, 160);
+        double ly = top + (hit ? 3.6 : 2.4);
+        box(g, unit, target - 1.6, ly, 1.3, 1.3, hand);
+        box(g, unit, target - 0.4, ly + 1.2, 1.6, 0.35, stick);
+        box(g, unit, LEFT + 8, top + 2.2, 1.3, 1.3, hand); // the other hand, waiting
+        box(g, unit, LEFT + 9.2, top + 2.6, 1.6, 0.35, stick);
     }
 
     /** A MIDI file you dropped on him: he runs over to it, grabs it, and brings it back (a sheet of music). */
