@@ -1,7 +1,7 @@
-Fix: he reads your birthday the way you write it.
+Fix: honest about updates he can't do.
 
-- Setup understands birthdays like 10/08, 10-8, Oct 8, October 8th, 8 October, and day-first ones like 25/12.
-- If he can't read it, or it isn't a real date (like 2/31), he asks again with examples instead of quietly forgetting it.
+- If his folder doesn't let him change files (some locked-down or synced folders), he used to say "the update didn't download, I'll try again" every single day. Now he tells you once per version why, and to move his folder somewhere like Documents.
+- "clawd update" says the same.
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 

@@ -2741,6 +2741,10 @@ public final class Clawdtop {
             later.start();
             return;
         }
+        if (!Updater.canInstall()) { // (somewhere he can't write: tell you once per version, not "didn't download" every day)
+            if (settings.once("cantUpdate:" + release.version())) pet.say("There's a new me (version " + release.version() + ")! But " + Updater.cantInstallWhy());
+            return;
+        }
         pet.speak();
         bubble.ask("There's a new me! Version " + release.version() + " is out.\nWant me to update? (takes a few seconds)",
                 new String[] {"Update!", "Not now"}, choice -> {

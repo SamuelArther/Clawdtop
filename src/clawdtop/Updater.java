@@ -18,7 +18,7 @@ import java.util.regex.Pattern;
  * (a tiny helper waits for this Clawd to close, puts the new jar in place, and starts him again).
  */
 final class Updater {
-    static final String VERSION = "3.6";
+    static final String VERSION = "3.7";
     static final String REPO = "SamuelArther/Clawdtop";
 
     private Updater() {
@@ -144,6 +144,19 @@ final class Updater {
             }
             return false;
         }
+    }
+
+    /** Whether he can update himself where he is (his folder lets him write the new version in). */
+    static boolean canInstall() {
+        Path jar = Install.jar();
+        return jar != null && jar.getParent() != null && Files.isWritable(jar.getParent()) && Files.isWritable(jar);
+    }
+
+    /** What to tell you when he can't. */
+    static String cantInstallWhy() {
+        Path jar = Install.jar();
+        return "I can't update myself where I'm saved" + (jar == null || jar.getParent() == null ? "." : ":\n" + jar.getParent())
+                + "\n(That folder won't let me change files.) Move my folder somewhere like Documents,\nstart me from there, and I'll update.";
     }
 
     /** A real jar (a zip with his main class in it), not an error page. */

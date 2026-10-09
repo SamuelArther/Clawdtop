@@ -134,7 +134,9 @@ public final class Cli {
                 out.println("Looking for a newer me...");
                 Updater.Release release = Updater.check();
                 if (release == null) out.println("You've got the newest me already (" + Updater.VERSION + ").");
-                else {
+                else if (!Updater.canInstall()) {
+                    out.println("Version " + release.version() + " is out! " + Updater.cantInstallWhy().replace("\n", " "));
+                } else {
                     out.println("Version " + release.version() + " is out! Downloading...");
                     boolean on = running().isPresent();
                     if (on) stop(false);
