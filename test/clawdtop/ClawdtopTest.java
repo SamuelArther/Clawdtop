@@ -802,6 +802,9 @@ public class ClawdtopTest {
         // words and colors
         check("define what", WebSearch.wordToDefine("define curious") + " " + WebSearch.wordToDefine("What does ubiquitous mean?") + " "
                 + WebSearch.wordToDefine("what's the meaning of life is it 42") + " " + WebSearch.wordToDefine("definition of \"serendipity\""), "curious ubiquitous null serendipity");
+        check("not every question is a dictionary one", WebSearch.wordToDefine("what does that mean?") + " " + WebSearch.wordToDefine("what's the meaning of life")
+                + " " + WebSearch.wordToDefine("what does google") + " " + WebSearch.wordToDefine("what does a cat eat") + " " + WebSearch.wordToDefine("meaning of serendipity"),
+                "null null null null serendipity");
         check("color names", Extras.colorName(new java.awt.Color(58, 123, 213)) + " / " + Extras.colorName(new java.awt.Color(250, 250, 250)) + " / "
                 + Extras.colorName(new java.awt.Color(215, 119, 87)) + " / " + Extras.hex(new java.awt.Color(58, 123, 213)), "blue / white / Clawd orange / #3A7BD5");
         // the desktop: reading icon spots (Windows' script and Finder say the same shape), sorting files for Neat

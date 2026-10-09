@@ -55,7 +55,7 @@ final class Jokes {
             "Fun fact: crabs walk sideways.\nI walk however I want. I'm not a crab. Probably.",
             "Why did the PNG go to therapy?\nIt had too many layers. Wait, that's a PSD.",
             "Breaking news: local Clawd sits.\nMore at 11.",
-            "If you need me,\nI'll be exactly here. Forever. Above the clock.",
+            Platform.MAC ? "If you need me,\nI'll be exactly here. Forever. Above the Dock." : "If you need me,\nI'll be exactly here. Forever. Above the clock.",
             "My password is \"incorrect\".\nSo when I forget, it reminds me.",
             "The Wi-Fi went down for an hour.\nI met your family. They seem nice.",
             "I tried Ctrl+Z on Monday.\nIt's still Monday.",

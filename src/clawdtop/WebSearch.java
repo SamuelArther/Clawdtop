@@ -49,23 +49,47 @@ final class WebSearch {
         return extract == null || extract.isBlank() ? null : new Found(trim(extract), "Wikipedia (" + title + ")");
     }
 
+    // ("what does X mean" needs the "mean"; and "what does that mean?" or "the meaning of life" aren't dictionary questions)
     private static final java.util.regex.Pattern DEFINE = java.util.regex.Pattern.compile(
-            "^(?:please )?(?:define|what does|what's the meaning of|whats the meaning of|what is the meaning of|meaning of|definition of|what's the definition of|whats the definition of|what is the definition of)"
-                    + " (?:the word )?\"?([a-z][a-z'-]{0,30})\"?(?: mean)?$");
+            "^(?:please )?(?:(?:define|what's the meaning of|whats the meaning of|what is the meaning of|meaning of|definition of|what's the definition of"
+                    + "|whats the definition of|what is the definition of) (?:the word )?\"?(?!(?:it|that|this|these|those|life|everything)\"?$)([a-z][a-z'-]{0,30})\"?"
+                    + "|what does (?:the word )?\"?(?!(?:it|that|this|these|those|he|she|they)\"? mean$)([a-z][a-z'-]{0,30})\"? mean)$");
 
     /** "define curious", "what does ubiquitous mean?": the word, or null if it isn't asking that. */
     static String wordToDefine(String question) {
         java.util.regex.Matcher m = DEFINE.matcher(question.toLowerCase(java.util.Locale.ROOT).strip().replaceAll("[?!.]+$", ""));
-        return m.matches() ? m.group(1) : null;
+        return m.matches() ? (m.group(1) != null ? m.group(1) : m.group(2)) : null;
     }
 
     /** A word's meaning, from a free dictionary (dictionaryapi.dev): "curious (adjective): eager to know...", or null. */
     static String define(String word) {
         String json = get("https://api.dictionaryapi.dev/api/v2/entries/en/" + enc(word));
         if (json == null || !json.startsWith("[")) return null;
-        String meaning = value(json, "definition");
-        if (meaning == null || meaning.isBlank()) return null;
-        String kind = value(json, "partOfSpeech"), example = value(json, "example");
+        // the first meaning that explains it (not one like "run: to run"), with its own kind of word and example
+        String meaning = null;
+        int at = -1;
+        java.util.regex.Pattern itself = java.util.regex.Pattern.compile("(?i).*\\b" + java.util.regex.Pattern.quote(word) + "\\b.*");
+        for (int from = 0, tries = 0; tries < 8; tries++) {
+            int i = json.indexOf("\"definition\"", from);
+            if (i < 0) break;
+            String d = value(json.substring(i), "definition");
+            if (meaning == null && d != null && !d.isBlank()) {
+                meaning = d;
+                at = i;
+            }
+            if (d != null && !d.isBlank() && !itself.matcher(d).matches()) {
+                meaning = d;
+                at = i;
+                break;
+            }
+            from = i + 12;
+        }
+        if (meaning == null) return null;
+        int kindAt = json.lastIndexOf("\"partOfSpeech\"", at);
+        String kind = kindAt < 0 ? null : value(json.substring(kindAt), "partOfSpeech");
+        // (the example for this meaning: inside the same definition, not the first one anywhere, which can be another meaning)
+        int end = json.indexOf('}', at);
+        String example = end < 0 ? null : value(json.substring(at, end + 1), "example");
         return word + (kind == null ? "" : " (" + kind + ")") + ": " + trim(meaning)
                 + (example == null || example.isBlank() || example.length() > 140 ? "" : "\nLike: \"" + example + "\"");
     }

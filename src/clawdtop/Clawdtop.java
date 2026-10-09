@@ -877,16 +877,22 @@ public final class Clawdtop {
         // your birthday ("my birthday is October 8")
         java.util.regex.Matcher bday = java.util.regex.Pattern.compile("^(?:my birthday is|my bday is|my birthday's|i was born on) (?:on )?(.+)$").matcher(q);
         if (bday.matches()) {
-            String day = Helpers.birthday(bday.group(1).replaceAll(",? \\d{4}$", "")); // (no year needed, but it's fine if you say one)
-            if (day == null) pet.say("Hmm, I couldn't read that date. Try like this:\n\"my birthday is October 8\"");
-            else {
+            String said = bday.group(1).strip().replaceAll("^the ", "").replace(" of ", " ").replaceAll(",? \\d{4}$", ""); // ("the 8th of October, 2012")
+            java.time.LocalDate today = java.time.LocalDate.now();
+            String day = said.equals("today") ? String.format("%02d-%02d", today.getMonthValue(), today.getDayOfMonth()) : Helpers.birthday(said);
+            if (day != null) {
                 settings.setBirthday(day);
                 pet.setBirthdayToday(settings.birthdayToday());
                 java.time.MonthDay md = java.time.MonthDay.parse("--" + day);
                 pet.say("Got it! " + md.getMonth().getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.ENGLISH) + " " + md.getDayOfMonth()
                         + ". I'll remember!" + (settings.birthdayToday() ? "\n...wait. That's TODAY?!" : ""));
+                return true;
             }
-            return true;
+            if (said.matches(".*(\\d|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec).*")) { // (meant as a date, but not one he can read)
+                pet.say("Hmm, I couldn't read that date. Try like this:\n\"my birthday is October 8\"");
+                return true;
+            }
+            // ("my birthday is coming up": not a date, just chatting: the rest of him answers)
         }
         // the time somewhere else, choosing for you, opening an app
         String elsewhere = Extras.timeIn(question, java.time.Instant.now(), java.time.ZoneId.systemDefault());
