@@ -1991,6 +1991,11 @@ public final class Clawdtop {
         }
     }
 
+    // "Only one of me": held for as long as he runs. (Kept here, not in local variables: otherwise Java tidies the
+    // file away after a while, the lock goes with it, and a second Clawd could start or clawd stop couldn't find him.)
+    private static RandomAccessFile runningFile;
+    private static FileLock runningLock;
+
     public static void main(String[] args) throws IOException {
         if (GraphicsEnvironment.isHeadless()) {
             System.out.println("Clawdtop needs a screen to sit on.");
@@ -1999,9 +2004,9 @@ public final class Clawdtop {
         // Only one Clawd at a time
         Path folder = Settings.folder();
         Files.createDirectories(folder);
-        RandomAccessFile lockFile = new RandomAccessFile(folder.resolve("running.lock").toFile(), "rw");
-        FileLock lock = lockFile.getChannel().tryLock();
-        if (lock == null) return;
+        runningFile = new RandomAccessFile(folder.resolve("running.lock").toFile(), "rw");
+        runningLock = runningFile.getChannel().tryLock();
+        if (runningLock == null) return; // he's running already
         // If anything ever goes wrong, a note of it goes in clawd.log (to help fix it), and he carries on
         Path log = folder.resolve("clawd.log");
         Thread.setDefaultUncaughtExceptionHandler((thread, e) -> {

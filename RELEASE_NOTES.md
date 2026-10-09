@@ -7,6 +7,7 @@ The big polish update: dozens of fixes so Clawd feels smooth and reliable.
 - Quiet during videos, never pops up over games, "No tomfoolery" turns off all the silly stuff.
 - Safer: settings never lost, clawd stop only stops Clawd, cleaning skips USB and network drives.
 - Menus in the Windows style.
+- Only ever one Clawd at a time, and clawd stop always finds him.
 
 Get him: download the zip below, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 
