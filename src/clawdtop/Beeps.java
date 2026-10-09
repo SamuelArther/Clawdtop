@@ -174,6 +174,7 @@ public final class Beeps {
                 case GUITAR -> pluck(midi, ms, 0.996, 0.5);
                 case BASS -> pluck(midi - 24, ms, 0.998, 0.25);
                 case DRUMS -> drum(midi);
+                case VOICE -> sing(midi, ms);
                 default -> note(midi, ms);
             };
             mix(voiced(raw, "Normal", vol));
@@ -231,6 +232,28 @@ public final class Beeps {
     }
 
     /** A toy-piano note: a soft tone with a couple of overtones that rings and fades. */
+    /** His singing voice: a soft little square-wave beep that follows the tune, with a tiny wobble. */
+    static byte[] sing(int midi, int ms) {
+        while (midi > 84) midi -= 12; // (kept in his range)
+        while (midi < 60) midi += 12;
+        double freq = 440 * Math.pow(2, (midi - 69) / 12.0);
+        int count = (int) (RATE * Math.max(0.08, Math.min(1.0, ms / 1000.0 * 0.9)));
+        byte[] out = new byte[count * 2];
+        double phase = 0;
+        for (int i = 0; i < count; i++) {
+            double t = i / RATE;
+            double wobble = 1 + 0.006 * Math.sin(2 * Math.PI * 5.5 * t) * Math.min(1, t / 0.15);
+            phase += 2 * Math.PI * freq * wobble / RATE;
+            double square = Math.sin(phase) >= 0 ? 1 : -1;
+            double soft = 0.55 * square + 0.45 * Math.sin(phase); // a rounded square: beepy, not harsh
+            double env = Math.min(1, t / 0.01) * Math.min(1, (count - i) / (RATE * 0.03));
+            int v = (int) (soft * env * VOLUME * 0.7 * 32767);
+            out[i * 2] = (byte) v;
+            out[i * 2 + 1] = (byte) (v >> 8);
+        }
+        return out;
+    }
+
     static byte[] note(int midi, int ms) {
         double freq = 440 * Math.pow(2, (midi - 69) / 12.0);
         int count = (int) (RATE * Math.min(1.2, ms / 1000.0 + 0.15));

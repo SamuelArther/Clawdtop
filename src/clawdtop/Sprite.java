@@ -333,6 +333,10 @@ public final class Sprite {
             boolean up = (pet.time() / 140) % 2 == 0;
             box(g, unit, LEFT - 2, top + (up ? -1 : 1), 1.2, 2.5, body);
             box(g, unit, LEFT + 13.8, top + (up ? 1 : -1), 1.2, 2.5, body);
+        } else if (mood == Pet.Mood.PIANO && pet.instrument() == Piano.Instrument.VOICE) {
+            // singing: one hand on his chest, the other out, swaying a little with the notes
+            box(g, unit, LEFT + 2, top + 5, 2, 2, hand);
+            box(g, unit, LEFT + 13, top + (pet.pianoPressing() ? 2 : 3), 2, 2, body);
         } else if (mood == Pet.Mood.PIANO) {
             // (his hands are behind his piano: see drawPiano)
         } else if (mood == Pet.Mood.LISTEN) {
@@ -411,6 +415,7 @@ public final class Sprite {
                 case GUITAR -> drawGuitar(g, pet, unit, top, false);
                 case BASS -> drawGuitar(g, pet, unit, top, true);
                 case DRUMS -> drawDrums(g, pet, unit, top);
+                case VOICE -> drawSinging(g, pet, unit, top);
                 default -> drawPiano(g, pet, unit, top);
             }
         }
@@ -867,6 +872,19 @@ public final class Sprite {
         if (down) {
             box(g, unit, bx + 4, by - 3, 0.7, 0.6, new Color(255, 214, 102));
             box(g, unit, bx + 4.5, by - 4.3, 0.25, 1.4, new Color(255, 214, 102));
+        }
+    }
+
+    /** Singing: his mouth opens on each note, and little music notes float up. */
+    private static void drawSinging(Graphics2D g, Pet pet, int unit, double top) {
+        if (pet.pianoPressing()) box(g, unit, LEFT + 6, top + 4.6, 1, 1.4, EYE); // "la!"
+        else box(g, unit, LEFT + 5.5, top + 5, 2, 0.5, EYE);
+        for (int i = 0; i < 2; i++) {
+            double f = (pet.time() / 1100.0 + i / 2.0) % 1;
+            double nx = LEFT + 9 + f * 3 + i, ny = top + 1 - f * 4;
+            Color note = new Color(255, 214, 102, (int) (255 * (1 - f)));
+            box(g, unit, nx, ny + 1.2, 0.7, 0.6, note);
+            box(g, unit, nx + 0.5, ny, 0.25, 1.6, note);
         }
     }
 

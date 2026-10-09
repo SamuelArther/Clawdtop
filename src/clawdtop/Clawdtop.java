@@ -345,6 +345,57 @@ public final class Clawdtop {
         return list;
     }
 
+    /** Every song file he knows: your songs folder, and the service songs. */
+    private java.util.List<java.io.File> allSongFiles() {
+        java.util.List<java.io.File> all = new java.util.ArrayList<>(songs(songsFolder()));
+        all.addAll(songs(songsFolder().resolve("veterans")));
+        return all;
+    }
+
+    /** A song file's name as he'd say it ("navy.mid" is Anchors Aweigh). */
+    static String songTitle(java.io.File f) {
+        String name = f.getName().replaceAll("(?i)\\.midi?$", "").replace('_', ' ');
+        return Piano.SERVICE_SONGS.getOrDefault(name.toLowerCase(java.util.Locale.ROOT), name);
+    }
+
+    /** He sings a song file: just his little voice, following the tune. */
+    private void singFile(java.io.File f) {
+        worker.execute(() -> {
+            Piano.Song song = Piano.fromMidi(f);
+            SwingUtilities.invokeLater(() -> {
+                if (song == null) pet.say("I tried, but I can't read that music.");
+                else if (pet.play(Piano.Instrument.VOICE, song)) earnFun(Shop.SONG);
+                else pet.say("Give me a sec, I'm busy. Then I'll sing it!");
+            });
+        });
+    }
+
+    /** "Sing ..." : a song he knows by that name (a song file, or one of his own), or any song if you didn't say. */
+    private void sing(String name) {
+        String want = name.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9 ]", " ").replaceAll("\\b(the|a|song|please|for me)\\b", " ").strip();
+        java.util.List<java.io.File> files = allSongFiles();
+        if (want.isEmpty()) {
+            java.util.Random r = new java.util.Random();
+            if (!files.isEmpty() && r.nextBoolean()) singFile(files.get(r.nextInt(files.size())));
+            else if (pet.play(Piano.Instrument.VOICE, Piano.SONGS[r.nextInt(Piano.SONGS.length)])) earnFun(Shop.SONG);
+            return;
+        }
+        for (java.io.File f : files) {
+            String title = (songTitle(f) + " " + f.getName()).toLowerCase(java.util.Locale.ROOT);
+            if (java.util.Arrays.stream(want.split("\\s+")).allMatch(title::contains)) {
+                singFile(f);
+                return;
+            }
+        }
+        for (Piano.Song song : Piano.SONGS) {
+            if (java.util.Arrays.stream(want.split("\\s+")).allMatch(song.name().toLowerCase(java.util.Locale.ROOT)::contains)) {
+                if (pet.play(Piano.Instrument.VOICE, song)) earnFun(Shop.SONG);
+                return;
+            }
+        }
+        pet.say("I don't know that one!\nPut its MIDI file in my songs folder (or drop it on me)\nand I'll sing it.");
+    }
+
     private long nextVeteransSong; // on Veterans Day: when he plays the next service song (0: not today)
 
     /** Veterans Day: a service song now and then through the day (from songs/veterans). */
@@ -390,6 +441,11 @@ public final class Clawdtop {
         if (question.toLowerCase(java.util.Locale.ROOT).matches("\\W*(help|what can you do|what do you do|commands|how do (i|you) use you)\\W*")) {
             pet.say("Things you can ask me:\nAny question (I'll think about it)\nMath like \"what's 12 times 7\" (we'll use Calculator)\n"
                     + "\"remind me in 10 minutes to stretch\"\n\"set a timer for 5 minutes\", \"start a stopwatch\"\nMore fun stuff is in my menu!");
+            return;
+        }
+        java.util.regex.Matcher singIt = java.util.regex.Pattern.compile("(?i)^\\W*(?:please |can you |could you |will you )?sing(?: me| us)?(?: a song| something| anything)?(?: called| named)?\\s*(.*?)\\W*$").matcher(question);
+        if (singIt.matches()) {
+            sing(singIt.group(1));
             return;
         }
         String quick = QuickAnswers.answer(question, new java.util.Random());
@@ -814,6 +870,23 @@ public final class Clawdtop {
             piano.addSeparator();
             piano.add(mine);
             fun.add(piano);
+            javax.swing.JMenu sing = new javax.swing.JMenu("Sing a song");
+            JMenuItem anySong = new JMenuItem("Sing me something!");
+            anySong.addActionListener(e -> sing(""));
+            sing.add(anySong);
+            for (Piano.Song song : Piano.SONGS) {
+                JMenuItem item = new JMenuItem(song.name().substring(0, 1).toUpperCase(java.util.Locale.ROOT) + song.name().substring(1));
+                item.addActionListener(e -> { if (pet.play(Piano.Instrument.VOICE, song)) earnFun(Shop.SONG); });
+                sing.add(item);
+            }
+            java.util.List<java.io.File> singable = allSongFiles();
+            if (!singable.isEmpty()) sing.addSeparator();
+            for (java.io.File f : singable) {
+                JMenuItem item = new JMenuItem(songTitle(f));
+                item.addActionListener(e -> singFile(f));
+                sing.add(item);
+            }
+            fun.add(sing);
             for (Piano.Instrument inst : new Piano.Instrument[] {Piano.Instrument.GUITAR, Piano.Instrument.BASS, Piano.Instrument.DRUMS}) {
                 javax.swing.JMenu menuFor = new javax.swing.JMenu(switch (inst) {
                     case GUITAR -> "Guitar";

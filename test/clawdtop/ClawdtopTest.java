@@ -596,6 +596,12 @@ public class ClawdtopTest {
             hit = tackler.takeTackled();
         }
         check("he charges the icon and dives onto it", hit + " " + (Math.abs(tackler.x() - 400) < 1), "true true");
+        Pet singer = new Pet(2);
+        singer.takeBeep();
+        singer.play(Piano.Instrument.VOICE, Piano.SONGS[0]);
+        check("he sings in his own little beep voice (no piano, no song file playing)", singer.takeLine().startsWith("*ahem*") + " " + singer.playingMidi()
+                + " " + (Beeps.sing(72, 300).length > 1000), "true null true");
+        check("song files have nice titles", Clawdtop.songTitle(new java.io.File("navy.mid")) + " / " + Clawdtop.songTitle(new java.io.File("my_song.mid")), "Anchors Aweigh / my song");
         boolean calmPicks = true;
         java.util.Random picks = new java.util.Random(5);
         for (int i = 0; i < 500; i++) calmPicks &= !Creation.pick(picks, java.util.Set.of(), "", false).big();

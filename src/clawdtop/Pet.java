@@ -1043,11 +1043,14 @@ public final class Pet {
         mistakeAt = song.notes().length > 4 && prefs.on("mistakes") && random.nextInt(3) == 0 ? 1 + random.nextInt(song.notes().length - 2) : -1;
         songNote = 0;
         note = 0;
-        line = song.name().startsWith("your ") ? "Ahem. This one's called " + song.name().substring(5) + "."
+        line = on == Piano.Instrument.VOICE ? "*ahem* " + (song.name().startsWith("your ") ? song.name().substring(5) : "Here's " + song.name()) + "!\nLa la laaa..."
+                : song.name().startsWith("your ") ? "Ahem. This one's called " + song.name().substring(5) + "."
                 : on == Piano.Instrument.DRUMS ? (song.name().equals("ba-dum-tss") ? "" : "Here's " + song.name() + "! One, two, three, four!")
                 : "Here's " + song.name() + (on == Piano.Instrument.PIANO ? "" : " on the " + on.shown) + "!";
         if (line.isEmpty()) line = null;
-        set(Mood.PIANO, PIANO_INTRO + song.length() + 700);
+        long tune = 0; // (singing: as long as the tune he sings, not the whole file)
+        for (double b : song.beats()) tune += (long) (b * song.beatMs());
+        set(Mood.PIANO, PIANO_INTRO + (on == Piano.Instrument.VOICE ? tune : song.length()) + 700);
         return true;
     }
 
@@ -1070,7 +1073,8 @@ public final class Pet {
 
     /** The MIDI file he's playing right now (the whole thing plays, chords and all), or null. */
     public java.io.File playingMidi() {
-        return mood == Mood.PIANO && song != null && song.midi() != null && moodFor >= PIANO_INTRO ? song.midi() : null;
+        return mood == Mood.PIANO && song != null && song.midi() != null && moodFor >= PIANO_INTRO && instrument != Piano.Instrument.VOICE
+                ? song.midi() : null; // (singing: just his voice, following the tune)
     }
 
     /** The drum (or note) being hit right now, for drawing his drum set. */
