@@ -601,6 +601,9 @@ public class ClawdtopTest {
                 + "\"https://github.com/SamuelArther/Clawdtop/releases/download/v1.2.0/Clawdtop.jar\"}]}");
         check("he reads GitHub's latest release", rel.version() + " | " + rel.jarUrl().endsWith("/v1.2.0/Clawdtop.jar") + " | " + rel.notes(),
                 "1.2.0 | true | Popcorn!\nAnd more.");
+        String longNotes = "A line of notes with \\\"quotes\\\". \\n".repeat(3000); // (long notes once crashed the reader)
+        check("long release notes read fine", Updater.parse("{\"tag_name\":\"v1.2.0\",\"body\":\"" + longNotes + "\",\"assets\":[{\"browser_download_url\":"
+                + "\"https://x/v1.2.0/Clawdtop.jar\"}]}").notes().length() > 50_000, true);
         check("and a release without his jar doesn't count", Updater.parse("{\"tag_name\":\"v2\",\"assets\":[]}"), null);
         check("launchers count", Games.launcher("steam.exe") + " " + Games.launcher("EADesktop.exe") + " " + Games.launcher("notepad.exe"), "true true false");
 

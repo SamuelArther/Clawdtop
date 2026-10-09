@@ -18,7 +18,7 @@ import java.util.regex.Pattern;
  * (a tiny helper waits for this Clawd to close, puts the new jar in place, and starts him again).
  */
 final class Updater {
-    static final String VERSION = "1.0.1";
+    static final String VERSION = "1.0.2";
     static final String REPO = "SamuelArther/Clawdtop";
 
     private Updater() {
@@ -52,8 +52,7 @@ final class Updater {
         if (!tag.find()) return null;
         Matcher jar = Pattern.compile("\"browser_download_url\"\\s*:\\s*\"([^\"]+/Clawdtop\\.jar)\"").matcher(json);
         if (!jar.find()) return null;
-        Matcher body = Pattern.compile("\"body\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"").matcher(json);
-        String notes = body.find() ? body.group(1).replace("\\r", "").replace("\\n", "\n").replace("\\\"", "\"").replace("\\\\", "\\") : "";
+        String notes = jsonText(json, "body"); // (read by hand: a regex here overflows the stack on long notes)
         return new Release(tag.group(1).replaceFirst("^[vV]", ""), jar.group(1), notes);
     }
 
@@ -71,9 +70,47 @@ final class Updater {
             if (answer.statusCode() != 200) return null;
             Release latest = parse(answer.body());
             return latest != null && newer(latest.version(), VERSION) ? latest : null;
-        } catch (IOException | InterruptedException | RuntimeException offline) {
+        } catch (IOException | InterruptedException | RuntimeException | StackOverflowError offline) {
             return null;
         }
+    }
+
+    /** A text value in JSON ("key": "value"), unescaped, or "" if it isn't there. */
+    static String jsonText(String json, String key) {
+        int at = json.indexOf("\"" + key + "\"");
+        if (at < 0) return "";
+        int colon = json.indexOf(':', at + key.length() + 2);
+        if (colon < 0) return "";
+        int i = colon + 1;
+        while (i < json.length() && Character.isWhitespace(json.charAt(i))) i++;
+        if (i >= json.length() || json.charAt(i) != '"') return "";
+        StringBuilder out = new StringBuilder();
+        for (i++; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (c == '"') return out.toString();
+            if (c == '\\' && i + 1 < json.length()) {
+                char e = json.charAt(++i);
+                switch (e) {
+                    case 'n' -> out.append('\n');
+                    case 't' -> out.append('\t');
+                    case 'r' -> { }
+                    case 'u' -> {
+                        if (i + 4 < json.length()) {
+                            try {
+                                out.append((char) Integer.parseInt(json.substring(i + 1, i + 5), 16));
+                            } catch (NumberFormatException broken) {
+                                // skip it
+                            }
+                            i += 4;
+                        }
+                    }
+                    default -> out.append(e);
+                }
+            } else {
+                out.append(c);
+            }
+        }
+        return out.toString();
     }
 
     /**
