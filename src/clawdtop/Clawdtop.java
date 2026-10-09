@@ -280,7 +280,8 @@ public final class Clawdtop {
         long now = System.currentTimeMillis();
         long soonest = Long.MAX_VALUE;
         for (Object[] r : reminders) if ("time's up".equals(r[1]) || "time's up!".equals(r[1])) soonest = Math.min(soonest, (Long) r[0]);
-        if (soonest != Long.MAX_VALUE) pet.clock(soonest - now, false);
+        if (breathUntil > now) pet.clock(breathUntil - now, false); // (counting a breath)
+        else if (soonest != Long.MAX_VALUE) pet.clock(soonest - now, false);
         else if (stopwatchFrom > 0) pet.clock(now - stopwatchFrom, true);
         else pet.clock(-1, false);
     }
@@ -594,7 +595,8 @@ public final class Clawdtop {
         if (question.toLowerCase(java.util.Locale.ROOT).matches("\\W*(help|what can you do|what do you do|commands|how do (i|you) use you)\\W*")) {
             pet.say("Things you can ask me:\nAny question (I'll think about it), or math like \"what's 12 times 7\"\n"
                     + "\"remind me at 3pm to call Grandma\", \"set a timer for 5 minutes\"\n\"add homework to my list\", \"stick a note: dentist at 4\"\n"
-                    + "\"find my essay\", \"what time is it in Tokyo\", \"clean my link\"\n\"make me a password\", \"keep my computer awake\"\nMore fun stuff is in my menu!");
+                    + "\"find my essay\", \"what time is it in Tokyo\", \"clean my link\"\n\"make me a password\", \"keep my computer awake\"\n"
+                    + "\"quiz me on the 7 times table\", \"breathe with me\"\nMore fun stuff is in my menu!");
             return;
         }
         java.util.regex.Matcher singIt = java.util.regex.Pattern.compile("(?i)^\\W*(?:please |can you |could you |will you )?sing(?: me| us)?(?: a song| something| anything)?(?: called| named)?\\s*(.*?)\\W*$").matcher(question);
@@ -822,6 +824,18 @@ public final class Clawdtop {
                 return true;
             }
         }
+        // a times-table quiz, and breathing to calm down
+        java.util.regex.Matcher quiz = java.util.regex.Pattern.compile("^(?:can you |please |let's do a |let's have a |give me a )?(?:quiz me|math quiz|times ?tables?( quiz)?|multiplication( quiz)?|quiz)"
+                + "(?: me)?(?: on)?(?: (?:my |the )?(\\d{1,2})(?:s| times tables?| times))?(?: times tables?| multiplication)?$").matcher(q);
+        if (quiz.matches()) {
+            int table = quiz.group(3) != null ? Integer.parseInt(quiz.group(3)) : 0;
+            startQuiz(table >= 1 && table <= 12 ? table : 0);
+            return true;
+        }
+        if (q.matches("(help me (relax|calm down|breathe)|breathing( exercise)?|let'?s breathe|breathe with me|calm me down|i'?m (so |really |kinda |a bit |super )?(stressed|anxious|nervous|overwhelmed|freaking out|panicking)( out)?)")) {
+            breathe();
+            return true;
+        }
         // the sticky note
         java.util.regex.Matcher note2 = java.util.regex.Pattern.compile("^(?:please )?(?:stick (?:up )?a note|sticky note|post-?it|put up a (?:note|sign))(?: (?:saying|that says|for me))?:? (.+)$")
                 .matcher(question.strip().replaceAll("[.!]+$", ""));
@@ -939,6 +953,93 @@ public final class Clawdtop {
         if (settings.on("earnPoints")) settings.earn(Shop.ASK);
         pet.party(list.isEmpty() ? "Crossed off: " + item + "\nAND YOUR LIST IS EMPTY! You did it all!" : "Crossed off: " + item + "! Nice!\n" + list.size() + " to go.");
         Diary.write("Got something done: " + item + ".");
+    }
+
+    // ---- A times-table quiz ----
+    private int quizAsked, quizRight, quizTable;
+    private boolean quizOn;
+
+    /** Ten times-table questions (one table, or all of them up to 12x12), typed answers, cheering, points. */
+    private void startQuiz(int table) {
+        quizOn = true;
+        quizAsked = 0;
+        quizRight = 0;
+        quizTable = table;
+        pet.say(table > 0 ? "The " + table + " times table! 10 questions. Ready... go!" : "Times tables! 10 questions. Ready... go!");
+        later(1500, this::nextQuizQuestion);
+    }
+
+    private void nextQuizQuestion() {
+        if (!quizOn) return;
+        if (quizAsked == 10) {
+            quizOn = false;
+            String score = quizRight + " out of 10";
+            if (quizRight == 10) pet.party("PERFECT! " + score + "! You're a times-table machine!");
+            else if (quizRight >= 7) pet.party(score + "! Really good!");
+            else pet.say(score + ". Practice makes perfect! Want to go again? (\"quiz me\")");
+            if (settings.on("earnPoints")) for (int i = 0; i < quizRight / 3; i++) settings.earn(Shop.ASK);
+            Diary.write("Did a times-table quiz: " + score + ".");
+            return;
+        }
+        java.util.Random r = new java.util.Random();
+        int a = quizTable > 0 ? quizTable : 2 + r.nextInt(11), b = 1 + r.nextInt(12);
+        if (r.nextBoolean()) {
+            int t = a;
+            a = b;
+            b = t;
+        }
+        int x = a, y = b;
+        quizAsked++;
+        askBox.show("Question " + quizAsked + " of 10:   " + x + " x " + y + " = ?", "Type the answer and press Enter (Never mind stops the quiz)", "Answer",
+                head(), screenBounds(), typed -> {
+                    String digits = typed.replaceAll("[^0-9-]", "");
+                    if (digits.equals(String.valueOf(x * y))) {
+                        quizRight++;
+                        pet.say(new String[] {"Yes!", "Correct!", "Nailed it!", "Right!", "You got it!"}[new java.util.Random().nextInt(5)]);
+                    } else {
+                        pet.say("Not quite: " + x + " x " + y + " = " + (x * y) + ".");
+                    }
+                    later(1300, this::nextQuizQuestion);
+                });
+    }
+
+    /** Does this after a while (on the Swing thread). */
+    private static void later(int ms, Runnable then) {
+        javax.swing.Timer t = new javax.swing.Timer(ms, e -> then.run());
+        t.setRepeats(false);
+        t.start();
+    }
+
+    // ---- Breathing ----
+    private int breathRound;
+    private long breathUntil; // his clock counts this breath down
+
+    /** A calm minute: in for 4, hold for 4, out for 6, four times over, him counting along. */
+    private void breathe() {
+        breathRound = 0;
+        pet.say("Let's breathe together. Get comfy...");
+        later(3500, this::breathIn);
+    }
+
+    private void breathIn() {
+        breathRound++;
+        pet.say("Breathe in... 2... 3... 4...");
+        breathUntil = System.currentTimeMillis() + 4000;
+        later(4200, () -> {
+            pet.say("Hold it... 2... 3... 4...");
+            breathUntil = System.currentTimeMillis() + 4000;
+            later(4200, () -> {
+                pet.say("And slowly out... 2... 3... 4... 5... 6...");
+                breathUntil = System.currentTimeMillis() + 6000;
+                later(6400, () -> {
+                    if (breathRound < 4) breathIn();
+                    else {
+                        pet.say("There. How do you feel? A bit better, I hope.\n(I'm always here if you need another one.)");
+                        Diary.write("Did some breathing together.");
+                    }
+                });
+            });
+        });
     }
 
     /** Puts up his sticky note (or takes it down, for ""). */
@@ -1839,6 +1940,9 @@ public final class Clawdtop {
             JMenuItem ttt = new JMenuItem("Tic-tac-toe!");
             ttt.addActionListener(e -> ticTacToe());
             fun.add(ttt);
+            JMenuItem quizItem = new JMenuItem("Times-table quiz!");
+            quizItem.addActionListener(e -> startQuiz(0));
+            fun.add(quizItem);
             JMenuItem music = new JMenuItem("Music time!");
             music.addActionListener(e -> pet.vibe());
             fun.add(music);
@@ -1901,6 +2005,9 @@ public final class Clawdtop {
             }
         });
         useful.add(noteItem);
+        JMenuItem breatheItem = new JMenuItem("Breathe with me (1 minute)");
+        breatheItem.addActionListener(e -> breathe());
+        useful.add(breatheItem);
         JMenuItem findItem = new JMenuItem("Find a file...");
         findItem.addActionListener(e -> askBox.show("What's the file called?", "Part of the name is fine, like \"essay\" or \"birthday\"", "Find it", head(), screenBounds(), text -> {
             java.util.List<String> words = FindFile.wordsIn("find my " + text);
@@ -3228,6 +3335,14 @@ public final class Clawdtop {
                     "Can Clawd see your screen?", "(test) He takes a quick look at how bright your screen is.");
             case "yes" -> bubble.press(0);
             case "tidy" -> tidyDesktop();
+            case "quiz answer right" -> { // (the screen test: types the right answer into the quiz box)
+                String shown = askBox.panel().getComponentCount() > 0 && askBox.panel().getComponent(0) instanceof javax.swing.JLabel l ? l.getText() : "";
+                java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d+) x (\\d+)").matcher(shown);
+                if (m.find()) {
+                    askBox.field().setText(String.valueOf(Integer.parseInt(m.group(1)) * Integer.parseInt(m.group(2))));
+                    askBox.field().postActionEvent();
+                }
+            }
             case "download done" -> downloadsDone.add(Path.of(System.getProperty("smoke.download", "missing")));
             case "dragged" -> draggedSomething = true;
             case "put back" -> putDesktopBack();
