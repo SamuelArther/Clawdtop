@@ -319,7 +319,7 @@ public final class Clawdtop {
             try {
                 javax.sound.midi.Sequencer s = javax.sound.midi.MidiSystem.getSequencer();
                 s.open();
-                s.setSequence(javax.sound.midi.MidiSystem.getSequence(file));
+                s.setSequence(Piano.pianoOnly(javax.sound.midi.MidiSystem.getSequence(file))); // (all piano: it's his piano he's playing)
                 s.start();
                 SwingUtilities.invokeLater(() -> {
                     if (round == midiRound) sequencer = s;

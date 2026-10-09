@@ -108,6 +108,29 @@ final class Piano {
     }
 
     /**
+     * A song file made all piano (he plays it on his piano, after all): every instrument becomes a grand piano, and the
+     * drums (channel 10) are left out.
+     */
+    static javax.sound.midi.Sequence pianoOnly(javax.sound.midi.Sequence seq) throws javax.sound.midi.InvalidMidiDataException {
+        for (javax.sound.midi.Track track : seq.getTracks()) {
+            for (int i = track.size() - 1; i >= 0; i--) {
+                javax.sound.midi.MidiEvent e = track.get(i);
+                if (!(e.getMessage() instanceof javax.sound.midi.ShortMessage m)) continue;
+                boolean drums = m.getChannel() == 9;
+                boolean instrument = m.getCommand() == javax.sound.midi.ShortMessage.PROGRAM_CHANGE;
+                boolean bank = m.getCommand() == javax.sound.midi.ShortMessage.CONTROL_CHANGE && (m.getData1() == 0 || m.getData1() == 32);
+                if (drums || instrument || bank) track.remove(e);
+            }
+        }
+        javax.sound.midi.Track first = seq.getTracks().length > 0 ? seq.getTracks()[0] : seq.createTrack();
+        for (int channel = 0; channel < 16; channel++) {
+            if (channel == 9) continue;
+            first.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.PROGRAM_CHANGE, channel, 0, 0), 0));
+        }
+        return seq;
+    }
+
+    /**
      * A MIDI file as a song for his piano: the tune (the highest note whenever notes start together), up to 400 notes,
      * with the real timing. Null if it isn't a MIDI file or has no notes.
      */
