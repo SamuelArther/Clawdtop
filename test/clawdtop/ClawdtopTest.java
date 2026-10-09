@@ -741,6 +741,12 @@ public class ClawdtopTest {
         check("rundown", Helpers.rundown(rundownDay, List.of("homework", "dishes"), "Dentist at 4", 3, "Sam"),
                 "Here's your day, Sam! It's Friday, October 9.\n- 2 things on your to-do list (first up: homework)\n- Your note says: Dentist at 4\n- 3 days till your birthday!");
         check("no rundown with nothing to say", Helpers.rundown(rundownDay, List.of(), "", 200, "Sam"), null);
+        // every option has its own key (two with the same key would switch each other)
+        java.util.Set<String> optionKeys = new java.util.HashSet<>();
+        java.util.List<String> twice = new java.util.ArrayList<>();
+        for (Options.Option o : Options.ALL) if (!optionKeys.add(o.key())) twice.add(o.key());
+        check("option keys are all different", twice, "[]");
+        check("eye breaks start off", Settings.load().on("eyeBreaks") + " " + Settings.load().on("eyes"), "false true");
         // the desktop: reading icon spots (Windows' script and Finder say the same shape), sorting files for Neat
         Desktop.Layout desk = Desktop.read("DESKTOP|/home/me/Desktop\nskin|177,2\nmy song.mid|2427,1032\nnot an icon\n");
         check("desktop read", desk.folder().getFileName() + " " + desk.icons(), "Desktop [Icon[name=skin, x=177, y=2], Icon[name=my song.mid, x=2427, y=1032]]");

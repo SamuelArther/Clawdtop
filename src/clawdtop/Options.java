@@ -100,7 +100,7 @@ final class Options {
             Option.on("Privacy", "hearing", "Hears how loud your computer's sound is, to bop along (you're asked first)", false),
             Option.on("Useful", "downloads", "Tells you when a download finishes (with Open and Show buttons)", true),
             Option.on("Useful", "summary", "A quick rundown of your day the first time you log in each morning", true),
-            Option.on("Useful", "eyes", "Eye breaks: every 20 minutes on the computer, look far away for 20 seconds", false),
+            Option.on("Useful", "eyeBreaks", "Eye breaks: every 20 minutes on the computer, look far away for 20 seconds", false),
             Option.on("Useful", "water", "Reminds you to drink water (every hour)", false),
             Option.on("Useful", "stretch", "Reminds you to stretch (every 2 hours)", false),
             Option.on("Useful", "restart", "Says when the computer hasn't restarted in a week", true),

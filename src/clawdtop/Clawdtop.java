@@ -1224,16 +1224,20 @@ public final class Clawdtop {
 
     /** Counts your time on the computer (a break of 5 minutes or more starts the count over), and calls an eye break. */
     private void eyeBreaks(long step, boolean active) {
-        if (!settings.on("eyes")) return;
+        if (!settings.on("eyeBreaks")) return;
         if (!active) {
             if (System.currentTimeMillis() - lastMoved > 5 * 60_000) eyesUsedMs = 0; // (you took a break already)
             return;
         }
         eyesUsedMs += step;
         if (eyesUsedMs < 20 * 60_000 || pet.busyNow() || bubble.showing() || hidden || inCorner) return;
+        startEyeBreak();
+    }
+
+    private void startEyeBreak() {
         eyesUsedMs = 0;
         eyeBreakUntil = System.currentTimeMillis() + 20_000;
-        pet.say("Eye break! Look at something far away (out a window is great)\nfor 20 seconds. I'll count.");
+        pet.say("Eye break! Look at something far away for 20 seconds.\n(Out a window is great.) I'll count.");
         later(20_500, () -> pet.say("Done! Your eyes say thanks."));
     }
 
@@ -3392,10 +3396,7 @@ public final class Clawdtop {
                     "Can Clawd see your screen?", "(test) He takes a quick look at how bright your screen is.");
             case "yes" -> bubble.press(0);
             case "tidy" -> tidyDesktop();
-            case "eye break" -> {
-                eyesUsedMs = 20 * 60_000;
-                eyeBreaks(0, true);
-            }
+            case "eye break" -> startEyeBreak();
             case "rundown" -> {
                 String r = Helpers.rundown(java.time.LocalDate.now(), settings.todos(), settings.text("sticky"), Helpers.daysToBirthday(settings.birthday(), java.time.LocalDate.now()), settings.name());
                 if (r != null) pet.say(r);
