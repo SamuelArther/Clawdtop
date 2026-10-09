@@ -62,6 +62,18 @@ public final class SmokeMenus {
                     }
                     System.out.println("  open now: " + path);
                 });
+                if (!open[0]) { // (the robot's click didn't get there? then a click straight to the menu, through Swing)
+                    SwingUtilities.invokeAndWait(() -> {
+                        JMenu m = menuNamed(sub);
+                        if (m == null) return;
+                        long t = System.currentTimeMillis();
+                        m.dispatchEvent(new java.awt.event.MouseEvent(m, java.awt.event.MouseEvent.MOUSE_PRESSED, t, java.awt.event.InputEvent.BUTTON1_DOWN_MASK, 5, 5, 1, false, java.awt.event.MouseEvent.BUTTON1));
+                        m.dispatchEvent(new java.awt.event.MouseEvent(m, java.awt.event.MouseEvent.MOUSE_RELEASED, t + 50, 0, 5, 5, 1, false, java.awt.event.MouseEvent.BUTTON1));
+                    });
+                    Thread.sleep(700);
+                    SwingUtilities.invokeAndWait(() -> open[0] = opened(sub));
+                    System.out.println(sub + " opened by a click sent through Swing: " + open[0]);
+                }
                 ImageIO.write(robot.createScreenCapture(all), "png", new File(out, sub + ".png"));
             } else {
                 System.out.println("no " + sub + " menu found");
@@ -70,6 +82,14 @@ public final class SmokeMenus {
             Thread.sleep(500);
         }
         System.exit(0);
+    }
+
+    static JMenu menuNamed(String label) {
+        for (MenuElement e : MenuSelectionManager.defaultManager().getSelectedPath()) {
+            if (e.getComponent() instanceof JMenu m && m.getText().startsWith(label)) return m;
+            for (MenuElement child : e.getSubElements()) if (child.getComponent() instanceof JMenu m && m.getText().startsWith(label)) return m;
+        }
+        return null;
     }
 
     /** Whether a submenu is open (showing its own menu). */

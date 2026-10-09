@@ -2620,12 +2620,21 @@ public final class Clawdtop {
         for (MenuElement e : menu.getSubElements()) {
             if (!(e instanceof javax.swing.JMenu sub)) continue;
             sub.setDelay(Integer.MAX_VALUE); // (hovering never gets there)
+            // a press opens it straight away: this goes first (before Swing's own), so for that press there's no wait at all
+            java.awt.event.MouseListener[] swings = sub.getMouseListeners();
+            for (java.awt.event.MouseListener l : swings) sub.removeMouseListener(l);
             sub.addMouseListener(new MouseAdapter() {
                 @Override
-                public void mouseReleased(MouseEvent click) {
-                    if (sub.isEnabled()) SwingUtilities.invokeLater(() -> { if (sub.isShowing()) openSubmenu(sub); }); // (after Swing's own handling of the click)
+                public void mousePressed(MouseEvent press) {
+                    if (!sub.isEnabled()) return;
+                    sub.setDelay(0);
+                    SwingUtilities.invokeLater(() -> {
+                        sub.setDelay(Integer.MAX_VALUE);
+                        if (sub.isShowing() && !sub.isPopupMenuVisible()) openSubmenu(sub); // (in case Swing didn't)
+                    });
                 }
             });
+            for (java.awt.event.MouseListener l : swings) sub.addMouseListener(l);
             openOnClick(sub.getPopupMenu());
         }
     }
