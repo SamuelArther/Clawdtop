@@ -1195,7 +1195,12 @@ public final class Clawdtop {
             capsWasOn = false;
         }
     }
-    private final Jokes jokes = new Jokes(System.nanoTime());
+    /** The next joke: they go round in an order kept from one start to the next, so he doesn't repeat himself. */
+    private String nextJoke() {
+        int told = settings.count("jokesTold");
+        settings.addOne("jokesTold");
+        return Jokes.nth(settings.metDate().toString().hashCode(), told);
+    }
     private long lastJokeAt = System.currentTimeMillis();
     private long jokeJitter = (long) (Math.random() * 120_000);
 
@@ -1211,7 +1216,7 @@ public final class Clawdtop {
     private void tellJoke() {
         lastJokeAt = System.currentTimeMillis();
         jokeJitter = (long) (Math.random() * 120_000);
-        bubble.show(jokes.next(), head(), screenBounds());
+        bubble.show(nextJoke(), head(), screenBounds());
         pet.speak();
     }
 

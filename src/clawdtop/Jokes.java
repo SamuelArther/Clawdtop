@@ -164,6 +164,16 @@ final class Jokes {
         random = new Random(seed);
     }
 
+    /**
+     * Joke number k for someone (seed): the same shuffled order every time he starts, so you hear them all before any
+     * repeats, even across restarts. After the last one, a new shuffle.
+     */
+    static String nth(long seed, int k) {
+        List<String> shuffled = new ArrayList<>(ALL);
+        Collections.shuffle(shuffled, new Random(seed * 31 + k / ALL.size()));
+        return shuffled.get(Math.floorMod(k, ALL.size()));
+    }
+
     /** The next joke (every one comes up before any repeats). */
     String next() {
         if (order.isEmpty()) {

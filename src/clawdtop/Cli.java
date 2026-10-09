@@ -123,7 +123,12 @@ public final class Cli {
                 if (lines.isEmpty()) out.println("\n  Nothing yet! Spend some time with me and check back.");
                 else for (String l : lines) out.println(l.endsWith(":") ? ORANGE + l + RESET : l);
             }
-            case "joke" -> out.println(new Jokes(System.nanoTime()).next());
+            case "joke" -> { // (the same order he goes through on your taskbar)
+                Settings s = Settings.load();
+                int told = s.count("jokesTold");
+                s.addOne("jokesTold");
+                out.println(Jokes.nth(s.metDate().toString().hashCode(), told));
+            }
             case "version", "-v", "--version" -> out.println("Clawd " + Updater.VERSION);
             case "update" -> {
                 out.println("Looking for a newer me...");

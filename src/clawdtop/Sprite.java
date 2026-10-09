@@ -27,6 +27,22 @@ public final class Sprite {
     private Sprite() {
     }
 
+    /** Woozy: little yellow birds flying round and round his head (front: the ones on the near side of the circle). */
+    private static void drawBirds(Graphics2D g, int unit, Pet pet, double top, boolean front) {
+        for (int i = 0; i < 3; i++) {
+            double a = pet.time() / 300.0 + i * Math.PI * 2 / 3;
+            if ((Math.sin(a) > 0) != front) continue;
+            double bx = LEFT + 6 + Math.cos(a) * 6.5, by = top - 1.8 + Math.sin(a) * 1.1;
+            boolean right = Math.sin(a) > 0; // which way he's flying (front of the circle: to the right)
+            Color bird = new Color(255, 214, 60), beak = new Color(255, 140, 40);
+            box(g, unit, bx, by, 1.2, 0.9, bird);                                      // body
+            box(g, unit, right ? bx + 1.2 : bx - 0.4, by + 0.2, 0.4, 0.3, beak);       // beak
+            box(g, unit, right ? bx + 0.8 : bx + 0.1, by + 0.1, 0.25, 0.25, EYE);      // eye
+            boolean flap = ((pet.time() / 120) + i) % 2 == 0;
+            box(g, unit, bx + 0.3, by + (flap ? -0.5 : 0.5), 0.7, 0.4, new Color(240, 190, 40)); // wing
+        }
+    }
+
     /** How far a hat sticks up above his head (units). */
     static double hatHeight(String hat) {
         return switch (hat == null ? "" : hat) {
@@ -460,22 +476,10 @@ public final class Sprite {
             }
         }
 
+        if (mood == Pet.Mood.WOOZY) drawBirds(g, unit, pet, top, false); // (the far side: behind his hat)
         if (!noHat && mood != Pet.Mood.CARRY) drawHat(g, unit, pet.hat(), top); // (no hat through the moving box)
 
-        // Woozy: little yellow birds flying round and round his head
-        if (mood == Pet.Mood.WOOZY) {
-            for (int i = 0; i < 3; i++) {
-                double a = pet.time() / 300.0 + i * Math.PI * 2 / 3;
-                double bx = LEFT + 6 + Math.cos(a) * 6.5, by = top - 1.8 + Math.sin(a) * 1.1;
-                boolean right = Math.sin(a) > 0; // which way he's flying (front of the circle: to the right)
-                Color bird = new Color(255, 214, 60), beak = new Color(255, 140, 40);
-                box(g, unit, bx, by, 1.2, 0.9, bird);                                      // body
-                box(g, unit, right ? bx + 1.2 : bx - 0.4, by + 0.2, 0.4, 0.3, beak);       // beak
-                box(g, unit, right ? bx + 0.8 : bx + 0.1, by + 0.1, 0.25, 0.25, EYE);      // eye
-                boolean flap = ((pet.time() / 120) + i) % 2 == 0;
-                box(g, unit, bx + 0.3, by + (flap ? -0.5 : 0.5), 0.7, 0.4, new Color(240, 190, 40)); // wing
-            }
-        }
+        if (mood == Pet.Mood.WOOZY) drawBirds(g, unit, pet, top, true); // (the near side of their circle: in front of his hat)
 
         // A fly buzzing round him, and his hands clapping at it at the end
         double[] fly = pet.fly();
