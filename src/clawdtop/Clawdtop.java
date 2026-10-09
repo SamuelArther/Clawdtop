@@ -555,7 +555,8 @@ public final class Clawdtop {
     private long mediaSeenAt, videoSeenAt, lastScare, lastBop, loudSince;
     private boolean consentOpen; // the computer's own permission box is up
     private boolean smokeShow;   // (the screen test's pretend show)
-    private double calmLevel; // how loud it usually is, lately (so a sudden jump stands out)
+    private double calmLevel = -1; // how loud it usually is, lately (so a sudden jump stands out; -1: not heard anything yet)
+    private boolean videoInFront;  // the video's what's in front right now (not a document you switched to, say)
     private boolean askingMedia;
     private long lastOffer = -10 * 60_000L;
 
@@ -571,6 +572,7 @@ public final class Clawdtop {
         String media = farewell || boxed ? null : Seeing.mediaIn(front.app(), front.title());
         long now = System.currentTimeMillis();
         if (media != null) mediaSeenAt = now;
+        videoInFront = false; // (set again below if it's still the video)
         if ("video".equals(media)) videoSeenAt = now;
         if (now - videoSeenAt > 20_000) { // no video for a while (nothing, or music now): the show's over
             if (pet.watching()) pet.watch(false);
@@ -581,6 +583,7 @@ public final class Clawdtop {
             return;
         }
         boolean video = media.equals("video");
+        videoInFront = video;
         if (video && settings.on("seeing")) {
             Rectangle whole = window.getGraphicsConfiguration().getBounds();
             double scale = window.getGraphicsConfiguration().getDefaultTransform().getScaleX();
@@ -639,9 +642,11 @@ public final class Clawdtop {
     private void react(long now) {
         if (!ears.listening() && !eyes.looking()) return;
         double level = ears.level();
-        boolean suddenLoud = level > 0.55 && calmLevel < 0.18;
+        if (!ears.listening()) calmLevel = -1;
+        else if (calmLevel < 0) calmLevel = level; // (the first thing he hears is just how loud it is, not a sudden jump)
+        boolean suddenLoud = ears.listening() && level > 0.55 && calmLevel < 0.18;
         calmLevel = calmLevel * 0.97 + level * 0.03;
-        boolean bigFlash = eyes.flash(); // (the whole picture: a menu opening over it doesn't count)
+        boolean bigFlash = eyes.flash() && videoInFront; // (the whole picture, while it's the video in front: a menu opening over it, or switching away, doesn't count)
         if (pet.watching() && (suddenLoud || bigFlash) && now - lastScare > 15_000) {
             lastScare = now;
             pet.scare();
@@ -1539,7 +1544,7 @@ public final class Clawdtop {
 
     /** "Save what I copied": a copied picture (a screenshot, say) or text goes into a file on your desktop. */
     private void saveClipboard() {
-        Path desktop = desktopFolder != null ? desktopFolder : Path.of(System.getProperty("user.home"), "Desktop");
+        Path desktop = desktopFolder != null ? desktopFolder : Platform.desktop();
         String stamp = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HHmm"));
         try {
             var clip = java.awt.Toolkit.getDefaultToolkit().getSystemClipboard();
@@ -1907,15 +1912,9 @@ public final class Clawdtop {
         }
     }
 
-    /** The desktop folder (asking, if he hasn't looked yet: on Windows it may be in OneDrive). Takes a moment. */
+    /** The desktop folder (Windows says where: it may be in OneDrive). */
     private static Path realDesktop() {
-        if (Platform.WINDOWS) { // (on a Mac, looking means asking Finder: not out of nowhere)
-            Desktop.Layout layout = Desktop.look();
-            if (layout != null && layout.folder() != null) return layout.folder();
-            Path oneDrive = Path.of(System.getProperty("user.home"), "OneDrive", "Desktop");
-            if (java.nio.file.Files.isDirectory(oneDrive)) return oneDrive;
-        }
-        return Path.of(System.getProperty("user.home"), "Desktop");
+        return Platform.desktop();
     }
     private final java.util.ArrayDeque<Object[]> tidyQueue = new java.util.ArrayDeque<>(); // {file, x, y} still to tackle
     private int tidyStage, tidiedCount;                          // 1: hopping to the next one
@@ -3434,8 +3433,14 @@ public final class Clawdtop {
                 String encoded = java.util.Base64.getEncoder().encodeToString(WindowTricks.taskbarScript().getBytes(java.nio.charset.StandardCharsets.UTF_16LE));
                 Process p = new ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
                         "-WindowStyle", "Hidden", "-EncodedCommand", encoded).redirectErrorStream(true).start();
-                String out = new String(p.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
-                button = WindowTricks.buttonFor(WindowTricks.parseTaskbar(out), exe, title);
+                String out = Desktop.output(p, 8); // (never waits forever on a stuck taskbar)
+                Rectangle mine = popupBounds();
+                java.util.List<WindowTricks.TaskbarButton> here = new java.util.ArrayList<>();
+                for (WindowTricks.TaskbarButton b : WindowTricks.parseTaskbar(out == null ? "" : out)) { // (the taskbar on his monitor)
+                    double bx = toJava(b.centerX(), b.y() + b.height() / 2.0).x;
+                    if (bx >= mine.x && bx <= mine.x + mine.width) here.add(b);
+                }
+                button = WindowTricks.buttonFor(here, exe, title);
             } catch (Exception noTaskbar) {
                 // then no tackle
             }
@@ -3444,7 +3449,7 @@ public final class Clawdtop {
                 tackleLooking = false;
                 if (tackleWindow != front) return;
                 Rectangle s = window.getGraphicsConfiguration().getBounds();
-                double x = found == null ? -1 : toJava(s.x + found.centerX(), s.y + s.height - 1).x; // (taskbar buttons come in Windows' pixels)
+                double x = found == null ? -1 : toJava(found.centerX(), found.y() + found.height() / 2.0).x; // (taskbar buttons come in Windows' pixels)
                 if (found == null || x < s.x || x > s.x + s.width || body.state() != Body.State.HOME) {
                     endTackle(); // no icon to tackle (or he got busy): there it is anyway
                     if (!bubble.asking()) bubble.hide();
@@ -3962,6 +3967,7 @@ public final class Clawdtop {
             if (w != 0) WindowTricks.reveal(w, tackleStyle);
         }));
         Updater.tidy();
+        WindowTricks.restoreLeftovers(); // (a window left hidden when he was stopped mid-tackle: back it comes)
         refundHuts();
         Settings.takeAsk(); // (anything the clawd command asked before he started: old news)
         javax.swing.Timer updates = new javax.swing.Timer(20_000, e -> checkForUpdate()); // once he's settled in (and once a day, if he's left running)

@@ -205,6 +205,7 @@ final class WindowTricks {
             if (x <= -30000) return -1; // (minimized: nothing to hide)
             if (!move(window, -32000, -32000)) return STUCK;
             PARKED.put(window, new int[] {x, y});
+            rememberParked();
             return 0;
         } catch (Throwable e) {
             return -1;
@@ -236,7 +237,89 @@ final class WindowTricks {
     /** Puts a parked window back exactly where it was. */
     static void reveal(long window, long ignored) {
         int[] was = PARKED.remove(window);
-        if (was != null) move(window, was[0], was[1]);
+        if (was != null) putBack(window, was[0], was[1]);
+        rememberParked();
+    }
+
+    /**
+     * Puts a window back at (x, y). If it got minimized while it was parked (you clicked its taskbar button), Windows
+     * remembers the parked spot as where to restore it: so that's put right too, or it'd come back off the screen.
+     */
+    private static void putBack(long window, int x, int y) {
+        try (Arena arena = Arena.ofConfined()) {
+            Linker linker = Linker.nativeLinker();
+            SymbolLookup user32 = SymbolLookup.libraryLookup("user32", Arena.global());
+            MethodHandle get = linker.downcallHandle(user32.find("GetWindowPlacement").orElseThrow(), FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS));
+            MethodHandle set = linker.downcallHandle(user32.find("SetWindowPlacement").orElseThrow(), FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS));
+            MethodHandle iconic = linker.downcallHandle(user32.find("IsIconic").orElseThrow(), FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS));
+            MemorySegment place = arena.allocate(44); // WINDOWPLACEMENT: length, flags, showCmd, min point, max point, normal rect
+            place.set(ValueLayout.JAVA_INT, 0, 44);
+            if ((int) get.invokeExact(hwnd(window), place) != 0) {
+                int left = place.get(ValueLayout.JAVA_INT, 28), top = place.get(ValueLayout.JAVA_INT, 32);
+                if (left <= -30000 || top <= -30000) { // (its "restore to" spot is the parking spot: back where it was)
+                    place.set(ValueLayout.JAVA_INT, 28, x);
+                    place.set(ValueLayout.JAVA_INT, 32, y);
+                    place.set(ValueLayout.JAVA_INT, 36, x + place.get(ValueLayout.JAVA_INT, 36) - left);
+                    place.set(ValueLayout.JAVA_INT, 40, y + place.get(ValueLayout.JAVA_INT, 40) - top);
+                    int showCmd = place.get(ValueLayout.JAVA_INT, 8);
+                    int ignored = (int) set.invokeExact(hwnd(window), place);
+                    if (showCmd == 2 || showCmd == 6 || showCmd == 7) return; // (minimized: it comes back to the right spot when you restore it)
+                }
+            }
+            if ((int) iconic.invokeExact(hwnd(window)) != 0) return;
+        } catch (Throwable e) {
+            // then just move it
+        }
+        move(window, x, y);
+    }
+
+    /** Where windows he's parked are written down, in case he's stopped suddenly (they're put back next time he starts). */
+    private static java.nio.file.Path parkedFile() {
+        return Settings.folder().resolve("parked.txt");
+    }
+
+    private static synchronized void rememberParked() {
+        try {
+            if (PARKED.isEmpty()) {
+                java.nio.file.Files.deleteIfExists(parkedFile());
+                return;
+            }
+            StringBuilder lines = new StringBuilder();
+            for (var p : PARKED.entrySet()) lines.append(p.getKey()).append(' ').append(p.getValue()[0]).append(' ').append(p.getValue()[1]).append('\n');
+            java.nio.file.Files.writeString(parkedFile(), lines);
+        } catch (java.io.IOException | RuntimeException cant) {
+            // (the shutdown hook still puts it back, most times)
+        }
+    }
+
+    /** On start: any window left parked last time (he was stopped mid-tackle) goes back where it was. */
+    static void restoreLeftovers() {
+        if (!Platform.WINDOWS || CLASS_NAME == null) return;
+        try {
+            if (!java.nio.file.Files.exists(parkedFile())) return;
+            for (String line : java.nio.file.Files.readAllLines(parkedFile())) {
+                String[] p = line.strip().split(" ");
+                if (p.length != 3) continue;
+                long window = Long.parseLong(p[0]);
+                if (parked(window) || parkedWhenRestored(window)) putBack(window, Integer.parseInt(p[1]), Integer.parseInt(p[2]));
+            }
+            java.nio.file.Files.deleteIfExists(parkedFile());
+        } catch (java.io.IOException | RuntimeException cant) {
+            // never mind
+        }
+    }
+
+    /** Whether a (minimized) window would come back at the parking spot when restored. */
+    private static boolean parkedWhenRestored(long window) {
+        try (Arena arena = Arena.ofConfined()) {
+            MethodHandle get = Linker.nativeLinker().downcallHandle(SymbolLookup.libraryLookup("user32", Arena.global()).find("GetWindowPlacement").orElseThrow(),
+                    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS));
+            MemorySegment place = arena.allocate(44);
+            place.set(ValueLayout.JAVA_INT, 0, 44);
+            return (int) get.invokeExact(hwnd(window), place) != 0 && place.get(ValueLayout.JAVA_INT, 28) <= -30000;
+        } catch (Throwable e) {
+            return false;
+        }
     }
 
     private static boolean move(long window, int x, int y) {
@@ -273,10 +356,12 @@ final class WindowTricks {
     /** The PowerShell that lists the app buttons on the taskbar, one per line: name|id|x,y,width,height. */
     static String taskbarScript() {
         return String.join("\n",
+                "[Console]::OutputEncoding = [Text.Encoding]::UTF8", // (app names in any language come through right)
                 "Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes",
                 "$A = [Windows.Automation.AutomationElement]",
-                "$tray = $A::RootElement.FindFirst([Windows.Automation.TreeScope]::Children, (New-Object Windows.Automation.PropertyCondition($A::ClassNameProperty, 'Shell_TrayWnd')))",
-                "if ($tray) {",
+                "$main = New-Object Windows.Automation.PropertyCondition($A::ClassNameProperty, 'Shell_TrayWnd')",
+                "$other = New-Object Windows.Automation.PropertyCondition($A::ClassNameProperty, 'Shell_SecondaryTrayWnd')", // (another monitor's taskbar)
+                "foreach ($tray in $A::RootElement.FindAll([Windows.Automation.TreeScope]::Children, (New-Object Windows.Automation.OrCondition($main, $other)))) {",
                 "  $all = $tray.FindAll([Windows.Automation.TreeScope]::Descendants, (New-Object Windows.Automation.PropertyCondition($A::ControlTypeProperty, [Windows.Automation.ControlType]::Button)))",
                 "  foreach ($b in $all) { $c = $b.Current; $r = $c.BoundingRectangle",
                 "    if ($c.ClassName -notlike 'SystemTray*' -and $c.AutomationId -notlike '*Button') {",

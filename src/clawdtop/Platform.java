@@ -52,6 +52,26 @@ final class Platform {
         return false;
     }
 
+    private static volatile java.nio.file.Path desktop;
+
+    /** Your desktop folder (on Windows it can be anywhere, like in OneDrive: Windows says where). */
+    static java.nio.file.Path desktop() {
+        java.nio.file.Path known = desktop;
+        if (known != null) return known;
+        java.nio.file.Path found = null;
+        if (WINDOWS) {
+            String out = run("reg", "query", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders", "/v", "Desktop");
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("Desktop\\s+REG_SZ\\s+(.+)").matcher(out);
+            try {
+                if (m.find()) found = java.nio.file.Path.of(m.group(1).strip());
+            } catch (RuntimeException badPath) {
+                found = null;
+            }
+        }
+        if (found == null || !java.nio.file.Files.isDirectory(found)) found = java.nio.file.Path.of(System.getProperty("user.home"), "Desktop");
+        return desktop = found;
+    }
+
     static String run(String... command) {
         try {
             Process p = new ProcessBuilder(command).redirectErrorStream(true).start();

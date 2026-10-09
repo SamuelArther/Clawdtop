@@ -155,11 +155,8 @@ final class Install {
         try {
             Process p = new ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand",
                     java.util.Base64.getEncoder().encodeToString(script.getBytes(StandardCharsets.UTF_16LE))).redirectErrorStream(true).start();
-            String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            if (!p.waitFor(20, java.util.concurrent.TimeUnit.SECONDS)) {
-                p.destroyForcibly();
-                return null;
-            }
+            String out = Desktop.output(p, 20); // (reads and waits at once: a stuck PowerShell can't hang setup)
+            if (out == null) return null;
             for (String line : out.split("\r?\n")) {
                 if (line.equals("NONE")) return "";
                 if (line.startsWith("VALUE:")) {

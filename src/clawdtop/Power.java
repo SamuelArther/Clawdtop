@@ -47,8 +47,11 @@ final class Power {
             Process p = new ProcessBuilder("powercfg", "/query", "SCHEME_CURRENT", "SUB_BATTERY", "BATLEVELCRIT").redirectErrorStream(true).start();
             String out = Desktop.output(p, 10);
             if (out == null) out = "";
-            java.util.regex.Matcher m = java.util.regex.Pattern.compile("DC Power Setting Index: 0x([0-9a-fA-F]+)").matcher(out);
-            if (m.find()) level = Integer.parseInt(m.group(1), 16);
+            // (the last number it prints is the battery one, whatever language Windows speaks)
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("0x([0-9a-fA-F]{8})").matcher(out);
+            String last = null;
+            while (m.find()) last = m.group(1);
+            if (last != null) level = Integer.parseInt(last, 16);
         } catch (Exception e) {
             // keep Windows' usual 5%
         }

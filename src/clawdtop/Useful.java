@@ -135,7 +135,7 @@ final class Useful {
 
     /** Things he can open for you, by name: folders, and handy Windows tools. */
     static final String[][] OPENABLE = !Platform.WINDOWS ? Platform.openable() : new String[][] {
-            {"Downloads", "folder:Downloads"}, {"Desktop", "folder:Desktop"}, {"Documents", "folder:Documents"},
+            {"Downloads", "shell:Downloads"}, {"Desktop", "shell:Desktop"}, {"Documents", "shell:Personal"}, // (wherever Windows keeps them: OneDrive, say)
             {"Recycle Bin", "shell:RecycleBinFolder"}, {"Task Manager", "taskmgr"}, {"Calculator", "calc"},
             {"Notepad", "notepad"}, {"Settings", "ms-settings:"}, {"Snipping Tool", "ms-screenclip:"}};
 
@@ -155,7 +155,17 @@ final class Useful {
     static void open(String what) {
         lastOpened = System.currentTimeMillis();
         try {
-            if (what.startsWith("folder:")) {
+            String windowsFolder = !Platform.WINDOWS || !what.startsWith("folder:") ? null : switch (what.substring(7)) { // (wherever Windows keeps it: OneDrive, say)
+                case "Downloads" -> "shell:Downloads";
+                case "Desktop" -> "shell:Desktop";
+                case "Documents" -> "shell:Personal";
+                case "Pictures" -> "shell:My Pictures";
+                case "Music" -> "shell:My Music";
+                default -> null;
+            };
+            if (windowsFolder != null) {
+                new ProcessBuilder("explorer.exe", windowsFolder).start();
+            } else if (what.startsWith("folder:")) {
                 Path folder = Path.of(System.getProperty("user.home"), what.substring(7));
                 java.awt.Desktop.getDesktop().open(folder.toFile());
             } else if (what.startsWith("app:")) {

@@ -16,31 +16,48 @@ final class Awake {
         return helper != null && helper.isAlive();
     }
 
-    /** Starts keeping it awake. Whether it worked. */
-    static synchronized boolean start() {
-        if (on()) return true;
+    /** Starts keeping it awake. Whether it worked. (The wait to see if it worked isn't locked: asking on() never stalls.) */
+    static boolean start() {
+        Process started;
+        synchronized (Awake.class) {
+            if (on()) return true;
+            started = launch();
+            helper = started;
+            if (started == null) return false;
+        }
+        try {
+            Thread.sleep(Platform.WINDOWS ? 2500 : 400); // (long enough for it to have failed, if it was going to)
+        } catch (InterruptedException woken) {
+            // see how it's doing now, then
+        }
+        synchronized (Awake.class) {
+            if (started.isAlive()) return true;
+            if (helper == started) helper = null;
+            return false;
+        }
+    }
+
+    /** The little helper program that holds the computer awake while Clawdtop's running (null if it couldn't start). */
+    private static Process launch() {
         long me = ProcessHandle.current().pid();
         try {
             if (Platform.WINDOWS) {
                 String script = String.join("\n",
+                        "$ErrorActionPreference = 'Stop'", // (if anything fails, it stops: he never says it's awake when it isn't)
                         "Add-Type -Name Awake -Namespace Clawd -MemberDefinition '[DllImport(\"kernel32.dll\")] public static extern uint SetThreadExecutionState(uint f);'",
                         // (keep running, keep the screen on: ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED, as a uint: PowerShell reads 0x80000003 as a negative int)
                         "if ([Clawd.Awake]::SetThreadExecutionState([uint32]2147483651) -eq 0) { exit 1 }",
                         "while (Get-Process -Id " + me + " -ErrorAction SilentlyContinue) { Start-Sleep -Seconds 5 }");
-                helper = new ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden",
+                return new ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden",
                         "-EncodedCommand", java.util.Base64.getEncoder().encodeToString(script.getBytes(StandardCharsets.UTF_16LE))).start();
             } else if (Platform.MAC) {
-                helper = new ProcessBuilder("caffeinate", "-di", "-w", String.valueOf(me)).start();
+                return new ProcessBuilder("caffeinate", "-di", "-w", String.valueOf(me)).start();
             } else {
-                helper = new ProcessBuilder("systemd-inhibit", "--what=idle:sleep", "--who=Clawdtop", "--why=Keeping your computer awake",
+                return new ProcessBuilder("systemd-inhibit", "--what=idle:sleep", "--who=Clawdtop", "--why=Keeping your computer awake",
                         "sh", "-c", "while kill -0 " + me + " 2>/dev/null; do sleep 5; done").start();
             }
-            Thread.sleep(Platform.WINDOWS ? 2500 : 400); // (long enough for it to have failed, if it was going to)
-            if (!helper.isAlive()) helper = null;
-            return helper != null;
         } catch (Exception cant) {
-            helper = null;
-            return false;
+            return null;
         }
     }
 

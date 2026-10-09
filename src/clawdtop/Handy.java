@@ -33,7 +33,7 @@ final class Handy {
     /** Where a new file goes: next to the original, or (if he can't write there) on your desktop. */
     private static Path beside(Path original, String name) {
         Path folder = original.toAbsolutePath().getParent();
-        if (folder == null || !Files.isWritable(folder)) folder = Path.of(System.getProperty("user.home"), "Desktop");
+        if (folder == null || !Files.isWritable(folder)) folder = Platform.desktop();
         return Desktop.free(folder.resolve(name));
     }
 

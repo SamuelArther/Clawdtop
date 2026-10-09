@@ -15,8 +15,12 @@ final class Seeing {
 
     /** Looks at just this part of the screen from now on (the video's window). */
     void lookAt(Rectangle r) {
-        if (r != null && r.width > 40 && r.height > 40) region = r;
+        if (r == null || r.width <= 40 || r.height <= 40 || r.equals(region)) return;
+        region = r;
+        fresh = true; // (somewhere new: not compared with the old spot, or a moved window would look like a flash)
     }
+
+    private volatile boolean fresh;
     private volatile double brightness = -1, change, spread;
     /** The picture in a grid of this many squares a side: a real flash changes nearly all of them, a menu opening only a few. */
     static final int GRID = 4;
@@ -34,6 +38,11 @@ final class Seeing {
                 double last = -1;
                 double[] lastSquares = null;
                 while (on) {
+                    if (fresh) {
+                        fresh = false;
+                        last = -1;
+                        lastSquares = null;
+                    }
                     BufferedImage shot = robot.createScreenCapture(region != null ? region : screen);
                     double[] squares = squares(shot);
                     double now = 0;
