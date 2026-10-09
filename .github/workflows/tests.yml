@@ -64,7 +64,7 @@ jobs:
             "|2|idle" "settings menu|2|settings menu" "close menus|1|menus closed" "menu|2|fun menu" "close menus|1|closed again" \
             "piano|4|piano" "guitar|3|guitar" "bass|3|bass" "drums|3|drums" "lap|7|lap" "vibe|3|vibe" "timer|3|timer" \
             "stopwatch|3|stopwatch" "ttt|3|tic-tac-toe" "salute|3|salute" "christmas|5|christmas" "focus|3|focus" "remind|4|remind" \
-            "checkup|4|checkup" "pet|2|petted" "ask|2|ask box" "close ask|1|ask closed"
+            "checkup|4|checkup" "pet|2|petted" "ask|2|ask box" "close ask|1|ask closed"             "say stick a note: Dentist at 4|3|sticky note" "say add homework to my list|3|todo" "say keep my computer awake|4|coffee" "say let my computer sleep|2|coffee off" "say what time is it in Tokyo|3|world clock" "say find my resume|5|find file" "say take down the note|2|note down"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -88,7 +88,7 @@ jobs:
           javac -d build/test-classes -cp build/classes src/clawdtop/*.java test/clawdtop/*.java
       - name: Everything in his menus, on a Mac
         run: |
-          java --enable-native-access=ALL-UNNAMED -cp build/test-classes clawdtop.SmokeQuick shots/mac-quick             "|3|idle" "settings menu|2|settings menu" "close menus|1|menus closed" "menu|2|fun menu" "close menus|1|closed"             "piano|4|piano" "guitar|3|guitar" "drums|3|drums" "sing|4|singing" "cpdance|2|cp dance" "lap|8|lap" "timer|3|timer"             "watch|2|watching" "scare|0.5|scared" "salute me|2|salute" "ttt|3|tic-tac-toe" "ask|2|ask box" "close ask|1|ask closed"
+          java --enable-native-access=ALL-UNNAMED -cp build/test-classes clawdtop.SmokeQuick shots/mac-quick             "|3|idle" "settings menu|2|settings menu" "close menus|1|menus closed" "menu|2|fun menu" "close menus|1|closed"             "piano|4|piano" "guitar|3|guitar" "drums|3|drums" "sing|4|singing" "cpdance|2|cp dance" "lap|8|lap" "timer|3|timer"             "watch|2|watching" "scare|0.5|scared" "salute me|2|salute" "ttt|3|tic-tac-toe" "ask|2|ask box" "close ask|1|ask closed"             "say stick a note: Dentist at 4|3|sticky note" "say add homework to my list|3|todo" "say keep my computer awake|4|coffee" "say let my computer sleep|2|coffee off" "say what time is it in Tokyo|3|world clock" "say find my resume|5|find file" "say take down the note|2|note down"
       - name: Setup, on a Mac
         run: timeout 300 java --enable-native-access=ALL-UNNAMED -cp build/test-classes clawdtop.SmokeSetup shots/mac-setup || echo "setup ended with $?"
       - uses: actions/upload-artifact@v4
