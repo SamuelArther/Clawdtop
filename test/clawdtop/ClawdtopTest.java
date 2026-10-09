@@ -585,6 +585,15 @@ public class ClawdtopTest {
         for (int i = 0; i < 60; i++) pianist.tick(33, 0, 0, false, false);
         save(pianist, Path.of("build", "frames").resolve("playing the piano.png"));
 
+        // ---- Holidays ----
+        check("Easter is worked out right", Holidays.easter(2026) + " " + Holidays.easter(2027) + " " + Holidays.easter(2030), "2026-04-05 2027-03-28 2030-04-21");
+        check("special days", Holidays.on(java.time.LocalDate.of(2026, 12, 25)).id() + " " + Holidays.on(java.time.LocalDate.of(2026, 11, 26)).id() + " "
+                + Holidays.on(java.time.LocalDate.of(2026, 10, 31)).id() + " " + Holidays.on(java.time.LocalDate.of(2026, 10, 30)), "christmas thanksgiving halloween null");
+        Pet festive = new Pet(2);
+        festive.celebrate("Merry Christmas!", Holidays.on(java.time.LocalDate.of(2026, 12, 25)).show());
+        for (int i = 0; i < 60; i++) festive.tick(33, 0, 0, false, false);
+        save(festive, Path.of("build", "frames").resolve("christmas.png"));
+
         // ---- Quick answers (no brain needed) ----
         java.util.Random dice = new java.util.Random(1);
         check("what time is it", QuickAnswers.answer("What time is it?", dice).startsWith("It's "), true);

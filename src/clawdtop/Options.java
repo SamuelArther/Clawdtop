@@ -61,6 +61,7 @@ final class Options {
             Option.on("Reactions", "missedYou", "\"I missed you\" after a while away", true),
             Option.on("Reactions", "birthday", "Your birthday surprise", true),
             Option.on("Reactions", "seasonalHats", "Seasonal hats (Santa, pumpkin)", true),
+            Option.on("Reactions", "holidays", "Holiday surprises (New Year's, Valentine's, Easter, Halloween, Christmas...)", true),
             // Riding and moving
             Option.on("Riding", "rides", "Hops onto your cursor", true),
             Option.on("Riding", "shakeOff", "Can be shaken off", true),

@@ -734,6 +734,11 @@ public final class Clawdtop {
         if (todayNow.getMonthValue() == 11 && todayNow.getDayOfMonth() == 11 && settings.once("veterans:" + todayNow.getYear())) {
             pet.salute();
         }
+        Holidays.Holiday holiday = Holidays.on(todayNow);
+        if (holiday != null && settings.on("holidays") && !settings.seen(holiday.id() + ":" + todayNow.getYear())
+                && pet.celebrate(holiday.line(), holiday.show())) {
+            settings.once(holiday.id() + ":" + todayNow.getYear());
+        }
         long gap = System.currentTimeMillis() - settings.lastSeen();
         if (settings.lastSeen() > 0 && gap >= 2 * 86_400_000L && settings.on("missedYou")) {
             pet.say("Hi.... I missed you..... you've been gone for " + Settings.howLong(gap) + "...."
@@ -1412,6 +1417,7 @@ public final class Clawdtop {
                 smokeNotes++;
             });
             case "salute" -> pet.salute();
+            case "christmas" -> pet.celebrate("Merry Christmas!", Holidays.on(java.time.LocalDate.of(2026, 12, 25)).show());
             case "focus" -> focus(true);
             case "lap" -> {
                 if (pet.lap()) body.runLap();

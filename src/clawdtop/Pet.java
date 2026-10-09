@@ -1066,6 +1066,20 @@ public final class Pet {
         return true;
     }
 
+    /** A holiday: he says something and shows it (fireworks, snow, a heart...). Returns whether he could right now. */
+    public boolean celebrate(String says, Creation show) {
+        if (busy() || mood == Mood.SLEEP) return false;
+        line = says;
+        wants = Beep.HAPPY;
+        if (show.effect() == Creation.Effect.SPIN) {
+            set(Mood.SPIN, 700);
+        } else {
+            showing = show;
+            set(Mood.MADE, show.showFor());
+        }
+        return true;
+    }
+
     /** Veterans Day. */
     public void salute() {
         if (busy()) return;
