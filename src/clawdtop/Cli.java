@@ -580,11 +580,14 @@ public final class Cli {
         }
     }
 
-    /** Asks whether to keep your songs and the things he coded (if there are any). */
+    /** His folders with your things in them (kept, if you say so, when he's uninstalled or starts over). */
+    static final java.util.List<String> YOURS = java.util.List.of("songs", "creations", "Pictures you gave me");
+
+    /** Asks whether to keep your songs, the pictures you gave him and the things he coded (if there are any). */
     private boolean keepYourFiles() throws IOException {
         Path folder = Settings.folder();
-        if (!hasFiles(folder.resolve("songs")) && !hasFiles(Settings.creations())) return false; // (nothing of yours in there)
-        out.print("Keep your songs and the little programs he made? (Y/n) ");
+        if (YOURS.stream().noneMatch(name -> hasFiles(folder.resolve(name)))) return false; // (nothing of yours in there)
+        out.print("Keep your songs, the pictures you gave him and the little programs he made? (Y/n) ");
         out.flush();
         String answer = in.readLine();
         return answer == null || !answer.strip().toLowerCase(Locale.ROOT).startsWith("n");
@@ -606,7 +609,7 @@ public final class Cli {
         try (var walk = Files.walk(folder)) {
             for (Path p : walk.sorted(java.util.Comparator.reverseOrder()).toList()) { // (deepest first, so folders are empty)
                 Path inside = folder.relativize(p);
-                if (keepYourFiles && inside.getNameCount() > 0 && java.util.List.of("songs", "creations").contains(inside.getName(0).toString())) continue;
+                if (keepYourFiles && inside.getNameCount() > 0 && YOURS.contains(inside.getName(0).toString())) continue;
                 try {
                     Files.deleteIfExists(p);
                 } catch (IOException stuck) {

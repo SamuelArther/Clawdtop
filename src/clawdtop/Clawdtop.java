@@ -211,6 +211,23 @@ public final class Clawdtop {
         return new java.awt.geom.Point2D.Double(px / s, py / s);
     }
 
+    /** The other way round: Java's pixels (x, y) to the screen's real ones (on Windows, each monitor scales its own way). */
+    static java.awt.Point toReal(double jx, double jy) {
+        GraphicsEnvironment env = GraphicsEnvironment.getLocalGraphicsEnvironment();
+        if (!Platform.MAC) {
+            for (java.awt.GraphicsDevice d : env.getScreenDevices()) {
+                GraphicsConfiguration gc = d.getDefaultConfiguration();
+                Rectangle b = gc.getBounds();
+                double s = gc.getDefaultTransform().getScaleX();
+                if (jx >= b.x && jx < b.x + b.width && jy >= b.y && jy < b.y + b.height) {
+                    return new java.awt.Point((int) Math.round(b.x + (jx - b.x) * s), (int) Math.round(b.y + (jy - b.y) * s));
+                }
+            }
+        }
+        double s = env.getDefaultScreenDevice().getDefaultConfiguration().getDefaultTransform().getScaleX();
+        return new java.awt.Point((int) Math.round(jx * s), (int) Math.round(jy * s));
+    }
+
     /** The taskbar's top on the monitor at x (his home floor if that's his home monitor; groundY if x is on none). */
     private double floorUnder(double x) {
         for (java.awt.GraphicsDevice d : GraphicsEnvironment.getLocalGraphicsEnvironment().getScreenDevices()) {
@@ -299,7 +316,7 @@ public final class Clawdtop {
             }
         };
         canvas.addMouseListener(mouse);
-        // Drop a MIDI file on him: he fetches it and plays it
+        // Drop a song, a zip or a picture on him: he jumps up and catches it (see startGrab)
         new java.awt.dnd.DropTarget(canvas, new java.awt.dnd.DropTargetAdapter() {
             @Override
             public void dragEnter(java.awt.dnd.DropTargetDragEvent e) {
@@ -312,16 +329,11 @@ public final class Clawdtop {
                     e.acceptDrop(java.awt.dnd.DnDConstants.ACTION_COPY);
                     @SuppressWarnings("unchecked")
                     java.util.List<java.io.File> files = (java.util.List<java.io.File>) e.getTransferable().getTransferData(java.awt.datatransfer.DataFlavor.javaFileListFlavor);
-                    java.io.File midi = files.stream().filter(Piano::isMidi).findFirst().orElse(null);
                     e.dropComplete(true);
-                    if (midi != null) {
-                        playDropped(midi);
-                        return;
-                    }
-                    java.io.File first = files.isEmpty() ? null : files.get(0);
-                    if (first != null && first.isFile() && Handy.picture(first.toPath())) offerShrink(first.toPath());
-                    else if (first != null && first.isFile() && Handy.zip(first.toPath())) offerUnzip(first.toPath());
-                    else pet.say("Hmm, not sure what to do with that one!\nI can play songs (.mid), make pictures smaller,\nand unzip .zip files.");
+                    java.io.File pick = files.stream().filter(f -> f.isFile() && Piano.isMidi(f)).findFirst() // (a song first)
+                            .orElse(files.stream().filter(f -> f.isFile() && grabKind(f.toPath()) != null).findFirst().orElse(null));
+                    if (pick != null) dropped(pick.toPath());
+                    else pet.say("Hmm, not sure what to do with that one!\nI can play songs (.mid), unzip .zip files,\nand make pictures smaller.");
                 } catch (Exception ex) {
                     e.dropComplete(false);
                 }
@@ -395,6 +407,7 @@ public final class Clawdtop {
     private int midiRound; // which MIDI start is the current one (an older one still loading gets closed)
 
     private boolean sequencerBand; // the song file's playing with its own instruments (a jam session), not all piano
+    private String pianoSound = "Grand"; // how his piano sounds (Settings: "pianoSound")
 
     private void playMidi(java.io.File file) {
         playMidi(file, false);
@@ -412,6 +425,7 @@ public final class Clawdtop {
         sequencerFile = file;
         int round = ++midiRound;
         if (file == null) return;
+        String sound = pianoSound;
         songLoader.execute(() -> {
             javax.sound.midi.Sequencer opened = null;
             try {
@@ -419,7 +433,7 @@ public final class Clawdtop {
                 s.open();
                 opened = s;
                 javax.sound.midi.Sequence seq = javax.sound.midi.MidiSystem.getSequence(file);
-                s.setSequence(fullBand ? Piano.fullBand(seq) : Piano.pianoOnly(seq)); // (all piano: it's his piano he's playing; a jam: the whole band)
+                s.setSequence(fullBand ? Piano.fullBand(seq) : Piano.pianoOnly(seq, sound)); // (all piano: it's his piano he's playing; a jam: the whole band)
                 s.start();
                 SwingUtilities.invokeLater(() -> {
                     if (round == midiRound) sequencer = s;
@@ -443,6 +457,67 @@ public final class Clawdtop {
         java.util.List<java.io.File> list = new java.util.ArrayList<>(java.util.List.of(files));
         list.sort(java.util.Comparator.comparing(java.io.File::getName, String.CASE_INSENSITIVE_ORDER));
         return list;
+    }
+
+    /**
+     * "My songs": every song file he's got (the ones you gave him, his jam tracks, the ones he sings, the service
+     * songs), to play one; and his songs folder.
+     */
+    private javax.swing.JMenu mySongsMenu() {
+        javax.swing.JMenu menu = new javax.swing.JMenu("My songs");
+        java.util.List<java.io.File> piano = new java.util.ArrayList<>(songs(songsFolder())), jams = new java.util.ArrayList<>(songs(songsFolder().resolve("jams")));
+        for (java.io.File f : piano) if (isJam(f)) jams.add(f);
+        piano.removeIf(Clawdtop::isJam);
+        java.util.List<JMenuItem> items = new java.util.ArrayList<>();
+        for (java.io.File f : piano) items.add(songItem("Play: " + songTitle(f), () -> playDropped(f)));
+        for (java.io.File f : jams) items.add(songItem("Jam: " + songTitle(f), () -> playDropped(f)));
+        for (java.io.File f : songs(songsFolder().resolve("sing"))) items.add(songItem("Sing: " + songTitle(f), () -> singFile(f)));
+        for (java.io.File f : songs(songsFolder().resolve("veterans"))) items.add(songItem("Play: " + songTitle(f), () -> playDropped(f)));
+        if (items.isEmpty()) {
+            JMenuItem none = new JMenuItem("(none yet: drop a MIDI file on me!)");
+            none.setEnabled(false);
+            menu.add(none);
+        } else if (items.size() <= SONGS_PER_MENU) {
+            for (JMenuItem item : items) menu.add(item);
+        } else { // (lots: in bunches, so the menu fits on the screen)
+            for (int i = 0; i < items.size(); i += SONGS_PER_MENU) {
+                java.util.List<JMenuItem> bunch = items.subList(i, Math.min(items.size(), i + SONGS_PER_MENU));
+                javax.swing.JMenu more = new javax.swing.JMenu("Songs " + (i + 1) + " to " + (i + bunch.size()));
+                for (JMenuItem item : bunch) more.add(item);
+                menu.add(more);
+            }
+        }
+        menu.addSeparator();
+        JMenuItem folder = new JMenuItem("Open my songs folder...");
+        folder.addActionListener(e -> openSongFolder(""));
+        menu.add(folder);
+        return menu;
+    }
+
+    static final int SONGS_PER_MENU = 20;
+
+    /** Picking how one of his instruments sounds (he plays a few notes on it, so you hear it). */
+    private javax.swing.JMenu soundMenu(String title, String key, String[] sounds) {
+        javax.swing.JMenu menu = new javax.swing.JMenu(title);
+        javax.swing.ButtonGroup group = new javax.swing.ButtonGroup();
+        for (String sound : sounds) {
+            javax.swing.JRadioButtonMenuItem item = new javax.swing.JRadioButtonMenuItem(sound, settings.choice(key).equals(sound));
+            item.addActionListener(e -> {
+                settings.set(key, sound);
+                useOptions();
+                Piano.Instrument on = key.equals("guitarSound") ? Piano.Instrument.GUITAR : Piano.Instrument.PIANO;
+                if (!pet.play(on, Piano.SONGS[0])) pet.say("My " + (on == Piano.Instrument.GUITAR ? "guitar" : "piano") + " sounds like: " + sound.toLowerCase(java.util.Locale.ROOT) + "!");
+            });
+            group.add(item);
+            menu.add(item);
+        }
+        return menu;
+    }
+
+    private static JMenuItem songItem(String name, Runnable play) {
+        JMenuItem item = new JMenuItem(name.length() > 50 ? name.substring(0, 49) + "..." : name);
+        item.addActionListener(e -> play.run());
+        return item;
     }
 
     /** Every song file he knows: your songs folder, and the service songs. */
@@ -666,7 +741,7 @@ public final class Clawdtop {
             Piano.Song song = Piano.fromMidi(midi);
             SwingUtilities.invokeLater(() -> {
                 if (song == null) pet.say("I tried, but I can't read that music.");
-                else if (!pet.fetch(song)) pet.say("Ooh, music! Give me a sec, I'm busy.");
+                else if (!pet.playPiano(song)) pet.say("Ooh, music! Give me a sec, I'm busy.");
                 else {
                     earnFun(Shop.MIDI);
                     Diary.write("Somebody gave me music: " + song.name().replaceFirst("^your ", "") + ". I played it on my piano!");
@@ -690,7 +765,7 @@ public final class Clawdtop {
             pet.say("Things you can ask me:\nAny question (I'll think about it)\nMath, like \"what's 12 times 7\"\n"
                     + "\"remind me at 3pm to call Grandma\"\n\"set a timer for 5 minutes\"\n\"add homework to my list\"\n\"stick a note: dentist at 4\"\n"
                     + "\"find my essay\"\n\"what time is it in Tokyo\"\n\"clean my link\", \"make me a password\"\n\"keep my computer awake\"\n"
-                    + "\"quiz me on the 7 times table\", \"breathe with me\"\n\"define curious\", \"what color is this?\"\nMore fun stuff is in my menu: double-click me!");
+                    + "\"quiz me on the 7 times table\", \"breathe with me\"\n\"define curious\", \"what color is this?\"\nDrop a song, a zip or a picture on me!\nMore fun stuff is in my menu: double-click me!");
             return;
         }
         java.util.regex.Matcher singIt = java.util.regex.Pattern.compile("(?i)^\\W*(?:please |can you |could you |will you )?sing(?: me| us)?(?: a song| something| anything)?(?: called| named)?\\s*(.*?)\\W*$").matcher(question);
@@ -1189,80 +1264,6 @@ public final class Clawdtop {
         });
     }
 
-    // ---- Files you drop on him: a smaller copy of a picture, or a zip unzipped ----
-
-    private void offerShrink(Path picture) {
-        pet.sniff();
-        pet.speak();
-        bubble.ask("A picture! Want a smaller copy, for emailing or texting?\n(" + picture.getFileName() + ", " + Handy.size(picture) + ". The original stays as it is.)",
-                new String[] {"Make it smaller", "No thanks"}, choice -> {
-                    if (choice != 0) return;
-                    pet.say("Squishing it...");
-                    worker.execute(() -> {
-                        Path small;
-                        try {
-                            small = Handy.shrink(picture);
-                        } catch (IOException | RuntimeException cant) {
-                            small = null;
-                        }
-                        Path made = small;
-                        SwingUtilities.invokeLater(() -> {
-                            if (made == null) {
-                                pet.say("Hmm, I couldn't open that picture.");
-                                return;
-                            }
-                            if (made == Handy.ALREADY_SMALL) {
-                                pet.say("Good news: that picture's already about as small\nas I can make it! (" + Handy.size(picture) + ")");
-                                return;
-                            }
-                            pet.speak();
-                            bubble.ask("Done! " + made.getFileName() + "\n" + Handy.size(picture) + " became " + Handy.size(made) + ". It's right next to the original.",
-                                    new String[] {"Show me", "OK"}, c -> {
-                                        if (c == 0) FindFile.showInFolder(made);
-                                    }, head(), popupBounds());
-                            bubble.expireIn(30_000);
-                        });
-                    });
-                }, head(), popupBounds());
-        bubble.expireIn(30_000);
-    }
-
-    private void offerUnzip(Path zip) {
-        pet.sniff();
-        pet.speak();
-        bubble.ask("A zip file! Want me to unzip it?\n(" + zip.getFileName() + ". It goes in a new folder right next to it.)",
-                new String[] {"Unzip it", "No thanks"}, choice -> {
-                    if (choice != 0) return;
-                    pet.say("Unzipping...");
-                    worker.execute(() -> {
-                        Handy.Unzipped out;
-                        String why = null;
-                        try {
-                            out = Handy.unzip(zip);
-                        } catch (IOException | RuntimeException cant) {
-                            out = null;
-                            why = cant.getMessage();
-                        }
-                        Handy.Unzipped done = out;
-                        String reason = why;
-                        SwingUtilities.invokeLater(() -> {
-                            if (done == null) {
-                                pet.say("too big".equals(reason) || "too many files".equals(reason) ? "Whoa, that zip is HUGE inside. I stopped, to be safe."
-                                        : "Hmm, I couldn't unzip that one.\n(It might be damaged, or need a password.)");
-                                return;
-                            }
-                            pet.speak();
-                            bubble.ask("Unzipped! " + done.files() + (done.files() == 1 ? " file" : " files") + " in the folder \"" + done.folder().getFileName() + "\".",
-                                    new String[] {"Show me", "OK"}, c -> {
-                                        if (c == 0) FindFile.open(done.folder());
-                                    }, head(), popupBounds());
-                            bubble.expireIn(30_000);
-                        });
-                    });
-                }, head(), popupBounds());
-        bubble.expireIn(30_000);
-    }
-
     /** "What color is this?": you point at it, he counts to three, and tells you (and copies the code). */
     private void pickColor() {
         pet.say("Point your mouse at the color... 3...");
@@ -1550,21 +1551,327 @@ public final class Clawdtop {
         }
     }
 
-    // ---- The desktop: fetching a song you drag near him, and tidying everything into a Neat folder ----
+    // ---- The desktop: grabbing a file you put near him (or drop on him), and tidying everything into a Neat folder ----
     private Path desktopFolder;                                  // (learned the first time he looks)
-    private final java.util.Map<String, Boolean> songNearHim = new java.util.HashMap<>(); // song files on the desktop: near him last time?
+    private final java.util.Map<String, Boolean> nearHim = new java.util.HashMap<>(); // songs, zips and pictures on the desktop: near him last time?
     private boolean lookingAtDesktop, desktopLooked;            // (the first look only learns what's already there)
-    private Path fetching;                                       // the song file he's off to get
-    private int fetchStage;                                      // 1: hopping over to it, 2: bringing it home
-    private long fetchSince;
+    private Path grabbing;                                       // the file he's going for
+    private String grabKind;                                     // what it is: "song", "zip" or "picture"
+    private int grabStage;                                       // 1: going for it, 2: got it, heading home, 3: home, waiting till it's ready, 4: tearing it up or filing it
+    private long grabSince;
+    private Grabbed grabbed;                                     // (once it's off the desktop and he's worked on it)
+    private Handy.Unzipped unzipped;                             // a zip's folder, waiting to come out
+    private Path smaller;                                        // a picture's smaller copy (or ALREADY_SMALL), waiting to come out
+
+    /** A file he grabbed: where it was, where it is now (null: he couldn't pick it up), and what he made of it. */
+    private record Grabbed(Path from, Path now, Object made) {
+    }
+
+    /** What he does with a file: "song" (plays it), "zip" (tears it open), "picture" (makes it smaller), or null (not his thing). */
+    static String grabKind(Path file) {
+        if (Piano.isMidi(file.toFile())) return "song";
+        if (Handy.zip(file)) return "zip";
+        return Handy.picture(file) ? "picture" : null;
+    }
+
+    /** Where the pictures you give him go (the originals: you get a smaller copy back). */
+    static Path picturesFolder() {
+        return Settings.folder().resolve("Pictures you gave me");
+    }
+
+    /** Where a zip waits while he unzips it (before it's torn up). */
+    static Path unzippingFolder() {
+        return Settings.folder().resolve("unzipping");
+    }
+
+    /** You dropped a file right on him: he jumps up and catches it. */
+    private void dropped(Path file) {
+        if (grabStage != 0) pet.say("One at a time! I'm still on the last one.");
+        else if (!java.nio.file.Files.isRegularFile(file) || grabKind(file) == null) pet.say("Hmm, I can't do anything with that one.");
+        else if (!startGrab(file, body.x(), groundY - 5 * settings.unit())) pet.say("Ooh! Give me a sec, I'm busy.");
+    }
+
+    /** Off he goes for a file (a song, a zip or a picture): runs under (x, top) and jumps up to grab it. */
+    private boolean startGrab(Path file, double x, double top) {
+        String kind = grabKind(file);
+        if (kind == null || grabStage != 0 || tidyStage != 0 || job != null || hidden || boxed) return false;
+        if (body.state() != Body.State.HOME || pet.busyNow() || !body.grab(x, top)) return false;
+        grabbing = file;
+        grabKind = kind;
+        grabStage = 1;
+        grabSince = System.currentTimeMillis();
+        grabbed = null;
+        pet.say(switch (kind) {
+            case "song" -> "Ooh, a song file! Mine!";
+            case "zip" -> "A zip! Gimme gimme!";
+            default -> "Ooh, a picture! Hang on...";
+        });
+        return true;
+    }
+
+    /**
+     * Each frame: how his grab is going. He gets it at the top of his jump (it's off the desktop right then: songs go
+     * in his songs, pictures in his pictures, zips wait to be unzipped), and once he's home and it's ready: a song, he
+     * plays; a zip, he tears up (scraps everywhere) and out comes its folder; a picture, he files away and out comes
+     * a smaller copy. Anything he can't use goes back where it was.
+     */
+    private void grabTrip() {
+        if (grabStage == 0) {
+            if (pet.held() != null) pet.hold(null); // (never left holding something that's gone)
+            return;
+        }
+        long now = System.currentTimeMillis();
+        pet.setInAir(body.jumping());
+        if (grabStage == 1) {
+            if (body.takeGrabbed()) takeIt(now);
+            else if (body.state() != Body.State.GRAB || now - grabSince > 10_000) { // (knocked off course: never mind)
+                grabStage = 0;
+                grabbing = null;
+            }
+        } else if (grabStage == 2 && (body.state() == Body.State.HOME || now - grabSince > 30_000)) {
+            grabStage = 3;
+            grabSince = now;
+        } else if (grabStage == 3 && grabbed != null) {
+            useIt(now);
+        } else if (grabStage == 3 && now - grabSince > 120_000) { // (still not done: something's stuck)
+            pet.hold(null);
+            pet.say("Hmm, that's taking forever. Never mind!");
+            grabStage = 0;
+        } else if (grabStage == 4 && pet.mood() != Pet.Mood.TEAR && pet.mood() != Pet.Mood.STASH && now - grabSince > 800
+                && (!scraps.active() || scraps.landed() || now - grabSince > 6000)) {
+            grabStage = 5; // (out it comes: on worker)
+            revealIt();
+        }
+    }
+
+    /** Got it! Off the desktop it goes (on worker, with the unzipping or shrinking), while he heads home with it. */
+    private void takeIt(long now) {
+        Path from = grabbing;
+        String kind = grabKind;
+        grabbing = null;
+        grabStage = 2;
+        grabSince = now;
+        pet.hold(kind);
+        nearHim.remove(from.toString());
+        worker.execute(() -> {
+            Path at = null;
+            Object made = null;
+            try {
+                at = switch (kind) {
+                    case "song" -> keepSong(from);
+                    case "picture" -> moveFile(from, Desktop.free(picturesFolder().resolve(from.getFileName().toString())));
+                    default -> moveFile(from, Desktop.free(unzippingFolder().resolve(from.getFileName().toString())));
+                };
+                if (kind.equals("zip")) {
+                    try {
+                        made = Handy.unzip(at);
+                    } catch (IOException | RuntimeException broken) {
+                        made = "too big".equals(broken.getMessage()) || "too many files".equals(broken.getMessage())
+                                ? "Whoa, that zip is HUGE inside. I stopped, to be safe." : "Hmm, I couldn't unzip that one.\n(It might be damaged, or need a password.)";
+                    }
+                } else if (kind.equals("picture")) {
+                    try {
+                        made = Handy.shrink(at);
+                    } catch (IOException | RuntimeException broken) {
+                        made = null;
+                    }
+                    if (made == null) made = "Hmm, I couldn't open that picture.";
+                }
+            } catch (IOException | RuntimeException cant) {
+                at = null;
+            }
+            Grabbed got = new Grabbed(from, at, made);
+            SwingUtilities.invokeLater(() -> grabbed = got);
+        });
+    }
+
+    /** Home with it, and it's ready: plays it, tears it up, or files it away (or gives it back, if he can't use it). */
+    private void useIt(long now) {
+        Grabbed got = grabbed;
+        grabSince = now;
+        if (got.now() == null) {
+            pet.hold(null);
+            pet.say("Hmm, I can't pick that one up.\n(Is it open in another program?)");
+            grabStage = 0;
+            return;
+        }
+        switch (grabKind) {
+            case "song" -> {
+                pet.hold(null);
+                grabStage = 0;
+                pet.say("Got it! It's in my songs now.");
+                later(900, () -> playDropped(got.now().toFile()));
+            }
+            case "zip" -> {
+                if (!(got.made() instanceof Handy.Unzipped folder)) {
+                    giveBack(got, (String) got.made());
+                    return;
+                }
+                unzipped = folder;
+                grabStage = 4;
+                pet.tearUp();
+                later((int) Sprite.TEAR_FLING, () -> { // flung! out onto the desktop in front of him
+                    if (hidden) return;
+                    showFx();
+                    int unit = settings.unit();
+                    scraps.start(body.x(), groundY - 7 * unit, unit);
+                });
+            }
+            default -> {
+                if (!(got.made() instanceof Path copy)) {
+                    giveBack(got, (String) got.made());
+                    return;
+                }
+                smaller = copy;
+                grabStage = 4;
+                pet.fileAway();
+            }
+        }
+    }
+
+    /** He can't use it: it goes back where it was (or as near as it can), and he says why. */
+    private void giveBack(Grabbed got, String why) {
+        pet.hold(null);
+        pet.say(why);
+        grabStage = 0;
+        worker.execute(() -> {
+            try {
+                moveFile(got.now(), Desktop.free(got.from()));
+            } catch (IOException | RuntimeException cant) {
+                // it's safe where it is (in his folder)
+            }
+        });
+    }
+
+    /** Out comes the zip's folder (and the zip goes in the Recycle Bin), or the smaller picture: on the desktop, in front of him. */
+    private void revealIt() {
+        Grabbed got = grabbed;
+        Handy.Unzipped folder = unzipped;
+        Path copy = smaller;
+        boolean zip = "zip".equals(grabKind);
+        double x = homeX, y = groundY - 120; // (just above him, on the desktop)
+        boolean askFinder = settings.flag("finderOk");
+        worker.execute(() -> {
+            Path desk = desktopFolder != null ? desktopFolder : realDesktop();
+            Path out = null;
+            try {
+                if (zip) {
+                    out = moveTree(folder.folder(), Desktop.free(desk.resolve(folder.folder().getFileName().toString())));
+                    trash(got.now());
+                } else if (copy == Handy.ALREADY_SMALL) {
+                    out = java.nio.file.Files.copy(got.now(), Desktop.free(desk.resolve(got.now().getFileName().toString())));
+                } else {
+                    out = moveFile(copy, Desktop.free(desk.resolve(copy.getFileName().toString())));
+                }
+            } catch (IOException | RuntimeException cant) {
+                out = null;
+            }
+            Path shown = out;
+            if (shown != null) SwingUtilities.invokeLater(() -> nearHim.put(shown.toString(), true)); // (his, not one for him to grab)
+            boolean placed = shown != null && Desktop.place(shown, x, y, askFinder);
+            SwingUtilities.invokeLater(() -> {
+                grabStage = 0;
+                unzipped = null;
+                smaller = null;
+                if (shown == null) {
+                    pet.say(zip ? "Hmm, I couldn't put the folder on your desktop.\nIt's in my unzipping folder." : "Hmm, I couldn't put the picture on your desktop.");
+                    return;
+                }
+                String where = placed ? "right here on your desktop" : "on your desktop";
+                pet.speak();
+                if (zip) {
+                    bubble.ask("Ta-da! " + folder.files() + (folder.files() == 1 ? " file" : " files") + " in the folder \"" + shown.getFileName() + "\",\n" + where + ".\n(The zip's in the " + (Platform.MAC ? "Trash" : "Recycle Bin") + ", just in case.)",
+                            new String[] {"Open it", "OK"}, c -> { if (c == 0) FindFile.open(shown); }, head(), popupBounds());
+                    Diary.write("Somebody gave me a zip. I tore it right open! RRRIP. " + folder.files() + " files inside.");
+                } else {
+                    String sizes = copy == Handy.ALREADY_SMALL ? "It was already small, so it's the same size."
+                            : Handy.size(got.now()) + " became " + Handy.size(shown) + ".";
+                    bubble.ask("Here's your picture, smaller: " + shown.getFileName() + ", " + where + ".\n" + sizes
+                            + "\nI filed the big one away (my menu: Useful > Pictures you gave me).",
+                            new String[] {"Show me", "OK"}, c -> { if (c == 0) FindFile.showInFolder(shown); }, head(), popupBounds());
+                    Diary.write("Somebody gave me a picture. I filed it away nice and neat, and gave them a smaller one.");
+                }
+                bubble.expireIn(30_000);
+            });
+        });
+    }
+
+    /** Keeps a song file in his songs (jam tracks in songs/jams). Where it is now. */
+    static Path keepSong(Path from) throws IOException {
+        Path songs = songsFolder().toAbsolutePath().normalize();
+        if (from.toAbsolutePath().normalize().startsWith(songs)) return from; // (already one of his)
+        Path into = isJam(from.toFile()) ? songs.resolve("jams") : songs;
+        java.nio.file.Files.createDirectories(into);
+        Path same = into.resolve(from.getFileName().toString());
+        if (java.nio.file.Files.isRegularFile(same) && java.nio.file.Files.mismatch(same, from) == -1) { // he's already got this exact one
+            trash(from);
+            return same;
+        }
+        return moveFile(from, Desktop.free(same));
+    }
+
+    /** Moves a file (making its folder if need be); where he can't move it from, he takes a copy instead. Where it is now. */
+    static Path moveFile(Path from, Path to) throws IOException {
+        java.nio.file.Files.createDirectories(to.getParent());
+        try {
+            return java.nio.file.Files.move(from, to);
+        } catch (IOException cantMove) {
+            if (java.nio.file.Files.exists(to)) return to; // (copied over, but the original wouldn't go)
+            return java.nio.file.Files.copy(from, to);
+        }
+    }
+
+    /** Moves a folder and everything in it (copying it over, if it's going to another drive). Where it is now. */
+    static Path moveTree(Path from, Path to) throws IOException {
+        java.nio.file.Files.createDirectories(to.getParent());
+        try {
+            return java.nio.file.Files.move(from, to);
+        } catch (IOException otherDrive) {
+            try (var all = java.nio.file.Files.walk(from)) {
+                for (Path p : all.toList()) {
+                    Path there = to.resolve(from.relativize(p).toString());
+                    if (java.nio.file.Files.isDirectory(p)) java.nio.file.Files.createDirectories(there);
+                    else java.nio.file.Files.copy(p, there);
+                }
+            }
+            try (var all = java.nio.file.Files.walk(from)) {
+                for (Path p : all.sorted(java.util.Comparator.reverseOrder()).toList()) java.nio.file.Files.deleteIfExists(p);
+            } catch (IOException leftBehind) {
+                // the copy's out; the rest can wait in his folder
+            }
+            return to;
+        }
+    }
+
+    /** Into the Recycle Bin (the Trash on a Mac) it goes, so it can come back; where there isn't one, it stays put. */
+    static void trash(Path file) {
+        try {
+            if (java.awt.Desktop.isDesktopSupported() && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.MOVE_TO_TRASH)) {
+                java.awt.Desktop.getDesktop().moveToTrash(file.toFile());
+            }
+        } catch (RuntimeException cant) {
+            // left where it is
+        }
+    }
+
+    /** The desktop folder (asking, if he hasn't looked yet: on Windows it may be in OneDrive). Takes a moment. */
+    private static Path realDesktop() {
+        if (Platform.WINDOWS) { // (on a Mac, looking means asking Finder: not out of nowhere)
+            Desktop.Layout layout = Desktop.look();
+            if (layout != null && layout.folder() != null) return layout.folder();
+            Path oneDrive = Path.of(System.getProperty("user.home"), "OneDrive", "Desktop");
+            if (java.nio.file.Files.isDirectory(oneDrive)) return oneDrive;
+        }
+        return Path.of(System.getProperty("user.home"), "Desktop");
+    }
     private final java.util.ArrayDeque<Object[]> tidyQueue = new java.util.ArrayDeque<>(); // {file, x, y} still to tackle
     private int tidyStage, tidiedCount;                          // 1: hopping to the next one
     private long tidySince;
-    private String songsOnDesktop = "";                          // the song files there last time (a new one: a look)
+    private String grabbablesOnDesktop = "";                     // the songs, zips and pictures there last time (a new one: a look)
     private long dragSince, lastDesktopLook;                     // a drag (holding the button down) just ended: a look
     private boolean draggedSomething;
 
-    /** Each frame (Windows): a mouse drag just ended? (Maybe a song file was dragged near him: worth a look.) */
+    /** Each frame (Windows): a mouse drag just ended? (Maybe a file was dragged near him: worth a look.) */
     private void noticeDrags() {
         if (!Platform.WINDOWS) return;
         boolean down = Foreground.leftButtonDown();
@@ -1584,30 +1891,31 @@ public final class Clawdtop {
         return Platform.WINDOWS || (Platform.MAC && settings.flag("finderOk"));
     }
 
-    /** Every few seconds: a song file dragged near him on the desktop? He goes and gets it. */
+    /** Every few seconds: a song, zip or picture dragged near him on the desktop (within 3 icons)? He goes and grabs it. */
     private void watchDesktopForSongs() {
-        if (!desktopReadable() || lookingAtDesktop || fetchStage != 0 || tidyStage != 0 || job != null || hidden || boxed
+        if (!desktopReadable() || lookingAtDesktop || grabStage != 0 || tidyStage != 0 || job != null || hidden || boxed
                 || body.state() != Body.State.HOME || pet.busyNow()) return;
         long now = System.currentTimeMillis();
         boolean look;
         if (desktopFolder == null) look = !desktopLooked; // (the first time: one look, to learn where the desktop really is)
         else {
-            String songs;
-            try (var files = java.nio.file.Files.list(desktopFolder)) {
-                songs = files.filter(f -> Piano.isMidi(f.toFile())).map(f -> f.getFileName().toString()).sorted().toList().toString();
+            String files;
+            try (var all = java.nio.file.Files.list(desktopFolder)) {
+                files = all.filter(f -> grabKind(f) != null).map(f -> f.getFileName().toString()).sorted().toList().toString();
             } catch (IOException | RuntimeException e) {
-                songs = "[]";
+                files = "[]";
             }
-            boolean newSongs = !songs.equals(songsOnDesktop);
-            songsOnDesktop = songs;
-            if (songs.equals("[]")) {
-                songNearHim.clear();
+            boolean newFiles = !files.equals(grabbablesOnDesktop);
+            grabbablesOnDesktop = files;
+            if (files.equals("[]")) {
+                nearHim.clear();
                 return;
             }
-            // looking takes a moment (and a little program), so only when something's changed: a new song file, a drag
+            // looking takes a moment (and a little program), so only when something's changed: a new file, a drag
             // just ended (Windows), or now and then (Mac, where Finder doesn't mind)
-            look = newSongs || draggedSomething || (Platform.MAC && now - lastDesktopLook > 10_000);
+            look = newFiles || draggedSomething || (Platform.MAC && now - lastDesktopLook > 10_000);
         }
+        boolean dragged = draggedSomething;
         draggedSomething = false;
         if (!look || now - lastDesktopLook < 2500) return;
         lastDesktopLook = now;
@@ -1627,52 +1935,31 @@ public final class Clawdtop {
                 boolean first = !desktopLooked;
                 desktopLooked = true;
                 String only = System.getProperty("clawdtop.tidyOnly"); // (the screen test: only its own pretend files)
+                int unit = settings.unit();
                 for (Desktop.Icon icon : layout.icons()) {
                     Path file = Desktop.fileFor(icon, layout.folder());
-                    if (file == null || !Piano.isMidi(file.toFile())) continue;
+                    if (file == null || grabKind(file) == null) continue;
                     if (only != null && !file.getFileName().toString().startsWith(only)) continue;
                     double[] at = Desktop.spot(icon, screen, scale);
                     double x = at[0], y = at[1];
                     boolean near = Math.abs(x - homeX) < 3 * tile && groundY - y < 3.5 * tile && y < groundY;
-                    Boolean before = songNearHim.put(file.toString(), near);
-                    // dragged in close (or just put down there): off he goes. (Not for ones already there when he started)
-                    if (near && !first && (before == null || !before) && fetchStage == 0 && body.state() == Body.State.HOME && !pet.busyNow()) {
-                        fetching = file;
-                        fetchStage = 1;
-                        fetchSince = System.currentTimeMillis();
-                        pet.say("Ooh, a song file! Hang on...");
-                        body.perchAt(x, y);
+                    Boolean before = nearHim.put(file.toString(), near);
+                    // dragged in close (or just put down there): off he goes. (Not for ones already there when he started;
+                    // and a new zip or picture only if you just dragged it there, not one that's just been saved there)
+                    boolean moved = before != null && !before, arrived = before == null && (dragged || grabKind(file).equals("song") || Platform.MAC);
+                    if (near && !first && (moved || arrived) && grabStage == 0) {
+                        // he jumps so his hands reach the middle of the icon (his hands, reaching up, are 13 of his pixels above his feet)
+                        startGrab(file, x, Math.min(groundY - 4 * unit, y + 26 + 12 * unit));
                     }
                 }
             });
         });
     }
 
-    /** Each frame: how his trip to fetch a song, or to tidy the desktop, is going. */
+    /** Each frame: how his trip to grab a file, or to tidy the desktop, is going. */
     private void desktopTrips() {
         long now = System.currentTimeMillis();
-        if (fetchStage == 1 && body.state() == Body.State.PERCH) { // got there: he picks it up (into his songs) and hops down
-            Path into = Clawdtop.isJam(fetching.toFile()) ? songsFolder().resolve("jams") : songsFolder();
-            try {
-                java.nio.file.Files.createDirectories(into);
-                fetching = java.nio.file.Files.move(fetching, Desktop.free(into.resolve(fetching.getFileName().toString())));
-                pet.say("Got it! (It's in my songs now.)");
-            } catch (IOException | RuntimeException cant) {
-                pet.say("Hmm, I can't pick that one up.");
-                fetching = null;
-            }
-            body.leave();
-            fetchStage = 2;
-            fetchSince = now;
-        } else if (fetchStage == 2 && body.state() == Body.State.HOME) { // home again: and he plays it
-            fetchStage = 0;
-            if (fetching != null) playDropped(fetching.toFile());
-            fetching = null;
-        } else if (fetchStage != 0 && now - fetchSince > 20_000) { // (something went wrong: never mind)
-            fetchStage = 0;
-            fetching = null;
-            if (body.state() == Body.State.PERCH || body.state() == Body.State.HOP_TO) body.leave();
-        }
+        grabTrip();
         if (tidyStage == 1 && body.state() == Body.State.PERCH && now - tidySince > 800) { // landed on it: tackled into Neat
             Object[] next = tidyQueue.poll();
             if (next != null) {
@@ -1744,7 +2031,7 @@ public final class Clawdtop {
                         + "sorted by type (Pictures, Music, Documents...).\nNothing gets deleted, and I can put them back. Go?",
                         new String[] {"Go!", "Not now"}, choice -> {
                             if (choice != 0) return;
-                            if (fetchStage != 0 || tidyStage != 0) {
+                            if (grabStage != 0 || tidyStage != 0) {
                                 pet.say("Hang on, let me finish this first!");
                                 return;
                             }
@@ -2006,10 +2293,11 @@ public final class Clawdtop {
         }
         if (pet.duckSpam() && newTick && ticks % 7 == 0) dropDuck();
         explosion.tick(frameMs);
-        if (ducks.active() || explosion.active()) {
+        if (ducks.active() || explosion.active() || scraps.active()) {
             Rectangle screen = screenBounds();
             ducks.tick(frameMs, groundY, screen.x, screen.x + screen.width);
-            boolean still = ducks.settled() && !explosion.active();
+            scraps.tick(frameMs, groundY, screen.x, screen.x + screen.width);
+            boolean still = ducks.settled() && !explosion.active() && scraps.settled();
             if (duckWindow != null && (!still || !fxStill)) duckWindow.repaint(); // (once they've all landed: drawn once, then left be)
             fxStill = still;
         } else if (duckWindow != null && duckWindow.isVisible()) {
@@ -2029,7 +2317,8 @@ public final class Clawdtop {
 
     private final DuckRain ducks = new DuckRain();
     private final Explosion explosion = new Explosion();
-    private javax.swing.JWindow duckWindow; // see-through, over the whole screen, for big things: ducks, explosions
+    private final Scraps scraps = new Scraps();
+    private javax.swing.JWindow duckWindow; // see-through, over the whole screen, for big things: ducks, explosions, scraps
 
     /** One more duck, from the middle of the screen. */
     private void dropDuck() {
@@ -2053,6 +2342,7 @@ public final class Clawdtop {
                     g2.setComposite(java.awt.AlphaComposite.SrcOver);
                     ducks.paint(g2, duckWindow.getX(), duckWindow.getY(), Math.max(3, settings.unit()));
                     explosion.paint(g2, duckWindow.getX(), duckWindow.getY(), settings.unit() / 4.0);
+                    scraps.paint(g2, duckWindow.getX(), duckWindow.getY());
                     g2.dispose();
                 }
             };
@@ -2115,16 +2405,6 @@ public final class Clawdtop {
                 });
                 piano.add(item);
             }
-            java.util.List<java.io.File> yours = new java.util.ArrayList<>(songs(songsFolder()));
-            yours.removeIf(Clawdtop::isJam); // (jam tracks are in Jam session)
-            if (!yours.isEmpty()) {
-                piano.addSeparator();
-                for (java.io.File f : yours) {
-                    JMenuItem item = new JMenuItem(f.getName().replaceAll("(?i)\\.midi?$", ""));
-                    item.addActionListener(e -> playDropped(f));
-                    piano.add(item);
-                }
-            }
             JMenuItem folder = new JMenuItem("Your songs folder (put MIDI files in it)...");
             folder.addActionListener(e -> {
                 try {
@@ -2142,7 +2422,9 @@ public final class Clawdtop {
             }));
             piano.addSeparator();
             piano.add(mine);
+            piano.add(soundMenu("Piano sound", "pianoSound", Beeps.PIANO_SOUNDS));
             fun.add(piano);
+            fun.add(mySongsMenu());
             javax.swing.JMenu sing = new javax.swing.JMenu("Sing a song");
             JMenuItem anySong = new JMenuItem("Sing me something!");
             anySong.addActionListener(e -> sing(""));
@@ -2196,6 +2478,10 @@ public final class Clawdtop {
                         if (pet.play(inst, song)) earnFun(Shop.SONG);
                     });
                     menuFor.add(item);
+                }
+                if (inst == Piano.Instrument.GUITAR) {
+                    menuFor.addSeparator();
+                    menuFor.add(soundMenu("Guitar sound", "guitarSound", Beeps.GUITAR_SOUNDS));
                 }
                 fun.add(menuFor);
             }
@@ -2278,6 +2564,16 @@ public final class Clawdtop {
             }
         });
         useful.add(noteItem);
+        JMenuItem picturesItem = new JMenuItem("Pictures you gave me...");
+        picturesItem.addActionListener(e -> {
+            try {
+                java.nio.file.Files.createDirectories(picturesFolder());
+                FindFile.open(picturesFolder());
+            } catch (IOException | RuntimeException cant) {
+                pet.say("Hmm, I couldn't open that folder.");
+            }
+        });
+        useful.add(picturesItem);
         JMenuItem colorItem = new JMenuItem("What color is this? (point at it)");
         colorItem.addActionListener(e -> pickColor());
         useful.add(colorItem);
@@ -2312,7 +2608,39 @@ public final class Clawdtop {
         menu.addSeparator();
         menu.add(shop());
         menu.add(settingsMenu());
+        openOnClick(menu);
         return menu;
+    }
+
+    /**
+     * Every submenu in a menu opens when you click it, not just because the mouse went over it (so the menu that
+     * happens to be under the mouse when it pops up doesn't spring open by itself).
+     */
+    static void openOnClick(MenuElement menu) {
+        for (MenuElement e : menu.getSubElements()) {
+            if (!(e instanceof javax.swing.JMenu sub)) continue;
+            sub.setDelay(Integer.MAX_VALUE); // (hovering never gets there)
+            sub.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseReleased(MouseEvent click) {
+                    if (sub.isEnabled()) openSubmenu(sub);
+                }
+            });
+            openOnClick(sub.getPopupMenu());
+        }
+    }
+
+    /** Opens a submenu (as if you'd waited on it). */
+    static void openSubmenu(javax.swing.JMenu sub) {
+        MenuSelectionManager manager = MenuSelectionManager.defaultManager();
+        MenuElement[] path = manager.getSelectedPath();
+        for (int i = 0; i < path.length; i++) {
+            if (path[i] != sub) continue;
+            MenuElement[] open = java.util.Arrays.copyOf(path, i + 2);
+            open[i + 1] = sub.getPopupMenu();
+            manager.setSelectedPath(open);
+            return;
+        }
     }
 
     /** The shop: what Clawd Points buy (and putting on what he already has). */
@@ -3433,7 +3761,7 @@ public final class Clawdtop {
         String kind = Tips.kind(front);
         if (java.util.Objects.equals(kind, lastKind)) return;
         lastKind = kind;
-        if (kind == null || !settings.tips() || hidden || focusUntil > 0 || bubble.asking()) return;
+        if (kind == null || !settings.tips() || hidden || focusUntil > 0 || bubble.asking() || pet.sleepy()) return; // (no tips in his sleep)
         long now = System.currentTimeMillis();
         if (!Tips.urgent(front) && now - lastTipAt < pet.personality().tipGap()) return;
         String tip = tips.tipFor(front);
@@ -3517,6 +3845,9 @@ public final class Clawdtop {
                     default -> Body.WALK_SPEED;
                 });
         beeps.setVoice(s.choice("voice"), s.number("volume"));
+        beeps.setSounds(s.choice("pianoSound"), s.choice("guitarSound"));
+        if (!s.choice("pianoSound").equals(pianoSound) && sequencerFile != null && !sequencerBand) sequencerFile = null; // (a song playing: on the new sound)
+        pianoSound = s.choice("pianoSound");
         Bubble.setFont(s.choice("font"));
         Bubble.stay = switch (s.choice("bubbleTime")) {
             case "Short" -> 0.6;
@@ -3717,8 +4048,7 @@ public final class Clawdtop {
             case "yes" -> bubble.press(0);
             case "tidy" -> tidyDesktop();
             case "options" -> OptionsWindow.show(() -> settings, this::optionsChanged);
-            case "drop picture" -> offerShrink(Path.of(System.getProperty("smoke.file", "missing")));
-            case "drop zip" -> offerUnzip(Path.of(System.getProperty("smoke.file", "missing")));
+            case "drop picture", "drop zip", "drop song" -> dropped(Path.of(System.getProperty("smoke.file", "missing")));
             case "eye break" -> startEyeBreak();
             case "rundown" -> {
                 String r = Helpers.rundown(java.time.LocalDate.now(), settings.todos(), settings.text("sticky"), Helpers.daysToBirthday(settings.birthday(), java.time.LocalDate.now()), settings.name());

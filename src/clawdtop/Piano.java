@@ -117,6 +117,8 @@ final class Piano {
     static final double CROWDED = 12;
     /** The instrument his singing voice uses in a song file: a soft square wave, like his beeps. */
     static final int VOICE_PROGRAM = 80;
+    /** The lowest note that still sounds like a note (below it, it's rumble: those come up an octave or two). */
+    static final int LOWEST = 28, LOWEST_LEAD = 36;
     /** How hard (on average) the notes of a song file are played, at least: a softly written song is played up to this. */
     static final int LOUDNESS = 80;
 
@@ -126,15 +128,23 @@ final class Piano {
      * at once, or the same note doubled by several instruments) it's thinned out a bit. Not too much: it's still the song.
      */
     static javax.sound.midi.Sequence pianoOnly(javax.sound.midi.Sequence seq) throws javax.sound.midi.InvalidMidiDataException {
-        return forClawd(seq, true);
+        return forClawd(seq, true, "Grand");
     }
+
+    /** The same, on the piano sound you picked: "Grand" (or his electric piano, for songs of long held notes), "Electric piano", "Harpsichord". */
+    static javax.sound.midi.Sequence pianoOnly(javax.sound.midi.Sequence seq, String sound) throws javax.sound.midi.InvalidMidiDataException {
+        return forClawd(seq, true, sound);
+    }
+
+    /** The General MIDI instrument for each of his piano sounds. */
+    static final int HARPSICHORD = 6;
 
     /** The same, keeping the song's own instruments and drums (for the end of a jam session: the whole band). */
     static javax.sound.midi.Sequence fullBand(javax.sound.midi.Sequence seq) throws javax.sound.midi.InvalidMidiDataException {
-        return forClawd(seq, false);
+        return forClawd(seq, false, "Grand");
     }
 
-    private static javax.sound.midi.Sequence forClawd(javax.sound.midi.Sequence seq, boolean allPiano) throws javax.sound.midi.InvalidMidiDataException {
+    private static javax.sound.midi.Sequence forClawd(javax.sound.midi.Sequence seq, boolean allPiano, String sound) throws javax.sound.midi.InvalidMidiDataException {
         javax.sound.midi.Track[] tracks = seq.getTracks();
         // which channels are singing: a voice or choir instrument, or a track named like one
         boolean[] vocal = new boolean[16];
@@ -170,7 +180,11 @@ final class Piano {
         }
         java.util.Collections.sort(held);
         double msPerTick = seq.getMicrosecondLength() / 1000.0 / Math.max(1, seq.getTickLength());
-        int pianoSound = !held.isEmpty() && held.get(held.size() / 2) * msPerTick >= LONG_NOTES_MS ? ELECTRIC_PIANO : 0;
+        int pianoSound = switch (sound) {
+            case "Electric piano" -> ELECTRIC_PIANO;
+            case "Harpsichord" -> HARPSICHORD;
+            default -> !held.isEmpty() && held.get(held.size() / 2) * msPerTick >= LONG_NOTES_MS ? ELECTRIC_PIANO : 0;
+        };
         // a part that only ever hits one or two low notes is really a drum (an 808 boom, say): on his piano it'd be a thud
         java.util.Map<Integer, java.util.Set<Integer>> pitches = new java.util.HashMap<>();
         int[] hits = new int[16];
@@ -187,6 +201,24 @@ final class Piano {
             int c = entry.getKey();
             thud[c] = allPiano && c != 9 && !vocal[c] && hits[c] >= 8 && entry.getValue().size() <= 2 && java.util.Collections.max(entry.getValue()) < 40;
         }
+        // how low each part may go: a bass guitar down to LOWEST; with the whole band, anything else (a synth, say) not
+        // below LOWEST_LEAD (way down there a lead's just a growl)
+        int[] lowest = new int[16];
+        java.util.Arrays.fill(lowest, allPiano ? LOWEST : LOWEST_LEAD);
+        for (javax.sound.midi.Track track : tracks) {
+            for (int i = 0; i < track.size(); i++) {
+                if (track.get(i).getMessage() instanceof javax.sound.midi.ShortMessage m && m.getCommand() == javax.sound.midi.ShortMessage.PROGRAM_CHANGE
+                        && m.getData1() >= 32 && m.getData1() <= 39) lowest[m.getChannel()] = LOWEST;
+            }
+        }
+        // with the whole band, a part that goes too low comes up an octave or two as a whole (so its tune stays its tune)
+        int[] shift = new int[16];
+        if (!allPiano) {
+            for (int c = 0; c < 16; c++) {
+                Integer low = pitches.containsKey(c) ? java.util.Collections.min(pitches.get(c)) : null;
+                while (c != 9 && low != null && low + shift[c] < lowest[c]) shift[c] += 12;
+            }
+        }
         // out go the drums, the instrument changes and the effects (volume, expression and the sustain pedal stay)
         for (javax.sound.midi.Track track : tracks) {
             for (int i = track.size() - 1; i >= 0; i--) {
@@ -198,8 +230,12 @@ final class Piano {
                         || cmd == javax.sound.midi.ShortMessage.CHANNEL_PRESSURE || cmd == javax.sound.midi.ShortMessage.POLY_PRESSURE
                         || (cmd == javax.sound.midi.ShortMessage.CONTROL_CHANGE && m.getData1() != 7 && m.getData1() != 11 && m.getData1() != 64);
                 if (drums || effect) track.remove(e);
-                else if (allPiano && m.getChannel() != 9 && (cmd == javax.sound.midi.ShortMessage.NOTE_ON || cmd == javax.sound.midi.ShortMessage.NOTE_OFF) && m.getData1() < 28) {
-                    m.setMessage(cmd, m.getChannel(), m.getData1() + 12, m.getData2()); // (the very bottom of the piano is just rumble: up an octave)
+                else if (shift[m.getChannel()] > 0 && (cmd == javax.sound.midi.ShortMessage.NOTE_ON || cmd == javax.sound.midi.ShortMessage.NOTE_OFF)) {
+                    m.setMessage(cmd, m.getChannel(), Math.min(127, m.getData1() + shift[m.getChannel()]), m.getData2());
+                } else if (m.getChannel() != 9 && (cmd == javax.sound.midi.ShortMessage.NOTE_ON || cmd == javax.sound.midi.ShortMessage.NOTE_OFF) && m.getData1() < lowest[m.getChannel()]) {
+                    int up = m.getData1();
+                    while (up < lowest[m.getChannel()]) up += 12; // (the very bottom is just rumble, on any instrument: up an octave or two)
+                    m.setMessage(cmd, m.getChannel(), up, m.getData2());
                 }
             }
         }
@@ -316,7 +352,7 @@ final class Piano {
                 dropOff.merge(key, 1, Integer::sum); // (and the old one's ending goes, since it's ended now)
                 continue;
             }
-            if (sounding.getOrDefault(n.pitch(), 0) > 0 || playing >= atOnce) { // doubled by another part, or too many at once
+            if (allPiano && (sounding.getOrDefault(n.pitch(), 0) > 0 || playing >= atOnce)) { // doubled by another part, or too many at once (the whole band keeps every note)
                 n.track().remove(n.event());
                 dropOff.merge(key, 1, Integer::sum);
                 continue;
@@ -355,16 +391,57 @@ final class Piano {
             first.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.CONTROL_CHANGE, channel, 91, 0), 0)); // no reverb
             first.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.CONTROL_CHANGE, channel, 93, 0), 0)); // no chorus
         }
-        return seq;
+        return trimmed(seq);
+    }
+
+    /**
+     * The song without the silence before its first note and after its last (some files sit silent for seconds at the
+     * start, or minutes at the end). The settings before the first note (tempo, instruments) all still happen, at the start.
+     */
+    static javax.sound.midi.Sequence trimmed(javax.sound.midi.Sequence seq) throws javax.sound.midi.InvalidMidiDataException {
+        long firstOn = Long.MAX_VALUE, lastNote = 0;
+        for (javax.sound.midi.Track track : seq.getTracks()) {
+            for (int i = 0; i < track.size(); i++) {
+                if (!(track.get(i).getMessage() instanceof javax.sound.midi.ShortMessage m)) continue;
+                boolean on = m.getCommand() == javax.sound.midi.ShortMessage.NOTE_ON && m.getData2() > 0;
+                if (on) firstOn = Math.min(firstOn, track.get(i).getTick());
+                if (on || m.getCommand() == javax.sound.midi.ShortMessage.NOTE_OFF || m.getCommand() == javax.sound.midi.ShortMessage.NOTE_ON) {
+                    lastNote = Math.max(lastNote, track.get(i).getTick());
+                }
+            }
+        }
+        if (firstOn == Long.MAX_VALUE) return seq; // (no notes at all)
+        long end = lastNote + Math.max(1, seq.getResolution() / 2); // (a moment to ring out)
+        javax.sound.midi.Sequence out = new javax.sound.midi.Sequence(seq.getDivisionType(), seq.getResolution());
+        for (javax.sound.midi.Track track : seq.getTracks()) {
+            javax.sound.midi.Track copy = out.createTrack();
+            for (int i = 0; i < track.size(); i++) {
+                javax.sound.midi.MidiEvent e = track.get(i);
+                if (e.getMessage() instanceof javax.sound.midi.MetaMessage meta && meta.getType() == 0x2F) continue; // (its end comes at its last event now)
+                if (e.getTick() > end) continue;
+                copy.add(new javax.sound.midi.MidiEvent(e.getMessage(), Math.max(0, e.getTick() - firstOn)));
+            }
+        }
+        if (out.getTracks().length > 0) { // (and it ends a moment after its last note, so that rings out)
+            out.getTracks()[0].add(new javax.sound.midi.MidiEvent(new javax.sound.midi.MetaMessage(0x2F, new byte[0], 0), end - firstOn));
+        }
+        return out;
     }
 
     /** One part of a jam track: which of his instruments plays it, and a bit of it to record. */
     record Part(Instrument instrument, Song bit) {
     }
 
+    /** The most parts he records in a jam session. */
+    static final int MOST_PARTS = 7;
+    /** How long a bit of each part he records (ms, about), and the most notes in it. */
+    static final double PART_MS = 6000;
+    static final int PART_NOTES = 32;
+
     /**
-     * A jam track split into its parts (its own instrument tracks): drums, bass, guitar, keys and singing, each turned
-     * into one of his instruments, with a little bit of that part for him to record. Up to five parts.
+     * A jam track split into its parts (its own instrument tracks): every part with a real job in the song (drums,
+     * bass, guitars, keys, singing...), each turned into one of his instruments, with a bit of that part for him to
+     * record. Up to MOST_PARTS (the busiest, if there are more).
      */
     static java.util.List<Part> jamParts(java.io.File file) {
         java.util.List<Part> parts = new java.util.ArrayList<>();
@@ -383,28 +460,41 @@ final class Piano {
                 }
             }
             double msPerTick = seq.getMicrosecondLength() / 1000.0 / Math.max(1, seq.getTickLength());
-            java.util.Map<Instrument, Integer> best = new java.util.EnumMap<>(Instrument.class); // the busiest channel for each instrument
+            record Found(int channel, Instrument as, int size) {
+            }
+            java.util.List<Found> found = new java.util.ArrayList<>();
             for (var entry : onsets.entrySet()) {
                 int channel = entry.getKey(), p = program[channel];
-                Instrument as = channel == 9 ? Instrument.DRUMS : (p >= 24 && p <= 31) ? Instrument.GUITAR : (p >= 32 && p <= 39) ? Instrument.BASS
-                        : (p == 52 || p == 53 || p == 54 || p == 85 || p == 91) ? Instrument.VOICE : Instrument.PIANO;
-                Integer had = best.get(as);
-                if (had == null || onsets.get(had).size() < entry.getValue().size()) best.put(as, channel);
+                if (entry.getValue().size() < 8) continue; // (a note or two of an effect: not a part)
+                int highest = java.util.Collections.max(entry.getValue().values());
+                Instrument as = channel == 9 ? Instrument.DRUMS : (p == 52 || p == 53 || p == 54 || p == 85 || p == 91) ? Instrument.VOICE
+                        : (p >= 32 && p <= 39) || highest < 48 ? Instrument.BASS // (anything down low is a bass line, like an 808)
+                        : (p >= 24 && p <= 31) ? Instrument.GUITAR : Instrument.PIANO;
+                found.add(new Found(channel, as, entry.getValue().size()));
             }
-            for (Instrument as : new Instrument[] {Instrument.DRUMS, Instrument.BASS, Instrument.GUITAR, Instrument.PIANO, Instrument.VOICE}) {
-                Integer channel = best.get(as);
-                if (channel == null || onsets.get(channel).size() < 4) continue;
-                java.util.List<Long> ticks = new java.util.ArrayList<>(onsets.get(channel).keySet());
-                int count = Math.min(as == Instrument.DRUMS ? 16 : 12, ticks.size());
-                int[] notes = new int[count];
-                double[] ms = new double[count];
-                for (int i = 0; i < count; i++) {
-                    int n = onsets.get(channel).get(ticks.get(i));
-                    notes[i] = as == Instrument.DRUMS ? drumFor(n) : as == Instrument.BASS ? n + 24 : n; // (his bass plays two octaves down)
+            found.sort(java.util.Comparator.comparingInt((Found f) -> -f.size())); // (the busiest, if there are too many)
+            if (found.size() > MOST_PARTS) found = new java.util.ArrayList<>(found.subList(0, MOST_PARTS));
+            found.sort(java.util.Comparator.comparingInt((Found f) -> java.util.List.of(Instrument.DRUMS, Instrument.BASS, Instrument.GUITAR, Instrument.PIANO, Instrument.VOICE).indexOf(f.as()))
+                    .thenComparingInt(f -> -f.size()));
+            for (Found f : found) {
+                java.util.TreeMap<Long, Integer> part = onsets.get(f.channel());
+                java.util.List<Long> ticks = new java.util.ArrayList<>(part.keySet());
+                java.util.List<Integer> notes = new java.util.ArrayList<>();
+                java.util.List<Double> ms = new java.util.ArrayList<>();
+                double total = 0;
+                for (int i = 0; i < ticks.size() && notes.size() < PART_NOTES && total < PART_MS; i++) {
+                    int n = part.get(ticks.get(i));
+                    if (f.as() == Instrument.BASS) {
+                        n += 24; // (his bass plays two octaves down)
+                        while (n < LOWEST + 24) n += 12;
+                    }
+                    notes.add(f.as() == Instrument.DRUMS ? drumFor(n) : n);
                     long next = i + 1 < ticks.size() ? ticks.get(i + 1) : ticks.get(i) + Math.max(1, seq.getResolution());
-                    ms[i] = Math.max(80, Math.min(1500, (next - ticks.get(i)) * msPerTick));
+                    double length = Math.max(80, Math.min(1500, (next - ticks.get(i)) * msPerTick));
+                    ms.add(length);
+                    total += length;
                 }
-                parts.add(new Part(as, new Song(file.getName(), notes, ms, 1)));
+                parts.add(new Part(f.as(), new Song(file.getName(), notes.stream().mapToInt(Integer::intValue).toArray(), ms.stream().mapToDouble(Double::doubleValue).toArray(), 1)));
             }
         } catch (Exception notAMidi) {
             // no parts, then
@@ -429,12 +519,15 @@ final class Piano {
         try {
             javax.sound.midi.Sequence seq = javax.sound.midi.MidiSystem.getSequence(file);
             java.util.TreeMap<Long, Integer> top = new java.util.TreeMap<>(); // start tick -> highest note
-            long lastNote = 0; // when the last note ends (some files go on in silence for minutes after)
+            long lastNote = 0, firstNote = Long.MAX_VALUE; // when the first note starts and the last ends (some files sit silent at the start, or for minutes after)
             for (javax.sound.midi.Track track : seq.getTracks()) {
                 for (int i = 0; i < track.size(); i++) {
                     javax.sound.midi.MidiEvent e = track.get(i);
                     if (e.getMessage() instanceof javax.sound.midi.ShortMessage any && (any.getCommand() == javax.sound.midi.ShortMessage.NOTE_ON
                             || any.getCommand() == javax.sound.midi.ShortMessage.NOTE_OFF)) lastNote = Math.max(lastNote, e.getTick());
+                    if (e.getMessage() instanceof javax.sound.midi.ShortMessage any && any.getCommand() == javax.sound.midi.ShortMessage.NOTE_ON && any.getData2() > 0) {
+                        firstNote = Math.min(firstNote, e.getTick());
+                    }
                     if (e.getMessage() instanceof javax.sound.midi.ShortMessage m && m.getCommand() == javax.sound.midi.ShortMessage.NOTE_ON
                             && m.getData2() > 0 && m.getChannel() != 9) { // (channel 10 is drums)
                         top.merge(e.getTick(), m.getData1(), Math::max);
@@ -457,7 +550,7 @@ final class Piano {
             }
             String name = file.getName().replaceAll("(?i)\\.midi?$", "").replace('_', ' ');
             name = SERVICE_SONGS.getOrDefault(name.toLowerCase(java.util.Locale.ROOT), name); // army.mid -> its real title
-            long songMs = Math.min(seq.getMicrosecondLength() / 1000, (long) (lastNote * msPerTick) + 600); // (ends with its last note)
+            long songMs = Math.min(seq.getMicrosecondLength() / 1000, (long) ((lastNote - firstNote) * msPerTick) + 600); // (from its first note to its last: see trimmed)
             return new Song("your " + (name.length() > 30 ? name.substring(0, 30) : name), notes, ms, 1, file, songMs);
         } catch (Exception notMidi) {
             return null;

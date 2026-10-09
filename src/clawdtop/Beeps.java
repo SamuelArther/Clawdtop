@@ -119,6 +119,16 @@ public final class Beeps {
     private String voice = "Normal";
     private int volume = 5;
 
+    /** How his piano and his guitar can sound. */
+    static final String[] PIANO_SOUNDS = {"Grand", "Electric piano", "Harpsichord"}, GUITAR_SOUNDS = {"Normal", "Rock", "Electric"};
+    private volatile String pianoSound = "Grand", guitarSound = "Normal";
+
+    /** How his piano and guitar sound (one of PIANO_SOUNDS, one of GUITAR_SOUNDS). */
+    public void setSounds(String piano, String guitar) {
+        pianoSound = piano;
+        guitarSound = guitar;
+    }
+
     /** His voice ("Normal", "Squeaky", "Deep", "Robot", "Tiny") and volume (1 to 10, 5 normal). */
     public void setVoice(String voice, int volume) {
         this.voice = voice;
@@ -169,21 +179,110 @@ public final class Beeps {
     /** Plays one note on one of his instruments (a drum, for the drum set), in the background. */
     public void play(Piano.Instrument instrument, int midi, int ms) {
         int vol = volume;
+        String piano = pianoSound, guitar = guitarSound;
         player.execute(() -> {
             byte[] raw = switch (instrument) {
-                case GUITAR -> pluck(midi, ms, 0.996, 0.5);
+                case GUITAR -> guitar(guitar, midi, ms);
                 case BASS -> pluck(midi - 24, ms, 0.998, 0.25);
                 case DRUMS -> drum(midi);
                 case VOICE -> sing(midi, ms);
-                default -> note(midi, ms);
+                default -> piano(piano, midi, ms);
             };
             mix(voiced(raw, "Normal", vol));
         });
     }
 
+    /** A note on his piano, as it sounds now: "Grand" (his toy grand), "Electric piano" or "Harpsichord". */
+    static byte[] piano(String sound, int midi, int ms) {
+        return switch (sound) {
+            case "Electric piano" -> electricPiano(midi, ms);
+            case "Harpsichord" -> harpsichord(midi, ms);
+            default -> note(midi, ms);
+        };
+    }
+
+    /** A note on his guitar, as it sounds now: "Normal" (acoustic), "Rock" (distorted power chords) or "Electric" (clean and bright). */
+    static byte[] guitar(String sound, int midi, int ms) {
+        return switch (sound) {
+            case "Rock" -> rock(midi, ms);
+            case "Electric" -> electric(midi, ms);
+            default -> pluck(midi, ms, 0.996, 0.5);
+        };
+    }
+
+    /** An electric piano (the soft, bell-like Rhodes kind): a sine with a little bell on top (FM), ringing on and fading slowly. */
+    static byte[] electricPiano(int midi, int ms) {
+        double freq = 440 * Math.pow(2, (midi - 69) / 12.0);
+        int count = (int) (RATE * Math.min(2.0, ms / 1000.0 + 0.4));
+        byte[] out = new byte[count * 2];
+        for (int i = 0; i < count; i++) {
+            double t = i / RATE;
+            double bell = 1.6 * Math.exp(-t * 9);                                   // the "tine": bright at first, then mellow
+            double tone = Math.sin(2 * Math.PI * freq * t + bell * Math.sin(2 * Math.PI * freq * 14 * t)) * 0.75
+                    + Math.sin(2 * Math.PI * freq * t) * 0.25;
+            double tremolo = 1 + 0.08 * Math.sin(2 * Math.PI * 4.5 * t) * Math.min(1, t / 0.3);
+            double env = Math.min(1, t / 0.004) * Math.exp(-t * 1.6) * Math.min(1, (count - i) / (RATE * 0.04));
+            int v = clip(tone * tremolo * env * VOLUME * 1.15);
+            out[i * 2] = (byte) v;
+            out[i * 2 + 1] = (byte) (v >> 8);
+        }
+        return out;
+    }
+
+    /** A harpsichord: a bright, twangy plucked string (and its octave, like the real one's second set of strings). */
+    static byte[] harpsichord(int midi, int ms) {
+        byte[] low = pluck(midi, ms, 0.9975, 0.12), high = pluck(midi + 12, ms, 0.997, 0.12);
+        byte[] out = new byte[low.length];
+        for (int i = 0; i + 1 < out.length; i += 2) {
+            short a = (short) ((low[i] & 0xFF) | low[i + 1] << 8), b = i + 1 < high.length ? (short) ((high[i] & 0xFF) | high[i + 1] << 8) : 0;
+            int v = clip((a * 0.6 + b * 0.35) / 32767.0);
+            out[i] = (byte) v;
+            out[i + 1] = (byte) (v >> 8);
+        }
+        return out;
+    }
+
+    /** A clean electric guitar: a brighter, longer-ringing string, with a touch of chorus (a second string, a hair out of tune). */
+    static byte[] electric(int midi, int ms) {
+        byte[] one = pluck(midi, ms + 300, 0.9985, 0.3), two = pluckTuned(midi, ms + 300, 0.9985, 0.3, 1.004);
+        byte[] out = new byte[one.length];
+        for (int i = 0; i + 1 < out.length; i += 2) {
+            short a = (short) ((one[i] & 0xFF) | one[i + 1] << 8), b = i + 1 < two.length ? (short) ((two[i] & 0xFF) | two[i + 1] << 8) : 0;
+            int v = clip((a * 0.55 + b * 0.45) / 32767.0);
+            out[i] = (byte) v;
+            out[i + 1] = (byte) (v >> 8);
+        }
+        return out;
+    }
+
+    /** A rock guitar: a power chord (the note and its fifth) through a fuzzy, overdriven amp. */
+    static byte[] rock(int midi, int ms) {
+        byte[] root = pluck(midi, ms + 200, 0.998, 0.35), fifth = pluck(midi + 7, ms + 200, 0.998, 0.35);
+        byte[] out = new byte[root.length];
+        for (int i = 0; i + 1 < out.length; i += 2) {
+            double a = (short) ((root[i] & 0xFF) | root[i + 1] << 8) / 32767.0, b = i + 1 < fifth.length ? (short) ((fifth[i] & 0xFF) | fifth[i + 1] << 8) / 32767.0 : 0;
+            double driven = Math.tanh((a + b) / VOLUME * 4) * VOLUME * 0.9; // (turned way up, then squashed: that's the crunch)
+            int v = clip(driven);
+            out[i] = (byte) v;
+            out[i + 1] = (byte) (v >> 8);
+        }
+        return out;
+    }
+
+    private static int clip(double sample) {
+        return (int) Math.max(-32768, Math.min(32767, sample * 32767));
+    }
+
+    private static byte[] pluckTuned(int midi, int ms, double sustain, double bright, double tune) {
+        return pluckAt(440 * Math.pow(2, (midi - 69) / 12.0) * tune, midi, ms, sustain, bright);
+    }
+
     /** A plucked string (guitar or bass): a burst of noise bouncing along a "string" (the Karplus-Strong trick). */
     static byte[] pluck(int midi, int ms, double sustain, double bright) {
-        double freq = 440 * Math.pow(2, (midi - 69) / 12.0);
+        return pluckAt(440 * Math.pow(2, (midi - 69) / 12.0), midi, ms, sustain, bright);
+    }
+
+    private static byte[] pluckAt(double freq, int midi, int ms, double sustain, double bright) {
         int period = Math.max(2, (int) Math.round(RATE / freq));
         int count = (int) (RATE * Math.min(1.4, ms / 1000.0 + 0.3));
         double[] string = new double[period];
@@ -287,9 +386,31 @@ public final class Beeps {
         return out;
     }
 
+    /** Paper (or a zip) tearing: a crackly burst of noise, getting brighter as the rip runs along. */
+    static byte[] rip() {
+        int count = (int) (RATE * 0.38);
+        byte[] out = new byte[count * 2];
+        java.util.Random r = new java.util.Random(7);
+        double last = 0, grain = 0;
+        for (int i = 0; i < count; i++) {
+            double t = i / (double) count;
+            if (i % 90 == 0) grain = 0.3 + r.nextDouble() * 0.7;   // little crackles, not a smooth hiss
+            double noise = r.nextDouble() * 2 - 1;
+            double bright = noise - last * (0.3 + t * 0.6);          // (thinner and brighter towards the end)
+            last = noise;
+            double fade = Math.min(1, Math.min(i, count - i) / (RATE * 0.01));
+            int v = (int) (bright * grain * fade * VOLUME * 0.8 * 32767); // (as loud as his beeps, no louder)
+            v = Math.max(-32768, Math.min(32767, v));
+            out[i * 2] = (byte) v;
+            out[i * 2 + 1] = (byte) (v >> 8);
+        }
+        return out;
+    }
+
     /** The sound for a beep, as 16-bit mono samples. Each is a few tiny notes. */
     static byte[] make(Pet.Beep beep) {
         if (beep == Pet.Beep.HORN) return horn();
+        if (beep == Pet.Beep.RIP) return rip();
         double[][] notes = switch (beep) {  // {frequency, milliseconds}, 0 Hz is a pause
             case HELLO -> new double[][] {{1320, 60}, {0, 30}, {1760, 70}};
             case HAPPY -> new double[][] {{1480, 50}, {0, 20}, {1760, 50}, {0, 20}, {2220, 80}};
@@ -302,7 +423,7 @@ public final class Beeps {
             case AWW -> new double[][] {{880, 120}, {740, 180}};
             case ACHOO -> new double[][] {{1600, 30}, {2600, 70}, {900, 60}};
             case CLAP -> new double[][] {{3200, 15}, {0, 10}, {2800, 20}};
-            case HORN -> null; // a party blower: made below, a buzzy rising toot
+            case HORN, RIP -> null; // a party blower, or a rip: made above
             case PANIC -> new double[][] {{2400, 40}, {1900, 40}, {2400, 40}, {1900, 40}, {2400, 40}, {1900, 40}, {2400, 40}, {1900, 60}};
         };
         int total = 0;

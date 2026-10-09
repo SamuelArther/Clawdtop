@@ -23,6 +23,22 @@ final class Desktop {
 
     /** The script that lists the desktop's icons: the desktop folder's path first ("DESKTOP|path"), then name|x,y. */
     static String iconScript() {
+        return String.join("\n", deskClass(),
+                "'DESKTOP|' + [Environment]::GetFolderPath('Desktop')",
+                "foreach ($line in [ClawdDesk]::Icons()) { $line }");
+    }
+
+    /**
+     * The script that moves one icon (by its name, once Explorer's shown it: it waits up to 6 seconds) so its top-left
+     * is at (x, y), in real pixels. Says "placed" if it did.
+     */
+    static String placeScript(String name, int x, int y) {
+        return String.join("\n", deskClass(),
+                "if ([ClawdDesk]::Place('" + name.replace("'", "''") + "', " + x + ", " + y + ")) { 'placed' }");
+    }
+
+    /** The desktop icon reader (and mover), for PowerShell. */
+    private static String deskClass() {
         return String.join("\n",
                 "[Console]::OutputEncoding = [Text.Encoding]::UTF8",
                 "Add-Type -TypeDefinition @'",
@@ -33,6 +49,7 @@ final class Desktop {
                 "  [DllImport(\"user32.dll\")] static extern IntPtr SendMessage(IntPtr w, uint msg, IntPtr wp, IntPtr lp);",
                 "  [DllImport(\"user32.dll\")] static extern uint GetWindowThreadProcessId(IntPtr w, out uint pid);",
                 "  [DllImport(\"user32.dll\")] static extern bool ClientToScreen(IntPtr w, ref POINT p);",
+                "  [DllImport(\"user32.dll\")] static extern bool ScreenToClient(IntPtr w, ref POINT p);",
                 "  [DllImport(\"kernel32.dll\")] static extern IntPtr OpenProcess(uint access, bool inherit, uint pid);",
                 "  [DllImport(\"kernel32.dll\")] static extern IntPtr VirtualAllocEx(IntPtr p, IntPtr at, UIntPtr size, uint type, uint protect);",
                 "  [DllImport(\"kernel32.dll\")] static extern bool VirtualFreeEx(IntPtr p, IntPtr at, UIntPtr size, uint type);",
@@ -76,10 +93,23 @@ final class Desktop {
                 "    CloseHandle(proc);",
                 "    return result;",
                 "  }",
+                "  public static bool Place(string name, int x, int y) {",
+                "    int dot = name.LastIndexOf('.'); string stem = dot > 0 ? name.Substring(0, dot) : name;",
+                "    for (int tries = 0; tries < 40; tries++) {",
+                "      string[] icons = Icons();",
+                "      for (int i = 0; i < icons.Length; i++) {",
+                "        string shown = icons[i].Substring(0, icons[i].LastIndexOf('|'));",
+                "        if (shown != name && shown != stem) continue;",
+                "        IntPtr lv = ListView(); POINT p = new POINT { X = x, Y = y }; ScreenToClient(lv, ref p);",
+                "        SendMessage(lv, 0x100F, (IntPtr) i, (IntPtr) ((p.Y << 16) | (p.X & 0xFFFF))); // LVM_SETITEMPOSITION",
+                "        return true;",
+                "      }",
+                "      System.Threading.Thread.Sleep(150); // (Explorer shows a new file a moment after it's made)",
+                "    }",
+                "    return false;",
+                "  }",
                 "}",
-                "'@",
-                "'DESKTOP|' + [Environment]::GetFolderPath('Desktop')",
-                "foreach ($line in [ClawdDesk]::Icons()) { $line }");
+                "'@");
     }
 
     /** What the icon script said: the desktop folder, and the icons. */
@@ -108,6 +138,45 @@ final class Desktop {
             }
         }
         return new Layout(folder, icons);
+    }
+
+    /** The script that asks Finder (Mac) to move one icon (name, x, y: its middle, in points), once it's there. */
+    static final String FINDER_PLACE = String.join("\n",
+            "on run argv",
+            "  repeat 24 times",
+            "    try",
+            "      tell application \"Finder\" to set desktop position of item (item 1 of argv) of desktop to {(item 2 of argv) as integer, (item 3 of argv) as integer}",
+            "      return \"placed\"",
+            "    end try",
+            "    delay 0.25",
+            "  end repeat",
+            "end run");
+
+    /**
+     * Moves a file's icon on the desktop to a spot (Java's pixels, the top middle of its picture, as spot says), like you'd
+     * drag it there. Windows, or a Mac where Finder's allowed (askFinder); if the desktop arranges itself, it stays
+     * where the desktop puts it. Takes a moment: not on the Swing thread. Whether it moved it.
+     */
+    static boolean place(Path file, double javaX, double javaY, boolean askFinder) {
+        String name = file.getFileName().toString();
+        try {
+            if (Platform.MAC) {
+                if (!askFinder) return false;
+                Process p = new ProcessBuilder("osascript", "-e", FINDER_PLACE, name, String.valueOf((int) Math.round(javaX)), String.valueOf((int) Math.round(javaY + 28)))
+                        .redirectErrorStream(true).start();
+                String out = output(p, 20);
+                return out != null && out.contains("placed");
+            }
+            if (!Platform.WINDOWS) return false;
+            java.awt.Point real = Clawdtop.toReal(javaX - 37, javaY - 8); // (the icon's top-left, in Windows' pixels: see spot)
+            Process p = new ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden",
+                    "-EncodedCommand", java.util.Base64.getEncoder().encodeToString(placeScript(name, real.x, real.y).getBytes(StandardCharsets.UTF_16LE)))
+                    .redirectErrorStream(true).start();
+            String out = output(p, 20);
+            return out != null && out.contains("placed");
+        } catch (Exception cant) {
+            return false;
+        }
     }
 
     /** The script that asks Finder (Mac) for the desktop's icons: name|x,y, the middle of each icon, in points. */

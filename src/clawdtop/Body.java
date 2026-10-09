@@ -8,7 +8,7 @@ import java.util.ArrayDeque;
  * screen pixels for the point between his feet. No windows here, so it can be tested on its own.
  */
 public final class Body {
-    public enum State { HOME, HOP_ON, RIDE, FALL, DIZZY, SHAKE, WALK, HOP_TO, PERCH, AWAY, OUT, FLY, ROCKET, LAP, TACKLE }
+    public enum State { HOME, HOP_ON, RIDE, FALL, DIZZY, SHAKE, WALK, HOP_TO, PERCH, AWAY, OUT, FLY, ROCKET, LAP, TACKLE, GRAB }
 
     static final double GRAVITY = 2600;      // px/s², a quick, cartoony fall
     static final double WALK_SPEED = 140;    // px/s
@@ -48,6 +48,35 @@ public final class Body {
         return t;
     }
     private double unitPx = 4;            // how big his pixels are on the screen (for running up walls)
+    static final double GRAB_RUN = 520;   // px/s: dashing over to a file you put down near him
+    private boolean jumped, grabbedIt;     // (grabbing: off the floor yet, and got it at the top of his jump)
+
+    /**
+     * Dashes along the floor to under (x, y) and jumps (as high as it takes) to grab it at the top of his jump: a file
+     * you put down near him, or one you drop right on him (a little hop to catch it). Lands on his feet and walks home.
+     */
+    public boolean grab(double spotX, double spotY) {
+        if (state != State.HOME && state != State.WALK) return false;
+        targetX = spotX;
+        targetY = spotY;
+        jumped = false;
+        grabbedIt = false;
+        onJob = false;
+        set(State.GRAB);
+        return true;
+    }
+
+    /** Whether he just got hold of it, at the top of his jump (once). */
+    public boolean takeGrabbed() {
+        boolean got = grabbedIt;
+        grabbedIt = false;
+        return got;
+    }
+
+    /** Off the floor, mid-jump, while grabbing something (arms up, reaching). */
+    public boolean jumping() {
+        return state == State.GRAB && jumped;
+    }
 
     /** How many screen pixels one of his pixels is. */
     public void setUnit(double unit) {
@@ -116,6 +145,32 @@ public final class Body {
                     hopFromX = x;
                     hopFromY = y;
                     set(State.HOP_ON);
+                }
+            }
+            case GRAB -> {
+                angle = 0;
+                if (!jumped) { // dashing over (or already there)
+                    y = groundY;
+                    double step = GRAB_RUN * dt;
+                    if (Math.abs(targetX - x) <= step) {
+                        x = targetX;
+                        jumped = true;
+                        vy = -Math.sqrt(2 * GRAVITY * Math.max(unitPx * 4, groundY - targetY)); // just high enough
+                        vx = 0;
+                    } else {
+                        x = Math.max(left, Math.min(right, x + Math.signum(targetX - x) * step));
+                        if (x == left || x == right) targetX = x; // (it's past the edge: jump from as close as he gets)
+                    }
+                } else {
+                    double was = vy;
+                    vy += GRAVITY * dt;
+                    y += vy * dt;
+                    if (was < 0 && vy >= 0) grabbedIt = true; // the top of his jump: got it!
+                    if (y >= groundY && vy > 0) {
+                        y = groundY;
+                        if (was < 0) grabbedIt = true; // (a frame so long it went up and down in one go)
+                        set(Math.abs(homeX - x) < 1 ? State.HOME : State.WALK);
+                    }
                 }
             }
             case HOP_TO, PERCH -> {

@@ -107,8 +107,6 @@ public final class Pet {
         LISTEN,
         /** Veterans Day: a little flag, and a salute. */
         SALUTE,
-        /** You dropped a MIDI file: he runs over, grabs it, and brings it back to play it. */
-        FETCH,
         /** Focus timer: headphones on, sitting quietly, not bothering you. */
         FOCUS,
         /** A reminder you asked for: hopping up and down so you notice. */
@@ -118,7 +116,51 @@ public final class Pet {
         /** Done running: puffed out. */
         PANT,
         /** Music time: his own headphones on, bobbing to the beat. */
-        VIBE
+        VIBE,
+        /** Dashing over to a file you put down near him, and jumping up to grab it. */
+        GRAB,
+        /** A zip you gave him: he tears it right open (the scraps fly out onto the desktop, and out comes its folder). */
+        TEAR,
+        /** A picture you gave him: out comes a folder, the picture goes in, it shuts, and he tucks it away. */
+        STASH
+    }
+
+    static final long TEAR_TIME = 1900, STASH_TIME = 2600;
+    private String held; // what he's holding up over his head: "song", "zip" or "picture" (null: nothing)
+
+    private boolean inAir;
+
+    /** Mid-jump (grabbing something up high): legs straight, reaching up. */
+    public boolean inAir() {
+        return inAir;
+    }
+
+    public void setInAir(boolean up) {
+        inAir = up;
+    }
+
+    /** What he's holding up ("song", "zip", "picture"), or null. */
+    public String held() {
+        return held;
+    }
+
+    /** He's got hold of a file (or, null, let go of it). */
+    public void hold(String what) {
+        held = what;
+    }
+
+    /** Tears up the zip he's holding: RRRIP. */
+    public void tearUp() {
+        held = "zip";
+        line = "RRRIP!";
+        wants = Beep.RIP;
+        set(Mood.TEAR, TEAR_TIME);
+    }
+
+    /** Files away the picture he's holding: a folder out, the picture in, shut, tucked away. */
+    public void fileAway() {
+        held = "picture";
+        set(Mood.STASH, STASH_TIME);
     }
 
     private boolean canJuggle, canWave;
@@ -237,7 +279,7 @@ public final class Pet {
     private long talkLength;       // how long this beep's mouth moving lasts
 
     /** A little sound he makes. */
-    public enum Beep { HELLO, HAPPY, CLICKED, YAWN, WAKE, TIP, WHEE, OOF, PANIC, AWW, ACHOO, CLAP, HORN }
+    public enum Beep { HELLO, HAPPY, CLICKED, YAWN, WAKE, TIP, WHEE, OOF, PANIC, AWW, ACHOO, CLAP, HORN, RIP }
 
     public Pet(long seed) {
         random = new Random(seed);
@@ -324,12 +366,19 @@ public final class Pet {
                 if ((moodFor / 700) != ((moodFor - ms) / 700) && moodFor < 2800) wants = Beep.TIP;
                 if (moodFor > nextChange) set(Mood.IDLE, idleTime());
             }
-            case FETCH -> {
+            case GRAB -> { }
+            case TEAR -> {
+                if ((moodFor / 650) != ((moodFor - ms) / 650) && moodFor < 1400) wants = Beep.RIP; // rip... RIIIP
                 if (moodFor > nextChange) {
-                    Piano.Song next = fetched;
-                    fetched = null;
-                    set(Mood.IDLE, 0);
-                    if (next != null) playPiano(next);
+                    held = null;
+                    set(Mood.IDLE, idleTime());
+                }
+            }
+            case STASH -> {
+                if (moodFor >= 1500 && moodFor - ms < 1500) wants = Beep.CLAP; // (the folder snapping shut)
+                if (moodFor > nextChange) {
+                    held = null;
+                    set(Mood.IDLE, idleTime());
                 }
             }
             case LISTEN -> {
@@ -653,6 +702,7 @@ public final class Pet {
             case FLY -> Mood.CARPET;
             case LAP, TACKLE -> Mood.LAP;
             case ROCKET -> Mood.ROCKET;
+            case GRAB -> Mood.GRAB;
             case HOP_TO, PERCH -> Mood.IDLE;
             case FALL -> Mood.FALL;
             case DIZZY -> Mood.DIZZY;
@@ -666,7 +716,7 @@ public final class Pet {
                 return;
             }
             if (mood == Mood.RIDE || mood == Mood.FALL || mood == Mood.DIZZY || mood == Mood.SHAKE || mood == Mood.WALK
-                    || mood == Mood.PEEK || mood == Mood.CARPET || mood == Mood.LAP) {
+                    || mood == Mood.PEEK || mood == Mood.CARPET || mood == Mood.LAP || mood == Mood.GRAB) {
                 if (guilty != null && body == Body.State.HOME) {
                     line = guilty.after();
                     wants = Beep.AWW;
@@ -1054,9 +1104,10 @@ public final class Pet {
 
     /** Busy with something that shouldn't be cut short: a job, coding, a ride, a fall, moving house... */
     private boolean busy() {
+        if (held != null) return true; // (hands full: a file you gave him)
         return switch (mood) {
-            case WORK, PEEK, PACK, CODING, SORRY, MADE, CARPET, LAUNCHPAD, ROCKET, DUCKS, THINK, PIANO, JAM, FETCH, FOCUS, LAP, PANT, RIDE, FALL, DIZZY, SHAKE, WALK, CARRY, UNPACK, BIRTHDAY,
-                    GOODBYE, FREAKOUT -> true;
+            case WORK, PEEK, PACK, CODING, SORRY, MADE, CARPET, LAUNCHPAD, ROCKET, DUCKS, THINK, PIANO, JAM, FOCUS, LAP, PANT, RIDE, FALL, DIZZY, SHAKE, WALK, CARRY, UNPACK, BIRTHDAY,
+                    GOODBYE, FREAKOUT, GRAB, TEAR, STASH -> true;
             default -> false;
         };
     }
@@ -1206,7 +1257,15 @@ public final class Pet {
             mistakeAt = -1;
             songNote = 0;
             note = 0;
-            line = switch (on) {
+            boolean another = false;
+            for (int i = 0; i < part && !jamParts.isEmpty(); i++) another |= jamParts.get(i).instrument() == on;
+            line = another ? switch (on) {
+                case DRUMS -> "More drums!";
+                case BASS -> "Another bass part...";
+                case GUITAR -> "Another guitar part!";
+                case VOICE -> "More vocals!";
+                default -> "Some more keys...";
+            } : switch (on) {
                 case DRUMS -> part == 0 ? "Drums first!" : "And drums!";
                 case BASS -> "Bass line...";
                 case GUITAR -> "Now guitar!";
@@ -1357,24 +1416,12 @@ public final class Pet {
         return clockUp;
     }
 
-    private Piano.Song fetched;
-
     /** Ooh, a file being dragged over him (it might be music!). */
     public void sniff() {
         if (busy() || mood == Mood.SLEEP || mood == Mood.HAPPY) return;
         line = "Ooh! Is that music?!";
         wants = Beep.HAPPY;
         set(Mood.HAPPY, 900); // a little excited hop
-    }
-
-    /** You dropped a MIDI file on him: he fetches it, then plays it. */
-    public boolean fetch(Piano.Song song) {
-        if (busy() || song == null) return false;
-        fetched = song;
-        line = "Music! For me?!";
-        wants = Beep.WHEE;
-        set(Mood.FETCH, 2300);
-        return true;
     }
 
     /** Stops playing (you clicked him). */
@@ -1531,6 +1578,7 @@ public final class Pet {
     }
 
     private void set(Mood next, long howLong) {
+        if ((mood == Mood.TEAR || mood == Mood.STASH) && next != mood) held = null; // (cut short, say picked up: it's done with)
         if (mood == Mood.PACK && next != Mood.PACK) sorryAfterPack = false; // (only right after the laptop shuts)
         if (jamming && next != Mood.JAM && next != Mood.PIANO && next != Mood.HAPPY) { // interrupted mid-jam: that's that
             jamming = false;

@@ -68,10 +68,12 @@ when he starts, and asks before he updates.
 - **Run a lap:** he sprints along the taskbar, up the wall, across the top of the screen upside down, down the other
   side and home, sweating more and more. **Music time:** headphones on, bobbing to the beat.
 - **His mini piano, guitar, bass and drums:** he plays songs (or makes one up), and you can play yours ("Let me play!":
-  click the keys, or type A to K). **Drop a MIDI file on him** and he runs to get it and plays the whole thing.
+  click the keys, or type A to K). **Drop a MIDI file on him** and he catches it, keeps it in his songs and plays the
+  whole thing. **Fun > My songs** lists every song file he has: click one to play it. Pick how his piano sounds (Grand,
+  Electric piano, Harpsichord) and his guitar (Normal, Rock, Electric) in Fun > Piano and Fun > Guitar.
 - **He sings and jams:** Fun > Sing a song (or "sing Stronger") sings a song file in his little beep voice. **Jam
   sessions** (Fun > Jam session): he gets his laptop out, plugs cords into each instrument, records every part of a
-  jam track one by one, slams the button, and the whole band plays. Song files with "jam" in the name go in his
+  jam track one by one (every part, up to seven), slams the button, and the whole band plays every note. Song files with "jam" in the name go in his
   `songs/jams` folder; every other song file plays on his piano. Now and then he starts a jam session by himself, and
   shows it to you when it's done.
 - **Movie and music buddy:** when a video or music is playing, he asks if he can watch or listen along. Say yes and
@@ -91,11 +93,15 @@ when he starts, and asks before he updates.
   copied" (a screenshot or text, into a file on your desktop), "how long have I been on the computer today?", "keep
   my computer awake" (he sets down a steaming mug until you say "let my computer sleep", or untick it in Useful), "define curious" (if you let him look things up
   online) and "what color is this?" (point at any color on your screen: he names it and copies its code).
-- **Your desktop:** drag a song file (.mid) near him on the desktop and he hops over, grabs it and plays it.
-  **Tidy my desktop** (in Useful) tackles your files into a Neat folder, sorted by type, and can put them all back.
-  Nothing is ever deleted.
-- **Drop things on him:** a picture gets a smaller copy (for emailing or texting), and a .zip gets unzipped into a new
-  folder next to it.
+- **Give him files:** drop a song (.mid), a .zip or a picture right on him, or drag one onto the desktop within about
+  three icons of him (Windows, or a Mac once you've let him use Finder). He dashes over and jumps as high as it takes to
+  grab it, and it's off the desktop. A **song** goes in his songs, and he plays it. A **zip** he tears right open
+  (RRRIP): the scraps fly out onto the desktop and its unzipped folder appears right in front of him (the zip goes in
+  the Recycle Bin, or the Trash on a Mac, in case you want it back). A **picture** he slips into a folder and tucks
+  away (the original is kept safe: **Useful > Pictures you gave me**), and a smaller copy, handy for emailing or
+  texting, appears in front of him. Anything he can't open, he gives back.
+- **Your desktop:** **Tidy my desktop** (in Useful) tackles your files into a Neat folder, sorted by type, and can put
+  them all back. Nothing is ever deleted.
 - **Feeling good:** "quiz me on the 7 times table", "breathe with me" (a calm minute, counted on his clock), eye breaks
   every 20 minutes (off at first), and a quick rundown of your day the first time you log in each morning.
 - **Games:** full-screen game? He sits in the bottom corner, over your ammo, and watches. He also reads your game

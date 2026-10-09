@@ -76,6 +76,8 @@ final class Options {
             // His voice and bubble
             Option.pick("Voice", "voice", "Voice", "Normal", "Squeaky", "Normal", "Deep", "Robot", "Tiny"),
             Option.number("Voice", "volume", "Volume", 5, 1, 10),
+            Option.pick("Voice", "pianoSound", "His piano sounds like", "Grand", Beeps.PIANO_SOUNDS),
+            Option.pick("Voice", "guitarSound", "His guitar sounds like", "Normal", Beeps.GUITAR_SOUNDS),
             Option.on("Voice", "mouth", "Mouth moves when he talks", true),
             Option.pick("Voice", "font", "Bubble font", "Comic Sans", "Comic Sans", "Normal", "Typewriter"),
             Option.pick("Voice", "bubbleTime", "How long bubbles stay", "Normal", "Short", "Normal", "Long"),

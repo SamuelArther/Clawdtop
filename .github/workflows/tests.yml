@@ -61,6 +61,11 @@ jobs:
           for t in SmokeSetup SmokeTyping SmokeGame SmokeCute SmokeDrop; do
             echo "== $t"; timeout 300 java --enable-native-access=ALL-UNNAMED -cp build/test-classes clawdtop.$t shots/$t || echo "$t ended with $?"
           done
+      - name: The desktop (grabbing a song, a zip and a picture; tidying) and his menus (click to open)
+        shell: bash
+        run: |
+          timeout 300 java --enable-native-access=ALL-UNNAMED -cp build/test-classes clawdtop.SmokeDesk shots/desk || echo "desk ended with $?"
+          timeout 120 java --enable-native-access=ALL-UNNAMED -cp build/test-classes clawdtop.SmokeMenus shots/menus || echo "menus ended with $?"
       - name: Everything in his menus
         shell: bash
         run: |

@@ -14,7 +14,10 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** The screen test for his menus: opens his menu, then each submenu in turn (hovering it, as you would), with a screenshot of each. */
+/**
+ * The screen test for his menus: opens his menu, then each submenu in turn (hovering it first: it shouldn't open by
+ * itself; then clicking it, as you would), with a screenshot of each.
+ */
 public final class SmokeMenus {
     public static void main(String[] args) throws Exception {
         System.setProperty("apple.awt.UIElement", "true");
@@ -44,6 +47,14 @@ public final class SmokeMenus {
             if (at != null) {
                 robot.mouseMove(at.x, at.y);
                 Thread.sleep(900);
+                boolean[] open = {false};
+                SwingUtilities.invokeAndWait(() -> open[0] = opened(sub));
+                System.out.println(sub + " opened by just hovering: " + open[0]);
+                robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+                robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+                Thread.sleep(700);
+                SwingUtilities.invokeAndWait(() -> open[0] = opened(sub));
+                System.out.println(sub + " opened by clicking: " + open[0]);
                 ImageIO.write(robot.createScreenCapture(all), "png", new File(out, sub + ".png"));
             } else {
                 System.out.println("no " + sub + " menu found");
@@ -52,6 +63,14 @@ public final class SmokeMenus {
             Thread.sleep(500);
         }
         System.exit(0);
+    }
+
+    /** Whether a submenu is open (showing its own menu). */
+    static boolean opened(String label) {
+        for (MenuElement e : MenuSelectionManager.defaultManager().getSelectedPath()) {
+            if (e.getComponent() instanceof JMenu m && m.getText().startsWith(label) && m.isPopupMenuVisible()) return true;
+        }
+        return false;
     }
 
     /** Where a submenu of the open menu is on the screen (its middle), or null. */

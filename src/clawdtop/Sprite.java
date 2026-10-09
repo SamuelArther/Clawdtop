@@ -243,10 +243,6 @@ public final class Sprite {
     }
 
     private static void drawBody(Graphics2D g, Pet pet, int unit, Pet.Mood mood) {
-        if (mood == Pet.Mood.FETCH) {
-            drawFetch(g, pet, unit);
-            return;
-        }
         if (mood == Pet.Mood.WORK || mood == Pet.Mood.PACK || mood == Pet.Mood.CODING || mood == Pet.Mood.THINK
                 || (mood == Pet.Mood.DUCKS && pet.duckSpam())) {
             drawAtLaptop(g, pet, unit, mood);
@@ -274,7 +270,8 @@ public final class Sprite {
         int legs = 2 - drop;
         if (legs > 0) {
             boolean running = mood == Pet.Mood.FREAKOUT; // running on the spot, legs going like mad
-            boolean walking = mood == Pet.Mood.WALK || mood == Pet.Mood.CARRY || mood == Pet.Mood.LAP || mood == Pet.Mood.CPDANCE;
+            boolean walking = mood == Pet.Mood.WALK || mood == Pet.Mood.CARRY || mood == Pet.Mood.LAP || mood == Pet.Mood.CPDANCE
+                    || (mood == Pet.Mood.GRAB && !pet.inAir());
             boolean step = (walking && (pet.time() / 150) % 2 == 0) || (running && (pet.time() / 70) % 2 == 0);
             int[] xs = {0, 2, 10, 12};
             for (int i = 0; i < 4; i++) {
@@ -290,6 +287,24 @@ public final class Sprite {
                 || mood == Pet.Mood.BLUSH || mood == Pet.Mood.BOOPED || mood == Pet.Mood.HICCUP || mood == Pet.Mood.REMIND);
         if (holdingClock) {
             // (both hands are on his little clock: see drawClock)
+        } else if (mood == Pet.Mood.TEAR) {
+            drawTear(g, pet, unit, top);
+        } else if (mood == Pet.Mood.STASH) {
+            drawStash(g, pet, unit, top);
+        } else if (pet.held() != null) {
+            // both hands up, holding the file he grabbed over his head
+            drawFile(g, unit, pet.held(), LEFT + 3.5, top - 5, 1.5);
+            box(g, unit, LEFT + 2.5, top - 1.6, 1.2, 1.6, hand);
+            box(g, unit, LEFT + 9.3, top - 1.6, 1.2, 1.6, hand);
+        } else if (mood == Pet.Mood.GRAB && pet.inAir()) {
+            // reaching up as high as he can for it
+            box(g, unit, LEFT - 1, top - 3, 1, 3, body);
+            box(g, unit, LEFT + 13, top - 3, 1, 3, body);
+        } else if (mood == Pet.Mood.GRAB) {
+            // dashing over: arms pumping
+            boolean pump = (pet.time() / 70) % 2 == 0;
+            box(g, unit, LEFT - 1.6, top + (pump ? 2.5 : 4.5), 1.6, 1.6, body);
+            box(g, unit, LEFT + 13, top + (pump ? 4.5 : 2.5), 1.6, 1.6, body);
         } else if (mood == Pet.Mood.CPDANCE) {
             // flippers flapping, one up as the other goes down
             boolean up = (pet.time() / 260) % 2 == 0;
@@ -1052,26 +1067,110 @@ public final class Sprite {
     }
 
     /** A MIDI file you dropped on him: he runs over to it, grabs it, and brings it back (a sheet of music). */
-    private static void drawFetch(Graphics2D g, Pet pet, int unit) {
+    private static final Color PAPER = new Color(250, 248, 240), INK = new Color(150, 150, 160);
+    static final Color ZIP_YELLOW = new Color(246, 204, 92), ZIP_DARK = new Color(196, 150, 50);
+    static final Color MANILA = new Color(236, 200, 120), MANILA_DARK = new Color(200, 160, 82);
+
+    /** A file, 4 by 3 times k (top-left at x, y): a sheet of music ("song"), a zip (a yellow folder with a zipper), or a photo. */
+    static void drawFile(Graphics2D g, int unit, String kind, double x, double y, double k) {
+        switch (kind) {
+            case "zip" -> {
+                box(g, unit, x, y + 0.4 * k, 4 * k, 2.6 * k, ZIP_YELLOW);
+                box(g, unit, x, y, 1.6 * k, 0.6 * k, ZIP_YELLOW);                    // its tab
+                box(g, unit, x, y + 2.6 * k, 4 * k, 0.4 * k, ZIP_DARK);
+                for (int i = 0; i < 5; i++) box(g, unit, x + (1.7 + (i % 2) * 0.3) * k, y + (0.5 + i * 0.4) * k, 0.3 * k, 0.4 * k, ZIPPER); // the zipper
+            }
+            case "picture" -> {
+                box(g, unit, x, y, 4 * k, 3 * k, Color.WHITE);
+                box(g, unit, x + 0.3 * k, y + 0.3 * k, 3.4 * k, 2.4 * k, new Color(140, 200, 245)); // sky
+                box(g, unit, x + 0.3 * k, y + 1.8 * k, 3.4 * k, 0.9 * k, new Color(110, 180, 90));  // a hill
+                box(g, unit, x + 2.6 * k, y + 0.6 * k, 0.7 * k, 0.7 * k, new Color(255, 220, 80));  // the sun
+            }
+            default -> {
+                box(g, unit, x, y, 4 * k, 3 * k, PAPER);
+                for (int l = 0; l < 3; l++) box(g, unit, x + 0.3 * k, y + (0.6 + l * 0.7) * k, 3.4 * k, 0.12 * k, INK);
+                box(g, unit, x + 1 * k, y + 1.0 * k, 0.5 * k, 0.4 * k, ZIPPER);     // a couple of notes
+                box(g, unit, x + 2.4 * k, y + 1.6 * k, 0.5 * k, 0.4 * k, ZIPPER);
+            }
+        }
+    }
+
+    private static final Color ZIPPER = new Color(70, 70, 80);
+
+    /** Tearing a zip in two: holding it, pulling it apart (RRRIP), then flinging the halves out (the scraps fly). */
+    static final long TEAR_FLING = 1300;
+
+    private static void drawTear(Graphics2D g, Pet pet, int unit, double top) {
         long t = pet.moodTime();
-        double run = t < 500 ? 0 : t < 1200 ? ease((t - 500) / 700.0) : t < 1500 ? 1 : 1 - ease((t - 1500) / 700.0);
-        boolean carrying = t >= 1300;
-        double paperX = LEFT - 4.5, paperY = GROUND - 1.2;
-        if (!carrying) { // lying on the ground where you dropped it
-            box(g, unit, paperX, paperY, 3, 1.2, new Color(250, 248, 240));
-            box(g, unit, paperX + 0.4, paperY + 0.3, 2.2, 0.1, new Color(150, 150, 160));
-            box(g, unit, paperX + 0.4, paperY + 0.7, 2.2, 0.1, new Color(150, 150, 160));
+        double cx = LEFT + 6.5, y = top + 3.6, half = 3.6, tall = 5;
+        if (t < TEAR_FLING) {
+            double apart = t < 450 ? 0 : ease((t - 450) / 800.0) * 4;   // how far the halves have come apart
+            double shake = t < 450 ? Math.sin(t / 30.0) * 0.2 : 0;
+            double lift = apart * 0.25;
+            double lx = cx - half - apart / 2 + shake, rx = cx + apart / 2 + shake;
+            // the left half and the right half (each with its half of the zipper), with a jagged torn edge
+            box(g, unit, lx, y + lift, half, tall, ZIP_YELLOW);
+            box(g, unit, rx, y - lift, half, tall, ZIP_YELLOW);
+            box(g, unit, lx, y + lift - 0.8, 2.2, 0.9, ZIP_YELLOW);              // the tab
+            box(g, unit, lx, y + lift + tall - 0.6, half, 0.6, ZIP_DARK);
+            box(g, unit, rx, y - lift + tall - 0.6, half, 0.6, ZIP_DARK);
+            for (int i = 0; i < 8; i++) {
+                box(g, unit, cx - 0.6 - apart / 2 + shake, y + lift + 0.3 + i * 0.55, 0.6, 0.55, i % 2 == 0 ? ZIPPER : ZIP_YELLOW);
+                box(g, unit, cx + apart / 2 + shake, y - lift + 0.3 + i * 0.55, 0.6, 0.55, i % 2 == 0 ? ZIP_YELLOW : ZIPPER);
+            }
+            if (apart > 0) {
+                for (int i = 0; i < 5; i++) { // little bits flying out of the rip
+                    double f = ((t + i * 170) % 500) / 500.0;
+                    box(g, unit, cx - 0.3 + (i - 2) * f * 1.6, y + 1.5 - f * 4, 0.6, 0.6, i % 2 == 0 ? ZIP_YELLOW : PAPER);
+                }
+            }
+            // his hands, gripping each half
+            box(g, unit, lx - 1.2, y + 1.8 + lift, 1.4, 1.6, hand);
+            box(g, unit, rx + half - 0.2, y + 1.8 - lift, 1.4, 1.6, hand);
+        } else {
+            // flung! arms up (the scraps are out on the desktop now)
+            box(g, unit, LEFT - 2, top - 1, 1, 3, body);
+            box(g, unit, LEFT - 1, top + 1, 1, 1, body);
+            box(g, unit, LEFT + 14, top - 1, 1, 3, body);
+            box(g, unit, LEFT + 13, top + 1, 1, 1, body);
         }
-        Graphics2D him = (Graphics2D) g.create();
-        him.translate(-run * 6 * unit, 0);
-        drawBody(him, pet, unit, Pet.Mood.WALK); // legs going
-        if (carrying) { // the music held up high
-            box(him, unit, LEFT + 4.5, GROUND - 13.5, 4, 3, new Color(250, 248, 240));
-            for (int l = 0; l < 3; l++) box(him, unit, LEFT + 4.8, GROUND - 12.9 + l * 0.7, 3.4, 0.12, new Color(150, 150, 160));
-            box(him, unit, LEFT + 3.5, GROUND - 11, 1, 1, hand);
-            box(him, unit, LEFT + 8.5, GROUND - 11, 1, 1, hand);
+    }
+
+    /** When filing a picture happens (ms into STASH): the folder comes out, opens, the picture goes in, it shuts, and away. */
+    static final long STASH_OPEN = 500, STASH_IN = 900, STASH_SHUT = 1400, STASH_AWAY = 1500, STASH_GONE = 2200;
+
+    private static void drawStash(Graphics2D g, Pet pet, int unit, double top) {
+        long t = pet.moodTime();
+        double base = top + 3.8, y = base, fw = 7.5, fh = 5;
+        double fx = LEFT - 1.5;
+        // pulled out (it grows into his hand), and tucked away again at the end (it shrinks away): all inside his square
+        double grow = t < STASH_OPEN ? ease(t / (double) STASH_OPEN) : t < STASH_AWAY ? 1 : 1 - ease((t - STASH_AWAY) / (double) (STASH_GONE - STASH_AWAY));
+        fw *= grow;
+        fh *= grow;
+        y += 5 * (1 - grow); // (growing up from his hand at the bottom)
+        boolean open = t >= STASH_OPEN && t < STASH_SHUT;
+        boolean folderOut = t < STASH_GONE && grow > 0.05;
+        double in = t < STASH_IN ? 0 : t < STASH_SHUT ? ease((t - STASH_IN) / (double) (STASH_SHUT - STASH_IN - 100)) : 1;
+        if (folderOut) {
+            box(g, unit, fx, y, fw, fh, MANILA_DARK);                       // the back of the folder
+            box(g, unit, fx, y - 0.8 * grow, 3 * grow, 0.9 * grow, MANILA_DARK); // its tab
         }
-        him.dispose();
+        if (in < 1) { // the picture, in his other hand: over to the folder, and down into it
+            double px = LEFT + 8.5 + (fx + 0.9 - LEFT - 8.5) * Math.min(1, in * 2), py = base - 0.8 + Math.max(0, in * 2 - 1) * 3;
+            drawFile(g, unit, "picture", px, py, 1.5);
+            box(g, unit, px + 5.6, py + 1.6, 1.4, 1.6, hand);
+        } else {
+            box(g, unit, LEFT + 13, top + 4, 2, 2, body); // (hand free again)
+        }
+        if (folderOut) {
+            if (open) box(g, unit, fx, y + 2.6, fw, fh - 2.6, MANILA);         // the front, folded down: open
+            else box(g, unit, fx, y + 0.3, fw, fh - 0.3, MANILA);              // shut
+            box(g, unit, fx, y + fh - 0.4, fw, 0.4, MANILA_DARK);
+            box(g, unit, fx - 1.2, Math.min(y + 1.8, base + 3), 1.4, 1.6, hand); // holding the folder
+        } else {
+            box(g, unit, LEFT - 2, top + 4, 2, 2, body);
+            if (t < STASH_GONE + 300) box(g, unit, LEFT - 2.5, top + 2.5, 0.8, 0.8, new Color(255, 255, 255, 200)); // (a little sparkle: done)
+        }
     }
 
     /**

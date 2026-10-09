@@ -13,6 +13,233 @@ import java.util.Objects;
 public class ClawdtopTest {
     private static int failures;
 
+    /** A file you drag near him (or drop on him): he jumps up and grabs it, then plays it, tears it up, or files it away. */
+    static void grabTests() throws Exception {
+        // the jump: dashes over, jumps just high enough, grabs it once at the top, lands, walks home
+        Body jumper = new Body();
+        jumper.setUnit(4);
+        double floor = 700, homeX = 500;
+        jumper.tick(33, -999, -999, homeX, floor, 48, 0, 1920);
+        check("he grabs from home", jumper.grab(380, 460), true);
+        double highest = floor;
+        int grabs = 0;
+        double grabbedAtX = 0, grabbedAtY = 0;
+        boolean wasRunning = false;
+        for (int i = 0; i < 300 && !(grabs > 0 && jumper.state() == Body.State.HOME); i++) {
+            jumper.tick(16, -999, -999, homeX, floor, 48, 0, 1920);
+            if (jumper.state() == Body.State.GRAB && !jumper.jumping() && jumper.x() < homeX) wasRunning = true;
+            highest = Math.min(highest, jumper.y());
+            if (jumper.takeGrabbed()) {
+                grabs++;
+                grabbedAtX = jumper.x();
+                grabbedAtY = jumper.y();
+            }
+        }
+        check("he runs over first", wasRunning, true);
+        check("grabs it just once", grabs, 1);
+        check("right under it", Math.abs(grabbedAtX - 380) < 1, true);
+        check("at the top of his jump, as high as it is", Math.abs(grabbedAtY - 460) < 12 && Math.abs(highest - 460) < 12, true);
+        check("and lands, and walks home", jumper.state() + " " + jumper.y(), "HOME 700.0");
+        Body catcher = new Body();
+        catcher.setUnit(4);
+        catcher.tick(33, -999, -999, homeX, floor, 48, 0, 1920);
+        catcher.grab(homeX, floor - 20); // (dropped right on him: a little hop in place)
+        boolean caught = false;
+        for (int i = 0; i < 100 && catcher.state() != Body.State.HOME; i++) {
+            catcher.tick(16, -999, -999, homeX, floor, 48, 0, 1920);
+            caught |= catcher.takeGrabbed();
+        }
+        check("a file dropped on him: caught with a hop", caught + " " + catcher.state(), "true HOME");
+        Body edge = new Body();
+        edge.tick(33, -999, -999, 100, floor, 48, 0, 1920);
+        edge.grab(-300, 500); // (past the edge of the screen)
+        boolean gotIt = false;
+        for (int i = 0; i < 300 && edge.state() != Body.State.HOME; i++) {
+            edge.tick(16, -999, -999, 100, floor, 48, 0, 1920);
+            gotIt |= edge.takeGrabbed();
+        }
+        check("past the screen's edge: he jumps from as close as he gets", gotIt + " " + edge.state(), "true HOME");
+
+        // tearing up a zip, filing a picture
+        Pet tearer = new Pet(5);
+        tearer.takeBeep();
+        tearer.hold("zip");
+        check("hands full: busy", tearer.busyNow() + " " + tearer.playPiano(null), "true false");
+        tearer.tearUp();
+        check("RRRIP", tearer.mood() + " " + tearer.takeBeep(), "TEAR RIP");
+        for (int i = 0; i < 80; i++) tearer.tick(33, 0, 0, false, false);
+        check("torn up: hands free again", tearer.mood() + " " + tearer.held(), "IDLE null");
+        tearer.hold("picture");
+        tearer.fileAway();
+        boolean snapped = false;
+        for (int i = 0; i < 100; i++) {
+            tearer.tick(33, 0, 0, false, false);
+            snapped |= tearer.takeBeep() == Pet.Beep.CLAP;
+        }
+        check("filed away (the folder snaps shut)", tearer.mood() + " " + tearer.held() + " " + snapped, "IDLE null true");
+        tearer.hold("zip");
+        tearer.tearUp();
+        tearer.follow(Body.State.RIDE); // (picked up mid-rip)
+        check("picked up mid-rip: not left holding it forever", tearer.held() + " " + tearer.busyNow(), "null true");
+        check("a rip sounds like something", Beeps.make(Pet.Beep.RIP).length > 10_000, true);
+
+        // all of it stays inside his little square (nothing cut off at its edges)
+        String outside = "";
+        int u = 4, w = Sprite.WIDTH * u, h = Sprite.HEIGHT * u;
+        for (String what : new String[] {"tear", "stash", "hold song", "hold zip", "hold picture", "reach", "run"}) {
+            Pet p = new Pet(9);
+            p.takeBeep();
+            switch (what) {
+                case "tear" -> p.tearUp();
+                case "stash" -> p.fileAway();
+                case "reach", "run" -> {
+                    Body b = new Body();
+                    b.grab(-100, 100);
+                    p.follow(b.state());
+                    p.setInAir(what.equals("reach"));
+                }
+                default -> p.hold(what.substring(5));
+            }
+            for (int f = 0; f < 90; f++) {
+                java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(w * 3, h * 3, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+                Graphics2D gg = img.createGraphics();
+                gg.translate(w, h);
+                Sprite.draw(gg, p, u);
+                gg.dispose();
+                boolean out = false;
+                for (int y = 0; y < h * 3 && !out; y++) for (int x = 0; x < w * 3 && !out; x++) {
+                    boolean inside = x >= w && x < 2 * w && y >= h && y < 2 * h;
+                    if (!inside && (img.getRGB(x, y) >>> 24) != 0) out = true;
+                }
+                if (out) {
+                    outside += what + "@" + p.moodTime() + " ";
+                    break;
+                }
+                p.tick(33, 0, 0, false, false);
+            }
+        }
+        check("grabbing, tearing and filing all stay inside his square", outside, "");
+
+        // which files he grabs, and where they go
+        check("what he grabs", Clawdtop.grabKind(Path.of("a.mid")) + " " + Clawdtop.grabKind(Path.of("b.ZIP")) + " " + Clawdtop.grabKind(Path.of("c.jpeg"))
+                + " " + Clawdtop.grabKind(Path.of("d.txt")), "song zip picture null");
+        Path desk = Files.createTempDirectory("clawdtop-desk");
+        Path song = Files.writeString(desk.resolve("tune.mid"), "pretend song");
+        Path kept = Clawdtop.keepSong(song);
+        check("a song he grabs goes in his songs", kept.equals(Clawdtop.songsFolder().resolve("tune.mid")) + " " + Files.exists(song), "true false");
+        Path again = Files.writeString(desk.resolve("tune.mid"), "pretend song");
+        check("the exact same song again: he's got it already", Clawdtop.keepSong(again).equals(kept), true);
+        Files.deleteIfExists(again); // (no Recycle Bin in a headless test)
+        Path other = Files.writeString(desk.resolve("tune.mid"), "a different song, same name");
+        check("a different one with the same name: kept too", Clawdtop.keepSong(other).getFileName().toString(), "tune (2).mid");
+        Path jam = Files.writeString(desk.resolve("my jam.mid"), "jam");
+        check("jam tracks go in his jams", Clawdtop.keepSong(jam).getParent().getFileName().toString(), "jams");
+        check("one of his own songs stays put", Clawdtop.keepSong(kept).equals(kept), true);
+        Path tree = Files.createDirectories(desk.resolve("unzipped/inside"));
+        Files.writeString(tree.resolve("x.txt"), "x");
+        Path moved = Clawdtop.moveTree(desk.resolve("unzipped"), desk.resolve("out/unzipped"));
+        check("a folder moves, insides and all", Files.exists(moved.resolve("inside/x.txt")) + " " + Files.exists(desk.resolve("unzipped")), "true false");
+        Path pic = Files.writeString(desk.resolve("p.png"), "pic");
+        Path filed = Clawdtop.moveFile(pic, Clawdtop.picturesFolder().resolve("p.png"));
+        check("pictures go in Pictures you gave me", filed.getParent().getFileName() + " " + Files.exists(pic), "Pictures you gave me false");
+
+        // the scraps: flung out, flutter down, lie there, fade away
+        Scraps scraps = new Scraps();
+        scraps.start(500, 650, 4);
+        int ticks = 0;
+        while (!scraps.landed() && ticks < 500) {
+            scraps.tick(33, 700, 0, 1920);
+            ticks++;
+        }
+        check("the scraps land on the desktop (in a few seconds)", scraps.landed() && ticks * 33 < 5000, true);
+        check("and lie still there", scraps.settled(), true);
+        for (int i = 0; i < 200; i++) scraps.tick(33, 700, 0, 1920);
+        check("then fade away", scraps.active(), false);
+
+        // moving the new folder in front of him
+        check("the icon mover finds it by name (quotes and all)", Desktop.placeScript("Sam's mods", 10, 20).contains("Place('Sam''s mods', 10, 20)"), true);
+
+        // his menu: submenus open when you click them, not when the mouse goes past
+        javax.swing.JPopupMenu menu = new javax.swing.JPopupMenu();
+        javax.swing.JMenu useful = new javax.swing.JMenu("Useful"), inner = new javax.swing.JMenu("Open...");
+        useful.add(inner);
+        menu.add(useful);
+        Clawdtop.openOnClick(menu);
+        check("submenus wait for a click", useful.getDelay() == Integer.MAX_VALUE && inner.getDelay() == Integer.MAX_VALUE, true);
+
+        // his piano and guitar sounds
+        for (String sound : Beeps.PIANO_SOUNDS) loudness("piano: " + sound, Beeps.piano(sound, 60, 500));
+        for (String sound : Beeps.GUITAR_SOUNDS) loudness("guitar: " + sound, Beeps.guitar(sound, 52, 500));
+        check("the sounds really differ", !java.util.Arrays.equals(Beeps.guitar("Rock", 52, 500), Beeps.guitar("Normal", 52, 500))
+                && !java.util.Arrays.equals(Beeps.piano("Harpsichord", 60, 500), Beeps.piano("Grand", 60, 500)), true);
+
+        // a jam track: every part gets recorded, and the whole band plays every note (a growly low synth comes up)
+        javax.sound.midi.Sequence band = new javax.sound.midi.Sequence(javax.sound.midi.Sequence.PPQ, 4);
+        javax.sound.midi.Track bt = band.createTrack();
+        int[][] parts = {{9, 0, 36}, {0, 33, 40}, {1, 27, 52}, {2, 29, 55}, {3, 0, 64}, {4, 80, 14}}; // channel, instrument, note
+        for (int[] p : parts) {
+            if (p[0] != 9) bt.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.PROGRAM_CHANGE, p[0], p[1], 0), 0));
+            for (int i = 0; i < 40; i++) {
+                bt.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.NOTE_ON, p[0], p[2] + i % 3, 90), i * 2L));
+                bt.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.NOTE_OFF, p[0], p[2] + i % 3, 0), i * 2L + 1));
+            }
+        }
+        Path jamFile = desk.resolve("test_jam.mid");
+        javax.sound.midi.MidiSystem.write(band, 1, jamFile.toFile());
+        String recorded = Piano.jamParts(jamFile.toFile()).stream().map(p -> p.instrument().toString()).collect(java.util.stream.Collectors.joining(" "));
+        check("every part of a jam track gets recorded", recorded, "DRUMS BASS BASS GUITAR GUITAR PIANO");
+        javax.sound.midi.Sequence whole = Piano.fullBand(javax.sound.midi.MidiSystem.getSequence(jamFile.toFile()));
+        int notesOn = 0, lowSynth = 999;
+        for (javax.sound.midi.Track tr : whole.getTracks()) for (int i = 0; i < tr.size(); i++) {
+            if (tr.get(i).getMessage() instanceof javax.sound.midi.ShortMessage m && m.getCommand() == javax.sound.midi.ShortMessage.NOTE_ON && m.getData2() > 0) {
+                notesOn++;
+                if (m.getChannel() == 4) lowSynth = Math.min(lowSynth, m.getData1());
+            }
+        }
+        check("the whole band plays every note", notesOn, parts.length * 40);
+        check("a synth way down low comes up (as a whole)", lowSynth, 14 + 24);
+        javax.sound.midi.Sequence harp = Piano.pianoOnly(javax.sound.midi.MidiSystem.getSequence(jamFile.toFile()), "Harpsichord");
+        boolean onHarpsichord = false;
+        for (int i = 0; i < harp.getTracks()[0].size(); i++) {
+            if (harp.getTracks()[0].get(i).getMessage() instanceof javax.sound.midi.ShortMessage m && m.getCommand() == javax.sound.midi.ShortMessage.PROGRAM_CHANGE && m.getChannel() == 0) {
+                onHarpsichord = m.getData1() == Piano.HARPSICHORD;
+            }
+        }
+        check("a song file on the harpsichord", onHarpsichord, true);
+
+        // the silence at the start and end of a song file is cut off
+        javax.sound.midi.Sequence quiet = new javax.sound.midi.Sequence(javax.sound.midi.Sequence.PPQ, 4);
+        javax.sound.midi.Track qt = quiet.createTrack();
+        qt.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.NOTE_ON, 0, 60, 90), 40)); // (10 beats of nothing first)
+        qt.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.NOTE_OFF, 0, 60, 0), 44));
+        qt.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.NOTE_ON, 0, 64, 90), 44));
+        qt.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.NOTE_OFF, 0, 64, 0), 48));
+        qt.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.CONTROL_CHANGE, 0, 7, 100), 400)); // (and a long nothing after)
+        javax.sound.midi.Sequence cut = Piano.pianoOnly(quiet);
+        check("silence cut off both ends", cut.getTickLength() + " ticks, first note at " + firstNoteTick(cut), "10 ticks, first note at 0");
+        Path quietFile = desk.resolve("quiet.mid");
+        javax.sound.midi.MidiSystem.write(quiet, 0, quietFile.toFile());
+        check("and he knows how long it really is", Piano.fromMidi(quietFile.toFile()).fullMs() < 2000, true);
+
+        // no tips in his sleep
+        check("tips skip him while he sleeps", Files.readString(Path.of("src/clawdtop/Clawdtop.java")).contains("bubble.asking() || pet.sleepy()) return; // (no tips in his sleep)"), true);
+    }
+
+    static long firstNoteTick(javax.sound.midi.Sequence s) {
+        long first = Long.MAX_VALUE;
+        for (javax.sound.midi.Track t : s.getTracks()) for (int i = 0; i < t.size(); i++) {
+            if (t.get(i).getMessage() instanceof javax.sound.midi.ShortMessage m && m.getCommand() == javax.sound.midi.ShortMessage.NOTE_ON && m.getData2() > 0) first = Math.min(first, t.get(i).getTick());
+        }
+        return first;
+    }
+
+    /** A sound: there, not too long, and no louder than his beeps. */
+    static void loudness(String what, byte[] sound) {
+        int loudest = 0;
+        for (int i = 0; i + 1 < sound.length; i += 2) loudest = Math.max(loudest, Math.abs((short) ((sound[i] & 0xFF) | sound[i + 1] << 8)));
+        check(what + " sounds right (loud enough, not too loud)", sound.length > 4000 && loudest > 1500 && loudest < 32767 * 0.2, true);
+    }
+
     static void check(String what, Object got, Object want) {
         boolean ok = Objects.equals(String.valueOf(got), String.valueOf(want));
         if (!ok) failures++;
@@ -851,9 +1078,9 @@ public class ClawdtopTest {
                 return Options.find(key).start();
             }
         });
-        check("he fetches it", player.fetch(fromMidi) + " " + player.mood(), "true FETCH");
+        check("he plays it", player.playPiano(fromMidi) + " " + player.mood(), "true PIANO");
         java.util.List<Integer> played = new java.util.ArrayList<>();
-        for (int i = 0; i < 400 && (player.mood() == Pet.Mood.FETCH || player.mood() == Pet.Mood.PIANO); i++) {
+        for (int i = 0; i < 400 && player.mood() == Pet.Mood.PIANO; i++) {
             player.tick(33, 0, 0, false, false);
             int note = player.takeNote();
             if (note > 0) played.add(note);
@@ -1184,6 +1411,8 @@ public class ClawdtopTest {
         bg.dispose();
         ImageIO.write(bubble, "png", frames.resolve("tip bubble.png").toFile());
         check("pictures of every mood (and a tip) are in build/frames", Files.list(frames).count() >= 7, true);
+
+        grabTests();
 
         System.out.println(failures == 0 ? "ALL PASSED" : failures + " FAILED");
         System.exit(failures == 0 ? 0 : 1);
