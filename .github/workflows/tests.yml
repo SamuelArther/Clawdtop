@@ -71,6 +71,32 @@ jobs:
           name: windows-screenshots
           path: shots
 
+  screen-mac:
+    # the real Clawd on a real macOS desktop (the screenshots may come out blank if macOS won't allow screen capture)
+    runs-on: macos-latest
+    timeout-minutes: 20
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Build
+        run: |
+          javac --release 22 -Xlint:-options -d build/classes src/clawdtop/*.java
+          javac -d build/test-classes -cp build/classes src/clawdtop/*.java test/clawdtop/*.java
+      - name: Everything in his menus, on a Mac
+        run: |
+          java --enable-native-access=ALL-UNNAMED -cp build/test-classes clawdtop.SmokeQuick shots/mac-quick             "|3|idle" "settings menu|2|settings menu" "close menus|1|menus closed" "menu|2|fun menu" "close menus|1|closed"             "piano|4|piano" "guitar|3|guitar" "drums|3|drums" "sing|4|singing" "cpdance|2|cp dance" "lap|8|lap" "timer|3|timer"             "watch|2|watching" "scare|0.5|scared" "salute me|2|salute" "ttt|3|tic-tac-toe" "ask|2|ask box" "close ask|1|ask closed"
+      - name: Setup, on a Mac
+        run: timeout 300 java --enable-native-access=ALL-UNNAMED -cp build/test-classes clawdtop.SmokeSetup shots/mac-setup || echo "setup ended with $?"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mac-screenshots
+          path: shots
+
   brain:
     strategy:
       fail-fast: false
