@@ -268,6 +268,11 @@ public final class Clawdtop {
 
     /** Answers your question: math goes to Calculator (he doesn't trust himself); the rest, his brain. */
     private void answer(String question) {
+        if (question.toLowerCase(java.util.Locale.ROOT).matches("\\W*(help|what can you do|what do you do|commands|how do (i|you) use you)\\W*")) {
+            pet.say("Things you can ask me:\nAny question (I'll think about it)\nMath like \"what's 12 times 7\" (we'll use Calculator)\n"
+                    + "\"remind me in 10 minutes to stretch\"\n\"set a timer for 5 minutes\", \"start a stopwatch\"\nMore fun stuff is in my menu!");
+            return;
+        }
         int watch = Reminders.stopwatch(question);
         if (watch != 0) {
             stopwatch(watch > 0);
