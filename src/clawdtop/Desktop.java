@@ -131,8 +131,8 @@ final class Desktop {
         if (Platform.MAC) {
             try {
                 Process p = new ProcessBuilder("osascript", "-e", FINDER_SCRIPT).redirectErrorStream(true).start();
-                String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-                if (!p.waitFor(60, java.util.concurrent.TimeUnit.SECONDS) || p.exitValue() != 0) return null; // (not allowed)
+                String out = output(p, 60);
+                if (out == null || p.exitValue() != 0) return null; // (not allowed, or Finder's stuck)
                 Layout icons = read(out);
                 return new Layout(Path.of(System.getProperty("user.home"), "Desktop"), icons.icons());
             } catch (Exception cant) {
@@ -143,8 +143,8 @@ final class Desktop {
         try {
             Process p = new ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden",
                     "-EncodedCommand", java.util.Base64.getEncoder().encodeToString(iconScript().getBytes(StandardCharsets.UTF_16LE))).redirectErrorStream(true).start();
-            String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            if (!p.waitFor(15, java.util.concurrent.TimeUnit.SECONDS)) p.destroyForcibly();
+            String out = output(p, 15);
+            if (out == null) return null; // (Explorer's stuck)
             Layout layout = read(out);
             return layout.folder() == null ? null : layout;
         } catch (Exception cant) {
@@ -159,6 +159,26 @@ final class Desktop {
     static double[] spot(Icon icon, java.awt.Rectangle screen, double scale) {
         if (Platform.MAC) return new double[] {icon.x(), icon.y() - 28};
         return new double[] {screen.x + icon.x() / scale + 37, screen.y + icon.y() / scale + 8};
+    }
+
+    /** What a program says, if it finishes in time (else it's stopped, and null). */
+    private static String output(Process p, int seconds) throws InterruptedException {
+        var said = java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+            try {
+                return new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            } catch (IOException e) {
+                return "";
+            }
+        });
+        if (!p.waitFor(seconds, java.util.concurrent.TimeUnit.SECONDS)) {
+            p.destroyForcibly();
+            return null;
+        }
+        try {
+            return said.get(5, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException e) {
+            return null;
+        }
     }
 
     /** The file an icon is showing (its name, with or without the extension), or null if it isn't a plain file there. */

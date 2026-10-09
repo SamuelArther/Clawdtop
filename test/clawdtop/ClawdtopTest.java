@@ -646,6 +646,26 @@ public class ClawdtopTest {
         check("long release notes read fine", Updater.parse("{\"tag_name\":\"v1.2.0\",\"body\":\"" + longNotes + "\",\"assets\":[{\"browser_download_url\":"
                 + "\"https://x/v1.2.0/Clawdtop.jar\"}]}").notes().length() > 50_000, true);
         check("and a release without his jar doesn't count", Updater.parse("{\"tag_name\":\"v2\",\"assets\":[]}"), null);
+        // song files made his: every note that starts also ends (no stuck notes), even with notes that end as they start,
+        // and a note struck again before the last one let go is kept
+        javax.sound.midi.Sequence ringing = new javax.sound.midi.Sequence(javax.sound.midi.Sequence.PPQ, 480);
+        javax.sound.midi.Track line = ringing.createTrack();
+        long[][] hits = {{0, 0}, {0, 479}, {480, 1439}, {1440, 1900}, {1800, 2400}};
+        for (long[] h : hits) {
+            line.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.NOTE_ON, 0, 60, 90), h[0]));
+            line.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.NOTE_OFF, 0, 60, 0), h[1]));
+        }
+        javax.sound.midi.Sequence his = Piano.pianoOnly(ringing);
+        int ons = 0, offs = 0;
+        for (javax.sound.midi.Track t : his.getTracks()) {
+            for (int i = 0; i < t.size(); i++) {
+                if (t.get(i).getMessage() instanceof javax.sound.midi.ShortMessage m && m.getData1() == 60) {
+                    if (m.getCommand() == javax.sound.midi.ShortMessage.NOTE_ON && m.getData2() > 0) ons++;
+                    else if (m.getCommand() == javax.sound.midi.ShortMessage.NOTE_OFF || m.getCommand() == javax.sound.midi.ShortMessage.NOTE_ON) offs++;
+                }
+            }
+        }
+        check("song notes all end", ons + " on, " + offs + " off", "4 on, 4 off");
         // the desktop: reading icon spots (Windows' script and Finder say the same shape), sorting files for Neat
         Desktop.Layout desk = Desktop.read("DESKTOP|/home/me/Desktop\nskin|177,2\nmy song.mid|2427,1032\nnot an icon\n");
         check("desktop read", desk.folder().getFileName() + " " + desk.icons(), "Desktop [Icon[name=skin, x=177, y=2], Icon[name=my song.mid, x=2427, y=1032]]");

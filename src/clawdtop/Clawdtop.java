@@ -334,9 +334,11 @@ public final class Clawdtop {
         int round = ++midiRound;
         if (file == null) return;
         worker.execute(() -> {
+            javax.sound.midi.Sequencer opened = null;
             try {
                 javax.sound.midi.Sequencer s = javax.sound.midi.MidiSystem.getSequencer();
                 s.open();
+                opened = s;
                 javax.sound.midi.Sequence seq = javax.sound.midi.MidiSystem.getSequence(file);
                 s.setSequence(fullBand ? Piano.fullBand(seq) : Piano.pianoOnly(seq)); // (all piano: it's his piano he's playing; a jam: the whole band)
                 s.start();
@@ -345,7 +347,7 @@ public final class Clawdtop {
                     else s.close(); // already stopped (or a newer one started)
                 });
             } catch (Exception noMidi) {
-                // no sound for it, then (he still plays along)
+                if (opened != null) opened.close(); // no sound for it, then (he still plays along)
             }
         });
     }
@@ -785,6 +787,21 @@ public final class Clawdtop {
     private final java.util.ArrayDeque<Object[]> tidyQueue = new java.util.ArrayDeque<>(); // {file, x, y} still to tackle
     private int tidyStage, tidiedCount;                          // 1: hopping to the next one
     private long tidySince;
+    private String songsOnDesktop = "";                          // the song files there last time (a new one: a look)
+    private long dragSince, lastDesktopLook;                     // a drag (holding the button down) just ended: a look
+    private boolean draggedSomething;
+
+    /** Each frame (Windows): a mouse drag just ended? (Maybe a song file was dragged near him: worth a look.) */
+    private void noticeDrags() {
+        if (!Platform.WINDOWS) return;
+        boolean down = Foreground.leftButtonDown();
+        long now = System.currentTimeMillis();
+        if (down && dragSince == 0) dragSince = now;
+        else if (!down && dragSince != 0) {
+            if (now - dragSince > 200) draggedSomething = true;
+            dragSince = 0;
+        }
+    }
 
     /**
      * Whether he can see where things are on the desktop without asking: Windows, or a Mac where you've let him ask Finder
@@ -798,23 +815,38 @@ public final class Clawdtop {
     private void watchDesktopForSongs() {
         if (!desktopReadable() || lookingAtDesktop || fetchStage != 0 || tidyStage != 0 || job != null || hidden || boxed
                 || body.state() != Body.State.HOME || pet.busyNow()) return;
-        Path folder = desktopFolder != null ? desktopFolder : Path.of(System.getProperty("user.home"), "Desktop");
-        boolean anySongs;
-        try (var files = java.nio.file.Files.list(folder)) {
-            anySongs = files.anyMatch(f -> Piano.isMidi(f.toFile()));
-        } catch (IOException | RuntimeException e) {
-            anySongs = desktopFolder == null; // (not the usual place: look once to learn where it is)
+        long now = System.currentTimeMillis();
+        boolean look;
+        if (desktopFolder == null) look = !desktopLooked; // (the first time: one look, to learn where the desktop really is)
+        else {
+            String songs;
+            try (var files = java.nio.file.Files.list(desktopFolder)) {
+                songs = files.filter(f -> Piano.isMidi(f.toFile())).map(f -> f.getFileName().toString()).sorted().toList().toString();
+            } catch (IOException | RuntimeException e) {
+                songs = "[]";
+            }
+            boolean newSongs = !songs.equals(songsOnDesktop);
+            songsOnDesktop = songs;
+            if (songs.equals("[]")) {
+                songNearHim.clear();
+                return;
+            }
+            // looking takes a moment (and a little program), so only when something's changed: a new song file, a drag
+            // just ended (Windows), or now and then (Mac, where Finder doesn't mind)
+            look = newSongs || draggedSomething || (Platform.MAC && now - lastDesktopLook > 10_000);
         }
-        if (!anySongs) {
-            songNearHim.clear();
-            return;
-        }
+        draggedSomething = false;
+        if (!look || now - lastDesktopLook < 2500) return;
+        lastDesktopLook = now;
         lookingAtDesktop = true;
         worker.execute(() -> {
             Desktop.Layout layout = Desktop.look();
             SwingUtilities.invokeLater(() -> {
                 lookingAtDesktop = false;
-                if (layout == null) return;
+                if (layout == null) {
+                    desktopLooked = true;
+                    return;
+                }
                 desktopFolder = layout.folder();
                 Rectangle screen = screenBounds();
                 double scale = window.getGraphicsConfiguration().getDefaultTransform().getScaleX();
@@ -858,6 +890,7 @@ public final class Clawdtop {
             }
             body.leave();
             fetchStage = 2;
+            fetchSince = now;
         } else if (fetchStage == 2 && body.state() == Body.State.HOME) { // home again: and he plays it
             fetchStage = 0;
             if (fetching != null) playDropped(fetching.toFile());
@@ -897,7 +930,13 @@ public final class Clawdtop {
 
     /** Useful > Tidy my desktop: he asks first, then tackles each file into Neat (sorted by type). Nothing's deleted. */
     private void tidyDesktop() {
-        if (lookingAtDesktop || tidyStage != 0) return;
+        if (tidyStage != 0) return;
+        if (lookingAtDesktop) { // (he's mid-look already: right after that)
+            javax.swing.Timer again = new javax.swing.Timer(1000, e -> tidyDesktop());
+            again.setRepeats(false);
+            again.start();
+            return;
+        }
         lookingAtDesktop = true;
         pet.say("Let me take a look...");
         String only = System.getProperty("clawdtop.tidyOnly"); // (the screen test: only its own pretend files)
@@ -932,6 +971,10 @@ public final class Clawdtop {
                         + "sorted by type (Pictures, Music, Documents...).\nNothing gets deleted, and I can put them back. Go?",
                         new String[] {"Go!", "Not now"}, choice -> {
                             if (choice != 0) return;
+                            if (fetchStage != 0 || tidyStage != 0) {
+                                pet.say("Hang on, let me finish this first!");
+                                return;
+                            }
                             tidyQueue.clear();
                             tidyQueue.addAll(todo);
                             tidiedCount = 0;
@@ -948,20 +991,24 @@ public final class Clawdtop {
     /** Useful > Put my desktop back: every tidied file goes back where it was (and the empty Neat folders go). */
     private void putDesktopBack() {
         int back = 0;
+        java.util.List<String[]> stuck = new java.util.ArrayList<>(); // (open in something just now: kept, for next time)
+        Path desktop = desktopFolder;
         for (String[] pair : settings.tidied()) {
             try {
                 Path to = Path.of(pair[0]), from = Path.of(pair[1]);
+                if (desktop == null) desktop = from.getParent();
                 if (java.nio.file.Files.exists(to)) {
                     java.nio.file.Files.move(to, Desktop.free(from));
                     back++;
                 }
-            } catch (IOException | RuntimeException moved) {
-                // (you've moved it yourself since: it stays)
+            } catch (IOException | RuntimeException inUse) {
+                stuck.add(pair);
             }
         }
         settings.clearTidied();
-        if (desktopFolder != null) { // the Neat folders, if they're empty now
-            Path neat = desktopFolder.resolve("Neat");
+        for (String[] pair : stuck) settings.addTidied(Path.of(pair[0]), Path.of(pair[1]));
+        if (desktop != null) { // the Neat folders, if they're empty now
+            Path neat = desktop.resolve("Neat");
             try (var dirs = java.nio.file.Files.list(neat)) {
                 for (Path d : dirs.toList()) {
                     if (!Desktop.CATEGORIES.contains(d.getFileName().toString())) continue; // (only the folders he made)
@@ -976,7 +1023,8 @@ public final class Clawdtop {
                 // something of yours is in there: it stays
             }
         }
-        pet.say(back == 0 ? "Everything's already back where it was!" : "Done! " + back + (back == 1 ? " file is" : " files are") + " back where they were.");
+        String still = stuck.isEmpty() ? "" : "\n" + stuck.size() + (stuck.size() == 1 ? " is" : " are") + " open in something, so I left " + (stuck.size() == 1 ? "it" : "them") + ". Try again later!";
+        pet.say((back == 0 ? "Everything's already back where it was!" : "Done! " + back + (back == 1 ? " file is" : " files are") + " back where they were.") + still);
     }
 
     /** A game of tic-tac-toe against him. */
@@ -2396,6 +2444,7 @@ public final class Clawdtop {
             pet.birthday(settings.name());
         }
         if (newTick && ticks % 300 == 150) checkTimes();
+        if (newTick) noticeDrags();
         if (newTick && ticks % 90 == 20) watchDesktopForSongs();
         desktopTrips();
         if (newTick && ticks % 3 == 0) react(nowMs);
@@ -2729,6 +2778,7 @@ public final class Clawdtop {
                     "Can Clawd see your screen?", "(test) He takes a quick look at how bright your screen is.");
             case "yes" -> bubble.press(0);
             case "tidy" -> tidyDesktop();
+            case "dragged" -> draggedSomething = true;
             case "put back" -> putDesktopBack();
             case "veterans" -> {
                 pet.salute();

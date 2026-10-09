@@ -203,6 +203,25 @@ final class Piano {
                 }
             }
         }
+        // notes that end the moment they start can't be heard, and they'd confuse the counting below (left out)
+        for (javax.sound.midi.Track track : tracks) {
+            java.util.Map<Integer, javax.sound.midi.MidiEvent> down = new java.util.HashMap<>();
+            java.util.List<javax.sound.midi.MidiEvent> silent = new java.util.ArrayList<>();
+            for (int i = 0; i < track.size(); i++) {
+                javax.sound.midi.MidiEvent e = track.get(i);
+                if (!(e.getMessage() instanceof javax.sound.midi.ShortMessage m)) continue;
+                int key = m.getChannel() * 128 + m.getData1();
+                if (m.getCommand() == javax.sound.midi.ShortMessage.NOTE_ON && m.getData2() > 0) down.put(key, e);
+                else if (m.getCommand() == javax.sound.midi.ShortMessage.NOTE_OFF || m.getCommand() == javax.sound.midi.ShortMessage.NOTE_ON) {
+                    javax.sound.midi.MidiEvent on = down.remove(key);
+                    if (on != null && on.getTick() == e.getTick()) {
+                        silent.add(on);
+                        silent.add(e);
+                    }
+                }
+            }
+            for (javax.sound.midi.MidiEvent e : silent) track.remove(e);
+        }
         // a crowded song is boiled down: no quick little notes (trills, rolls, flourishes), just the tune on top and a bassline
         if (allPiano) {
             record Held(javax.sound.midi.Track track, javax.sound.midi.MidiEvent on, javax.sound.midi.MidiEvent off, int pitch, double startMs, double ms) {

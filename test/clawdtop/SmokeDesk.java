@@ -50,6 +50,7 @@ public final class SmokeDesk {
             double homeX = field(clawd[0], "homeX"), groundY = field(clawd[0], "groundY");
             double scale = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration().getDefaultTransform().getScaleX();
             moveIcon(PREFIX + "song", (int) ((homeX - 170) * scale), (int) ((groundY - 120) * scale));
+            SwingUtilities.invokeAndWait(() -> clawd[0].smoke("dragged")); // (moved by the test, not a real drag he'd notice)
             for (int i = 0; i < 24; i++) {
                 Thread.sleep(500);
                 ImageIO.write(robot.createScreenCapture(all), "png", new File(out, String.format("f%02d.png", i)));
