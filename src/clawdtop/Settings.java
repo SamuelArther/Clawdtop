@@ -353,11 +353,11 @@ public final class Settings {
     public boolean once(String what) {
         String done = values.getProperty("once", "");
         if (java.util.Arrays.asList(done.split(",")).contains(what)) return false;
-        // keep the list short: only the last 20
+        // keep the list short: only the last 60
         java.util.List<String> list = new java.util.ArrayList<>(java.util.Arrays.asList(done.split(",")));
         list.removeIf(String::isBlank);
         list.add(what);
-        while (list.size() > 20) list.remove(0);
+        while (list.size() > 60) list.remove(0);
         values.setProperty("once", String.join(",", list));
         save();
         return true;
@@ -410,6 +410,23 @@ public final class Settings {
     /** Whether he has this shop item. */
     public boolean owns(String id) {
         return java.util.Arrays.asList(values.getProperty("owned", "").split(",")).contains(id);
+    }
+
+    /** The branches and the ways of serving he asks about at setup. */
+    static final String[] BRANCHES = {"Army", "Navy", "Air Force", "Marine Corps", "Coast Guard", "Space Force", "Army National Guard",
+            "Air National Guard"};
+    static final String[] SERVICE = {"Active duty", "Reserve", "Retired", "Honorably discharged"};
+
+    /** Your military service: {branch, how} (like {"Army", "Retired"}), or null if you didn't say you served. */
+    public String[] service() {
+        String s = values.getProperty("service", "");
+        String[] parts = s.split("\\|");
+        return parts.length == 2 && !parts[0].isBlank() ? parts : null;
+    }
+
+    public void setService(String branch, String how) {
+        values.setProperty("service", branch == null ? "" : branch + "|" + how);
+        save();
     }
 
     /** Gives something back (huts are gone from the shop: their points come back). */

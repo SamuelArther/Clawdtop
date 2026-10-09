@@ -233,12 +233,41 @@ final class Welcome {
         Runnable next = () -> {
             settings.setHome(home.getText().isBlank() ? settings.suggestedHome() : home.getText());
             beep.accept(Pet.Beep.HAPPY);
-            askKidFriendly();
+            askMilitary();
         };
         home.addActionListener(e -> next.run());
         show(new String[] {"And what should I call this computer?", "It's my new home!"}, home, button("Next", next));
         home.selectAll();
         home.requestFocusInWindow();
+    }
+
+    /** Have you served in the military? Then he salutes you each day. */
+    void askMilitary() {
+        show(new String[] {"Have you ever served in the military?", "(I like to say thank you.)"}, null,
+                button("No", () -> {
+                    settings.setService(null, null);
+                    askKidFriendly();
+                }),
+                button("Yes", this::askBranch));
+    }
+
+    void askBranch() {
+        javax.swing.JComboBox<String> branch = new javax.swing.JComboBox<>(Settings.BRANCHES);
+        branch.setFont(Bubble.FONT.deriveFont(14f));
+        show(new String[] {"Which branch?"}, branch, button("Back", this::askMilitary),
+                button("Next", () -> askServiceStatus((String) branch.getSelectedItem())));
+    }
+
+    void askServiceStatus(String branch) {
+        javax.swing.JComboBox<String> how = new javax.swing.JComboBox<>(Settings.SERVICE);
+        how.setFont(Bubble.FONT.deriveFont(14f));
+        show(new String[] {branch + "! And are you...", "(active duty, reserve, retired, or honorably discharged)"}, how,
+                button("Back", this::askBranch),
+                button("Next", () -> {
+                    settings.setService(branch, (String) how.getSelectedItem());
+                    beep.accept(Pet.Beep.HAPPY);
+                    show(new String[] {"Thank you for your service.", "I'll salute you every day."}, null, button("Next", this::askKidFriendly));
+                }));
     }
 
     /** Moved in from another computer (oldHome is its name): what's this one called? */

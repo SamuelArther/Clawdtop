@@ -1203,6 +1203,36 @@ public final class Pet {
     }
 
     /** Veterans Day. */
+    /** A salute for you, for your service (once a day, the first time he sees you). */
+    public boolean saluteYou(String name, String branch, String how) {
+        if (busy() || mood == Mood.SLEEP) return false;
+        line = serviceLine(name, branch, how);
+        set(Mood.SALUTE, 5000);
+        return true;
+    }
+
+    /** What he says when he salutes you: thanks, something for how you serve(d), and your branch's motto. */
+    static String serviceLine(String name, String branch, String how) {
+        String thanks = "Thank you for your service" + (name == null || name.isBlank() ? "!" : ", " + name + "!");
+        String more = switch (how) {
+            case "Active duty" -> "Stay safe out there.";
+            case "Reserve" -> "Ready when called. Respect.";
+            case "Retired" -> "Enjoy your retirement. You earned it.";
+            default -> "We're all grateful.";
+        };
+        String motto = switch (branch) {
+            case "Army" -> "Hooah!";
+            case "Navy" -> "Hooyah!";
+            case "Air Force" -> "Aim high!";
+            case "Marine Corps" -> "Semper Fi!";
+            case "Coast Guard" -> "Semper Paratus!";
+            case "Space Force" -> "Semper Supra!";
+            case "Army National Guard", "Air National Guard" -> "Always ready, always there!";
+            default -> "";
+        };
+        return thanks + "\n" + more + (motto.isEmpty() ? "" : " " + motto);
+    }
+
     public boolean salute() {
         if (busy() || mood == Mood.SLEEP) return false;
         line = "Happy Veterans Day.\nThank you to everyone who served.";

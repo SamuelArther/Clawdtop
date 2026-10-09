@@ -459,6 +459,16 @@ public class ClawdtopTest {
         find(hello.panel(), javax.swing.JTextField.class).setText("Samuel's Laptop");
         click(hello.panel(), "Next");
         check("and calls your computer what you said", fresh.home(), "Samuel's Laptop");
+        snapshot(hello.panel(), frames0.resolve("welcome 3c2 military.png"));
+        click(hello.panel(), "Yes");
+        snapshot(hello.panel(), frames0.resolve("welcome 3c3 branch.png"));
+        find(hello.panel(), javax.swing.JComboBox.class).setSelectedItem("Army National Guard");
+        click(hello.panel(), "Next");
+        find(hello.panel(), javax.swing.JComboBox.class).setSelectedItem("Retired");
+        click(hello.panel(), "Next");
+        check("served? he asks your branch (National Guard too) and how you served", String.join("|", Settings.load().service()), "Army National Guard|Retired");
+        check("and salutes you with your branch's motto", Pet.serviceLine("Sam", "Marine Corps", "Active duty"), "Thank you for your service, Sam!\nStay safe out there. Semper Fi!");
+        click(hello.panel(), "Next");
         snapshot(hello.panel(), frames0.resolve("welcome 3d kid-friendly.png"));
         click(hello.panel(), "Normal (recommended)");
         snapshot(hello.panel(), frames0.resolve("welcome 3e web search.png"));
@@ -526,7 +536,7 @@ public class ClawdtopTest {
         // ---- Save tokens ----
         String token = afterPanel.saveToken();
         check("a save token starts with CLAWD-", token.startsWith("CLAWD-"), true);
-        check("and holds who he is to you", SaveToken.read(token).toString(), "{name=Sam, color=#33AAFF, personality=BOUNCY, spot=On the left, size=Big, birthday=10-08, metDate=" + afterPanel.metDate() + ", home=Samuel's Laptop}");
+        check("and holds who he is to you", SaveToken.read(token).toString(), "{name=Sam, color=#33AAFF, personality=BOUNCY, spot=On the left, size=Big, birthday=10-08, metDate=" + afterPanel.metDate() + ", home=Samuel's Laptop, service=Army National Guard|Retired}");
         check("a mistyped token is caught", SaveToken.read(token.substring(0, 10) + "x" + token.substring(11)) + " " + SaveToken.read("hello"), "null null");
         Files.deleteIfExists(home.resolve("settings.properties"));
         Settings reborn = Settings.load();

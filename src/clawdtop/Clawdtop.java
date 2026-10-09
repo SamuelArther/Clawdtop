@@ -1040,6 +1040,11 @@ public final class Clawdtop {
                     + (settings.homeNamed() ? "\n" + settings.home() + " was so quiet without you." : "");
             greetings.add(() -> pet.say(missed));
         }
+        String[] served = settings.service();
+        String saluteKey = "salute:" + java.time.LocalDate.now();
+        if (served != null && !settings.seen(saluteKey)) { // a salute for your service, once a day
+            greetings.add(() -> { if (pet.saluteYou(settings.name(), served[0], served[1])) settings.once(saluteKey); });
+        }
         int hourNow = java.time.LocalTime.now().getHour();
         String morningKey = "morning:" + java.time.LocalDate.now();
         if (hourNow >= 5 && hourNow < 12 && settings.on("morning") && !settings.seen(morningKey)) {
