@@ -344,6 +344,11 @@ public class ClawdtopTest {
         panelCopy.setName("Panel Name");
         appCopy.setJokes("Lots");
         check("two copies saving don't undo each other", Settings.load().name() + " / " + Settings.load().jokes(), "Panel Name / Lots");
+        Settings before = Settings.load(), other = Settings.load();
+        int x0 = before.x();
+        other.setX(x0 + 200);
+        before.setX(x0); // set back to what it was: still counts as a change
+        check("and putting something back still counts", Settings.load().x(), x0);
         Settings spots = Settings.load();
         spots.setAppSpot(Settings.appKey("Chrome.exe"), 300);
         spots.setAppSpot(Settings.windowKey("YouTube - Google Chrome"), 700);
@@ -669,6 +674,8 @@ public class ClawdtopTest {
                 + " / " + Reminders.parse("remind me in an hour and a half").when() + " / " + Reminders.parse("set a timer for twelve minutes").when(),
                 "5 minutes / 1 hour 30 minutes / 1 hour 30 minutes / 12 minutes");
         check("and he's honest about the ones he can't do", Reminders.soundsLikeOne("remind me at 5pm to call grandma") + " " + Reminders.soundsLikeOne("remind me in 5 minutes"), "true false");
+        check("but \"remind me how...\" is a question for him", Reminders.soundsLikeOne("remind me how photosynthesis works"), false);
+        check("powers survive the tidy-up, and sniggering is fine", Brain.clean("2^3 is 8") + " / " + Brain.noBadWords("sniggering"), "2^3 is 8 / sniggering");
         check("he never says bad words back", Reminders.parse("remind me in 5 minutes to say shit").what() + " | " + Brain.noBadWords("Moby-Dick in Scunthorpe, bullshit"),
                 "say beep | Moby-Dick in Scunthorpe, beep");
         check("answers cut off mid-sentence end on a full one", Brain.toLastSentence("Crabs walk sideways. They have ten le"), "Crabs walk sideways.");

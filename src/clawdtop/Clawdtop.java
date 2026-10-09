@@ -283,7 +283,7 @@ public final class Clawdtop {
 
     private void focus(boolean on) {
         if (pet.focus(on, false) || !on) focusUntil = on ? System.currentTimeMillis() + 25 * 60_000L : 0;
-        else pet.say("Let me finish this first, then focus mode!");
+        else pet.say("I'm in the middle of something!\nTry focus mode again in a moment.");
     }
     private final Piano yourPiano = new Piano();
     private javax.sound.midi.Sequencer sequencer; // playing a whole MIDI file (his piano just shows it)
@@ -1437,7 +1437,8 @@ public final class Clawdtop {
         String t = f.title();
         int dash = t.lastIndexOf(" - ");
         if (dash >= 0 && t.length() - dash - 3 > 1 && t.length() - dash - 3 < 30) return t.substring(dash + 3).strip();
-        String a = f.app().replaceAll("(?i)\\.exe$", "").replaceAll("([a-z])([A-Z])", "$1 $2"); // (WindowsTerminal: Windows Terminal)
+        String a = f.app().replaceAll("(?i)\\.exe$", "");
+        if (a.equalsIgnoreCase("WindowsTerminal")) return "Windows Terminal";
         return a.isEmpty() ? "this app" : Character.toUpperCase(a.charAt(0)) + a.substring(1);
     }
 
@@ -1531,7 +1532,7 @@ public final class Clawdtop {
     }
 
     private void offerUpdate(Updater.Release release, int tries) {
-        if (tries >= 40) return; // never found a good moment: there's always tomorrow
+        if (tries >= 240) return; // no good moment in an hour: there's always tomorrow
         if (pet.busyNow() || bubble.asking() || body.state() != Body.State.HOME || hidden || inCorner || boxed || farewell || movingOut
                 || focusUntil > 0 || pet.focusing()) { // in a bit
             javax.swing.Timer later = new javax.swing.Timer(15_000, e -> offerUpdate(release, tries + 1));
@@ -1932,8 +1933,9 @@ public final class Clawdtop {
         }));
         Updater.tidy();
         Settings.takeAsk(); // (anything the clawd command asked before he started: old news)
-        javax.swing.Timer updates = new javax.swing.Timer(20_000, e -> checkForUpdate()); // once he's settled in
-        updates.setRepeats(false);
+        javax.swing.Timer updates = new javax.swing.Timer(20_000, e -> checkForUpdate()); // once he's settled in (and once a day, if he's left running)
+        updates.setDelay(3_600_000);
+        updates.setInitialDelay(20_000);
         updates.start();
         try {
             java.nio.file.Files.createDirectories(songsFolder().resolve("veterans")); // so you can see where songs go

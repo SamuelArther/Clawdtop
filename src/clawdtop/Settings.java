@@ -10,8 +10,21 @@ import java.util.Properties;
 
 /** What you chose in Clawd's menu, kept for next time in your user folder (AppData\Roaming\Clawdtop on Windows). */
 public final class Settings {
-    private final Properties values = new Properties();
-    private final Properties asLoaded = new Properties(); // what the file said when we read it (to tell what we changed)
+    private final java.util.Set<String> changed = new java.util.HashSet<>(); // keys this copy has changed (what it saves)
+    private final Properties values = new Properties() {
+        @Override
+        public synchronized Object setProperty(String key, String value) {
+            changed.add(key);
+            return super.setProperty(key, value);
+        }
+
+        @Override
+        public synchronized Object remove(Object key) {
+            changed.add(String.valueOf(key));
+            return super.remove(key);
+        }
+    };
+    private static final Object SAVING = new Object(); // (one save at a time in this program)
     private final Path file;
 
     private Settings(Path file) {
@@ -39,21 +52,22 @@ public final class Settings {
 
     static Settings load() {
         Settings s = new Settings(folder().resolve("settings.properties"));
-        s.values.putAll(read(s.file));
-        s.asLoaded.putAll(s.values);
+        Properties p = read(s.file);
+        if (p != null) s.values.putAll(p); // (a damaged file: start over with the defaults)
+        s.changed.clear();
         return s;
     }
 
+    /** What's in the file now: empty if there's no file, null if it couldn't be read. */
     private static Properties read(Path file) {
         Properties p = new Properties();
-        if (Files.exists(file)) {
-            try (Reader in = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
-                p.load(in);
-            } catch (IOException | IllegalArgumentException e) {
-                // a damaged file: start over with the defaults
-            }
+        if (!Files.exists(file)) return p;
+        try (Reader in = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+            p.load(in);
+            return p;
+        } catch (IOException | IllegalArgumentException e) {
+            return null;
         }
-        return p;
     }
 
     /**
@@ -61,17 +75,26 @@ public final class Settings {
      * undo each other's changes), and the file is swapped in whole (never half written).
      */
     private void save() {
+        synchronized (SAVING) {
+            saveNow();
+        }
+    }
+
+    private void saveNow() {
         try {
             Files.createDirectories(file.getParent());
             try (java.nio.channels.FileChannel lockFile = java.nio.channels.FileChannel.open(file.resolveSibling("settings.lock"),
                     java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.WRITE);
                     java.nio.channels.FileLock lock = lockFile.lock()) {
                 Properties now = read(file);
-                for (String key : values.stringPropertyNames()) {
-                    if (!values.getProperty(key).equals(asLoaded.getProperty(key))) now.setProperty(key, values.getProperty(key));
+                if (now == null) { // couldn't read it (busy?): write ours whole rather than lose anything
+                    now = new Properties();
+                    now.putAll(values);
                 }
-                for (String key : asLoaded.stringPropertyNames()) {
-                    if (!values.containsKey(key)) now.remove(key);
+                for (String key : changed) { // what this copy changed goes on top of what's there
+                    String v = values.getProperty(key);
+                    if (v != null) now.setProperty(key, v);
+                    else now.remove(key);
                 }
                 Path temp = file.resolveSibling("settings.properties.tmp");
                 try (Writer out = Files.newBufferedWriter(temp, StandardCharsets.UTF_8)) {
@@ -84,8 +107,7 @@ public final class Settings {
                 }
                 values.clear();
                 values.putAll(now);
-                asLoaded.clear();
-                asLoaded.putAll(now);
+                changed.clear();
                 lastSaved = Files.getLastModifiedTime(file).toMillis();
             }
         } catch (IOException | java.nio.channels.OverlappingFileLockException e) {
@@ -132,6 +154,7 @@ public final class Settings {
     public String choice(String key) {
         Options.Option o = Options.find(key);
         String v = values.getProperty("opt." + key, o.start());
+        if (key.equals("brain") && v.equals("Smart")) v = "Chatty"; // (its old name)
         return o.choices().contains(v) ? v : o.start();
     }
 

@@ -149,7 +149,7 @@ final class Brain {
     // Bad words, anywhere in a word ("bullsh..." too), plus a few that only count as whole words (so Moby-Dick and
     // Scunthorpe are safe). Anything that matches becomes "beep".
     private static final Pattern BAD = Pattern.compile(
-            "(?i)(\\w*(fuck|shit|bitch|whore|slut|asshole|bastard|motherf|nigg|fagg)\\w*"
+            "(?i)(\\w*(fuck|shit|bitch|whore|slut|asshole|bastard|motherf|fagg)\\w*|(?<![a-z])nigg\\w*"
                     + "|(?<![\\w-])(cunt\\w*|retard(ed|s)?|dick(head)?s?|damn\\w*|goddamn\\w*|crap(py|s)?|piss\\w*|cock(s|sucker)?|twat|wank\\w*|douche\\w*|prick|jackass|dumbass)\\b)");
 
     /** Text with any bad words beeped out (for anything he says back to you: reminders, names, answers). */
@@ -169,7 +169,7 @@ final class Brain {
         String t = text.replace("**", "").replace("__", "").replace("`", "").replaceAll("(?m)^#+\\s*", "").replaceAll("(?m)^\\s*[-*]\\s+", "- ");
         t = t.replace('’', '\'').replace('‘', '\'').replace('“', '"').replace('”', '"')
                 .replace('—', '-').replace('–', '-'); // curly quotes and dashes, made plain
-        t = t.replaceAll("[[\\p{So}\\p{Sk}\\p{Cs}\\p{Co}\\p{Cn}\\x{FE0F}\\x{200D}]&&[^°©®™]]", ""); // no emoji (letters like é and ° stay)
+        t = t.replaceAll("[[\\p{So}\\p{Cs}\\p{Co}\\p{Cn}\\x{FE0F}\\x{200D}]&&[^°©®™]]", ""); // no emoji (letters like é and ° stay)
         t = BAD.matcher(t).replaceAll("beep");
         t = t.strip();
         if (t.length() > 420) {

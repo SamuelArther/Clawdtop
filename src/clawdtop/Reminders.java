@@ -43,7 +43,8 @@ final class Reminders {
     private static final Pattern TIMER = Pattern.compile("^(?:(?:please )?(?:set|start|make)(?: me)? )?(?:a |an |the )?timer (?:for )?" + HOW_LONG + "$"
             + "|^(?:(?:please )?(?:set|start|make)(?: me)? )?(?:a |an )?" + HOW_LONG + " timer$");
     /** Sounds like a reminder or timer, but not one he understands (like "at 5pm" or "tomorrow"). */
-    private static final Pattern SOUNDS_LIKE = Pattern.compile("^(?:please )?(?:remind me\\b.*|(?:set|start|make)(?: me)? (?:a |an |the )?(?:\\w+ )*timer\\b.*|timer\\b.*)");
+    private static final Pattern SOUNDS_LIKE = Pattern.compile("^(?:please )?(?:remind me (?:to|about|at|in|tomorrow|tonight|on|every|later)\\b.*"
+            + "|remind me\\b.*\\b(?:at|tomorrow|tonight|o'?clock|\\d+ ?(?:am|pm))\\b.*|(?:set|start|make)(?: me)? (?:a |an |the )?(?:\\w+ )*timer\\b.*|timer\\b.*)");
 
     /** Whether you were trying to set a reminder or timer he can't understand (then he says how to ask). */
     static boolean soundsLikeOne(String said) {

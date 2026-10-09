@@ -164,7 +164,11 @@ final class Updater {
                 Thread.sleep(500);
             }
         }
-        Files.deleteIfExists(temp);
+        try {
+            Files.deleteIfExists(temp);
+        } catch (IOException stillBusy) {
+            // tidied up next time
+        }
         new ProcessBuilder(Install.javaw().toString(), "--enable-native-access=ALL-UNNAMED", "-jar", jar.toString()).start();
     }
 }

@@ -563,11 +563,20 @@ public final class Cli {
     /** Asks whether to keep your songs and the things he coded (if there are any). */
     private boolean keepYourFiles() throws IOException {
         Path folder = Settings.folder();
-        if (!Files.isDirectory(folder.resolve("songs")) && !Files.isDirectory(Settings.creations())) return false;
+        if (!hasFiles(folder.resolve("songs")) && !hasFiles(Settings.creations())) return false; // (nothing of yours in there)
         out.print("Keep your songs and the little programs he made? (Y/n) ");
         out.flush();
         String answer = in.readLine();
         return answer == null || !answer.strip().toLowerCase(Locale.ROOT).startsWith("n");
+    }
+
+    private static boolean hasFiles(Path folder) {
+        if (!Files.isDirectory(folder)) return false;
+        try (var walk = Files.walk(folder)) {
+            return walk.anyMatch(Files::isRegularFile);
+        } catch (IOException | java.io.UncheckedIOException e) {
+            return true;
+        }
     }
 
     /** Deletes his settings folder (all of it, or all but your songs and his creations), carrying on past anything stuck. */

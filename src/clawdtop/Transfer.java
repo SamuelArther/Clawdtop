@@ -46,18 +46,14 @@ final class Transfer {
             mover = new ServerSocket(movePort, 4, on);
             Thread answer = new Thread(() -> {
                 byte[] buffer = new byte[256];
-                int wrong = 0;
-                while (open && wrong < 50) {
+                while (open) {
                     try {
                         DatagramPacket p = new DatagramPacket(buffer, buffer.length);
                         finder.receive(p);
                         String[] asked = new String(p.getData(), 0, p.getLength(), StandardCharsets.UTF_8).strip().split(" ");
                         // "CLAWDTOP-FIND <nonce> <proof>": the other computer knows the code (without saying it out loud)
                         if (asked.length == 3 && asked[0].equals("CLAWDTOP-FIND")) {
-                            if (!asked[2].equals(proof(code, "find:" + asked[1]))) {
-                                wrong++;
-                                continue;
-                            }
+                            if (!asked[2].equals(proof(code, "find:" + asked[1]))) continue; // (a mistyped code: just no answer)
                             byte[] here = ("CLAWDTOP-HERE " + proof(code, "here:" + asked[1])).getBytes(StandardCharsets.UTF_8);
                             finder.send(new DatagramPacket(here, here.length, p.getAddress(), p.getPort()));
                         }
@@ -71,10 +67,6 @@ final class Transfer {
             Thread take = new Thread(() -> {
                 int wrong = 0;
                 while (open) {
-                    if (wrong >= 5) { // someone's guessing codes: no more tries (start the move again for a new code)
-                        close();
-                        return;
-                    }
                     try (Socket s = mover.accept()) {
                         s.setSoTimeout(10_000);
                         BufferedReader in = new BufferedReader(new InputStreamReader(s.getInputStream(), StandardCharsets.UTF_8));
@@ -84,6 +76,7 @@ final class Transfer {
                         if (!("CLAWDTOP-MOVE " + code).equals(hello) || SaveToken.read(token) == null) {
                             out.println("NO");
                             wrong++;
+                            Thread.sleep(Math.min(5000, 500L * wrong)); // slower after each wrong try: no guessing all 10,000 codes
                             continue;
                         }
                         out.println("OK");
@@ -91,6 +84,8 @@ final class Transfer {
                         return;
                     } catch (IOException e) {
                         if (!open) return;
+                    } catch (InterruptedException e) {
+                        return;
                     }
                 }
             }, "Clawdtop move: taking");
