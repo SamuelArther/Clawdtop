@@ -385,13 +385,13 @@ final class Welcome {
      * asked on Linux (he can't install it there himself), or if Ollama's already here.
      */
     void askBrain() {
-        if (!settings.on("askMe") || BrainInstall.ollama() == null || BrainInstall.installed()) {
-            if (BrainInstall.installed()) settings.setFlag("brainOk", true);
+        if (!settings.on("askMe") || (BrainInstall.ollama() == null && !BrainInstall.installed())) {
             askBeeps();
             return;
         }
-        show(new String[] {"Want me to get my brain? Then I can answer any question.", "It's Ollama: free, " + BrainInstall.totalSize(settings.choice("brain"))
-                        + " to download, installed just for you.", "(Without it I still do lots: reminders, notes, math, jokes...)"}, null,
+        String what = BrainInstall.installed() ? "You've got Ollama already: my brain is a free " + Brain.downloadSize(settings.choice("brain")) + " download."
+                : "It's Ollama: free, " + BrainInstall.totalSize(settings.choice("brain")) + " to download, installed just for you.";
+        show(new String[] {"Want me to get my brain? Then I can answer any question.", what, "(Without it I still do lots: reminders, notes, math, jokes...)"}, null,
                 button("Yes, get it", () -> {
                     settings.setFlag("brainOk", true);
                     askBeeps();

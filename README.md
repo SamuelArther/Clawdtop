@@ -49,13 +49,13 @@ when he starts, and asks before he updates.
   and writes a little program of his own: a flying rainbow carpet he rides round the screen, a disco ball, a rain
   cloud he made by accident (right over himself), a rubber duck to help him debug, Mini Clawd, hello world in a real
   Windows pop-up, and well over 250 more. He rarely makes the same thing twice. Ask what he's doing and it's
-  "Nothing....". The files really appear in `%APPDATA%\Clawdtop\creations` as he types them, and when one goes
+  "Nothing....". The files really appear in `%APPDATA%\Clawdtop\creations` (`~/.clawdtop/creations` on a Mac or Linux) as he types them, and when one goes
   wrong he looks sorry and deletes it. Click his carpet mid-flight and see what happens. Or double-click him and pick
   **Fun > Make something!**
 - **Ask him a question** (top of his menu): a small AI brain that runs on your own computer through
   [Ollama](https://ollama.com) (free), using under 2 GB of memory. It's a download of about 2 GB, so he asks first
   (in setup, or the first time you ask something that needs it), then installs it in the background (Ollama's own
-  signed installer, just for you, no admin needed). Ollama is its own app: it stays if you uninstall him. He
+  signed installer, just for you, no admin needed; on Linux he tells you the one command to install it yourself). Ollama is its own app: it stays if you uninstall him. He
   answers in his personality and never says a bad word. Setup asks how he should answer: normal (the most accurate,
   recommended) or kid-friendly (simple and gentle, for little kids), and whether he may **look things up online**
   (Wikipedia and DuckDuckGo; off unless you say yes). Math? "I wouldn't trust myself to answer right....." He opens
@@ -149,7 +149,7 @@ and don't need anything else.
 From the code instead:
 
 1. Run `build.bat` (or `./build.sh`). It builds `build\Clawdtop.jar` and checks everything works.
-2. Run `Clawdtop.bat` to start him (or `build.bat run` to do both).
+2. Run `Clawdtop.bat` to start him (`./Clawdtop.sh` on a Mac or Linux), or `build.bat run` to do both.
 
 Turn on **Start with Windows** in his menu (on a Mac: **Start when I log in**) and he'll be there every time you sign
 in.

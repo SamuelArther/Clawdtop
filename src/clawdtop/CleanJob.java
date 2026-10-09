@@ -117,6 +117,7 @@ final class CleanJob {
         Path[] found = new Path[1];
         ui.background(() -> found[0] = ui.folderOf(front.handle()), () -> {
             waiting = false;
+            if (found[0] == null) askedHandle = 0; // (couldn't tell this time: he'll ask again, rather than give up on that window)
             if (step != Step.BOARD) return;
             String why = Cleaner.refuse(found[0]);
             if (why != null) {

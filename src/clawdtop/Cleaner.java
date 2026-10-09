@@ -51,6 +51,12 @@ public final class Cleaner {
         Path f = folder.toAbsolutePath().normalize();
         if (!Files.isDirectory(f)) return "That folder isn't there anymore.";
         if (f.getParent() == null) return "That's a whole drive. Pick a folder inside it.";
+        if (!Platform.WINDOWS) { // (a Mac's or Linux's drives: /Volumes/USB, /media/you/USB, /run/media/you/USB, /mnt/USB)
+            String parent = f.getParent().toString(), above = f.getParent().getParent() == null ? "" : f.getParent().getParent().toString();
+            if (List.of("/Volumes", "/mnt", "/media").contains(parent) || List.of("/media", "/run/media").contains(above)) {
+                return "That's a whole drive. Pick a folder inside it.";
+            }
+        }
         String path = f.toString().toLowerCase(Locale.ROOT);
         Path home = Path.of(System.getProperty("user.home")).toAbsolutePath().normalize();
         if (Platform.WINDOWS && (path.startsWith("\\\\") || !fixedDrive(f))) {
@@ -192,7 +198,8 @@ public final class Cleaner {
         String name = p.getFileName().toString();
         String low = name.toLowerCase(Locale.ROOT);
         boolean old = attrs.lastModifiedTime().toInstant().isBefore(now.minus(OLD_INSTALLER));
-        if (old && (low.endsWith(".msi") || low.endsWith(".msix") || ((low.contains("setup") || low.contains("install")) && !low.contains("unins") && low.endsWith(".exe")))) {
+        if (old && (low.endsWith(".msi") || low.endsWith(".msix") || low.endsWith(".dmg") || low.endsWith(".pkg") // (a Mac's installers too)
+                || ((low.contains("setup") || low.contains("install")) && !low.contains("unins") && low.endsWith(".exe")))) {
             long days = Duration.between(attrs.lastModifiedTime().toInstant(), now).toDays();
             return "an installer from " + (days >= 60 ? days / 30 + " months" : days + " days") + " ago";
         }

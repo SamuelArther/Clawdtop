@@ -98,8 +98,9 @@ public final class Cli {
         Brain brain = new Brain();
         String model = Brain.model(s.choice("brain"));
         if (!brain.running() || !brain.has(model)) {
-            if (!s.flag("brainOk") && !BrainInstall.installed() && BrainInstall.ollama() != null) { // (a big download: he asks first)
-                out.print("I need my brain for that: Ollama, a free download (" + BrainInstall.totalSize(s.choice("brain")) + "), installed just for you. Get it? (y/N) ");
+            if (!s.flag("brainOk") && (BrainInstall.installed() || BrainInstall.ollama() != null)) { // (a big download, even with Ollama already here: he asks first)
+                out.print(BrainInstall.installed() ? "I need my brain for that: a free download (" + Brain.downloadSize(s.choice("brain")) + "). Get it? (y/N) "
+                        : "I need my brain for that: Ollama, a free download (" + BrainInstall.totalSize(s.choice("brain")) + "), installed just for you. Get it? (y/N) ");
                 out.flush();
                 String yes = in.readLine();
                 if (yes == null || !yes.strip().toLowerCase(Locale.ROOT).startsWith("y")) {
@@ -154,7 +155,7 @@ public final class Cli {
                     out.println("Version " + release.version() + " is out! Downloading...");
                     boolean on = running().isPresent();
                     if (on) stop(false);
-                    if (Updater.install(release)) out.println("Done! He's coming back as " + release.version() + ".");
+                    if (Updater.install(release, on)) out.println(on ? "Done! He's coming back as " + release.version() + "." : "Done! He'll be " + release.version() + " next time he starts.");
                     else {
                         out.println("Hmm, the download didn't work. Try again in a bit.");
                         if (on) start();

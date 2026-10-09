@@ -118,6 +118,11 @@ final class Updater {
      * Returns false if it couldn't (then nothing has changed). The caller then closes Clawd.
      */
     static boolean install(Release release) {
+        return install(release, true);
+    }
+
+    /** The same; restart says whether he starts again after (not when he wasn't running: "clawd update" with him stopped). */
+    static boolean install(Release release, boolean restart) {
         Path jar = Install.jar();
         if (jar == null) return false;
         Path fresh = jar.resolveSibling("Clawdtop-" + release.version() + ".jar.new");
@@ -133,8 +138,10 @@ final class Updater {
                 Files.deleteIfExists(fresh);
                 return false;
             }
-            new ProcessBuilder(Install.javaw().toString(), "--enable-native-access=ALL-UNNAMED", "-cp", fresh.toString(),
-                    "clawdtop.Updater", String.valueOf(ProcessHandle.current().pid()), jar.toString()).start();
+            java.util.List<String> helper = new java.util.ArrayList<>(java.util.List.of(Install.javaw().toString(), "--enable-native-access=ALL-UNNAMED", "-cp", fresh.toString(),
+                    "clawdtop.Updater", String.valueOf(ProcessHandle.current().pid()), jar.toString()));
+            if (!restart) helper.add("norestart");
+            new ProcessBuilder(helper).start();
             return true;
         } catch (IOException | InterruptedException | RuntimeException failed) {
             try {
@@ -219,6 +226,7 @@ final class Updater {
         } catch (IOException stillBusy) {
             // tidied up next time
         }
+        if (args.length > 2 && args[2].equals("norestart")) return; // (he wasn't running: he stays stopped)
         new ProcessBuilder(Install.javaw().toString(), "--enable-native-access=ALL-UNNAMED", "-jar", jar.toString()).start();
     }
 }

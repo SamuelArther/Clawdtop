@@ -72,6 +72,17 @@ final class Platform {
         return desktop = found;
     }
 
+    /** What a command printed, if it worked (it ended well, in time); null if it didn't. */
+    static String runOk(int seconds, String... command) {
+        try {
+            Process p = new ProcessBuilder(command).start();
+            String out = Desktop.output(p, seconds);
+            return out != null && p.exitValue() == 0 ? out.strip() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     static String run(String... command) {
         try {
             Process p = new ProcessBuilder(command).redirectErrorStream(true).start();
@@ -200,8 +211,9 @@ final class Platform {
     /** The folder the Finder (or a Linux file manager) window in front shows, or null. */
     static Path folderInFront() {
         if (MAC) {
-            String out = run("osascript", "-e", "tell application \"Finder\" to if (count of Finder windows) > 0 then POSIX path of (target of front Finder window as alias)");
-            if (out.isBlank() || out.contains("error")) return null;
+            // (the first time, macOS asks you if he may talk to Finder: that can take a while, so he waits for you)
+            String out = runOk(60, "osascript", "-e", "tell application \"Finder\" to if (count of Finder windows) > 0 then POSIX path of (target of front Finder window as alias)");
+            if (out == null || out.isBlank()) return null;
             Path p = Path.of(out.strip());
             return Files.isDirectory(p) ? p : null;
         }
@@ -326,8 +338,18 @@ final class Platform {
         // there even with no Java, so only when that finds a Java 22+: otherwise the one he's running on now, like Homebrew's)
         String newEnough = MAC ? run("/usr/libexec/java_home", "-v", "22+") : "";
         String java = MAC && Files.isExecutable(Path.of("/usr/bin/java")) && newEnough.startsWith("/") ? "/usr/bin/java" : Install.java().toString();
-        return MAC ? macLogin(java, jar.toString()) : "[Desktop Entry]\nType=Application\nName=Clawdtop\nComment=Clawd, on your taskbar\nExec=\"" + java
-                + "\" --enable-native-access=ALL-UNNAMED -jar \"" + jar + "\"\nX-GNOME-Autostart-enabled=true\n";
+        return MAC ? macLogin(java, jar.toString()) : "[Desktop Entry]\nType=Application\nName=Clawdtop\nComment=Clawd, on your taskbar\nExec=" + desktopArg(java)
+                + " --enable-native-access=ALL-UNNAMED -jar " + desktopArg(jar.toString()) + "\nX-GNOME-Autostart-enabled=true\n";
+    }
+
+    /** A path for a Linux .desktop file's Exec line: quoted, with its special characters escaped (a folder like "Clawdtop $5"). */
+    static String desktopArg(String path) {
+        return "\"" + path.replace("\\", "\\\\").replace("\"", "\\\"").replace("`", "\\`").replace("$", "\\$").replace("%", "%%") + "\"";
+    }
+
+    /** A path for a shell script: in single quotes, so nothing in it ($, `, ") does anything. */
+    static String shellArg(String path) {
+        return "'" + path.replace("'", "'\\''") + "'";
     }
 
     /** The Mac's login file (a LaunchAgent), with the paths made safe for its XML ("&" and friends). */
@@ -354,11 +376,11 @@ final class Platform {
         if (jar == null) return;
         try {
             Path file = commandFile();
-            String text = "#!/bin/sh\nexec \"" + Install.java() + "\" --enable-native-access=ALL-UNNAMED -cp \"" + jar + "\" clawdtop.Cli \"$@\"\n";
+            String text = "#!/bin/sh\nexec " + shellArg(Install.java().toString()) + " --enable-native-access=ALL-UNNAMED -cp " + shellArg(jar.toString()) + " clawdtop.Cli \"$@\"\n";
             Files.createDirectories(file.getParent());
             if (!Files.exists(file) || !Files.readString(file).equals(text)) Files.writeString(file, text, StandardCharsets.UTF_8);
             file.toFile().setExecutable(true);
-            if (MAC) onTerminalPath(file.getParent());
+            onTerminalPath(file.getParent()); // (a Mac's Terminal, and a Linux that only adds ~/.local/bin at login if it was already there)
         } catch (IOException e) {
             // no clawd command, then
         }
@@ -371,7 +393,7 @@ final class Platform {
     private static void onTerminalPath(Path folder) {
         String path = System.getenv("PATH");
         if (path != null && java.util.Arrays.asList(path.split(":")).contains(folder.toString())) return; // (already there)
-        Path profile = Path.of(System.getProperty("user.home"), ".zprofile");
+        Path profile = profile();
         try {
             String had = Files.exists(profile) ? Files.readString(profile) : "";
             if (had.contains(".local/bin")) return;
@@ -388,8 +410,8 @@ final class Platform {
         } catch (IOException e) {
             // already gone
         }
-        if (MAC) { // and the line he added to ~/.zprofile (only his: the comment says so)
-            Path profile = Path.of(System.getProperty("user.home"), ".zprofile");
+        { // and the line he added to ~/.zprofile or ~/.profile (only his: the comment says so)
+            Path profile = profile();
             try {
                 if (Files.exists(profile)) {
                     String had = Files.readString(profile), now = withoutOurPath(had);
@@ -399,6 +421,11 @@ final class Platform {
                 // leave it (it's harmless)
             }
         }
+    }
+
+    /** Where new terminals look for your PATH: ~/.zprofile on a Mac, ~/.profile on Linux. */
+    private static Path profile() {
+        return Path.of(System.getProperty("user.home"), MAC ? ".zprofile" : ".profile");
     }
 
     /** A ~/.zprofile without the two lines Clawdtop added (the comment, and the PATH line right after it). */

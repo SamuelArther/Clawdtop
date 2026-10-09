@@ -903,11 +903,12 @@ public final class Clawdtop {
                 if (problem2 != null && found2 != null && !kid) {
                     // no brain yet, but he looked it up
                     pet.say(Brain.wrap("I looked it up! " + Brain.clean(found2.text()) + " (from " + found2.source() + ")", 46));
-                } else if (problem2 != null && !settings.flag("brainOk") && !BrainInstall.installed() && BrainInstall.ollama() != null) {
-                    // no brain yet, and you haven't said he can get it: he asks first (it's a big download)
+                } else if (problem2 != null && !settings.flag("brainOk") && (BrainInstall.installed() || BrainInstall.ollama() != null)) {
+                    // no brain yet, and you haven't said he can get it: he asks first (it's a big download, even with Ollama already here)
                     pet.speak();
-                    bubble.ask("I need my brain for that one!\nIt's a free download (Ollama, " + BrainInstall.totalSize(settings.choice("brain"))
-                            + ") that I install\njust for you. Want me to get it?", new String[] {"Get it", "Not now"}, choice -> {
+                    String what = BrainInstall.installed() ? "It's a free download (" + Brain.downloadSize(settings.choice("brain")) + ").\nWant me to get it?"
+                            : "It's a free download (Ollama, " + BrainInstall.totalSize(settings.choice("brain")) + ") that I install\njust for you. Want me to get it?";
+                    bubble.ask("I need my brain for that one!\n" + what, new String[] {"Get it", "Not now"}, choice -> {
                                 if (choice != 0) {
                                     pet.say("Okay! I can still do reminders, notes, math, jokes and more.");
                                     return;
