@@ -61,12 +61,19 @@ final class Install {
 
     /** The clawd command's own copy of the jar, freshened whenever he starts (unless a clawd command has it open). */
     private static void copyJar(Path jar, Path copy) {
-        try {
-            if (Files.exists(copy) && Files.size(copy) == Files.size(jar)
-                    && Files.getLastModifiedTime(copy).equals(Files.getLastModifiedTime(jar))) return;
-            Files.copy(jar, copy, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.COPY_ATTRIBUTES);
-        } catch (IOException inUse) {
-            // a clawd command is open right now: next time
+        for (int tries = 0; tries < 30; tries++) { // (a clawd command that's just started him may still have it open)
+            try {
+                if (Files.exists(copy) && Files.size(copy) == Files.size(jar)
+                        && Files.getLastModifiedTime(copy).equals(Files.getLastModifiedTime(jar))) return;
+                Files.copy(jar, copy, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.COPY_ATTRIBUTES);
+                return;
+            } catch (IOException inUse) {
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    return;
+                }
+            }
         }
     }
 
