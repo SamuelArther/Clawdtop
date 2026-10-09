@@ -168,6 +168,7 @@ public final class Clawdtop {
         if (move) window.setLocation(x, bottom - h + settings.unit()); // his feet just touch the taskbar
         homeX = x + Sprite.feetX() * settings.unit();
         groundY = bottom;
+        monitorsAt = 0; // (his home may be somewhere new: look again)
         useItems();
     }
 
@@ -275,7 +276,10 @@ public final class Clawdtop {
                         settings.setAppSpot(appSpotKey, window.getX());
                         appSpotX = window.getX();
                     } else {
-                        if (xBeforeDrag == Integer.MIN_VALUE) xBeforeDrag = settings.x(); // (in case this was for an app)
+                        if (!haveXBeforeDrag) { // (in case this was for an app)
+                            xBeforeDrag = settings.x();
+                            haveXBeforeDrag = true;
+                        }
                         settings.setX(window.getX());
                     }
                     place(); // this is home now (or he'd jump straight back to where he was)
@@ -2727,7 +2731,37 @@ public final class Clawdtop {
 
     /** Where his bubbles and boxes may go: his monitor, minus the taskbar (and on a Mac, the Dock and the menu bar). */
     private Rectangle popupBounds() {
-        return usable(window.getGraphicsConfiguration());
+        refreshMonitors();
+        return myUsable;
+    }
+
+    // (monitor info, looked up at most once a second: asking a Mac for it several times a frame is slow)
+    private long monitorsAt;
+    private Rectangle myUsable = new Rectangle(), myHome = new Rectangle();
+    private java.util.List<Rectangle> allScreens = java.util.List.of();
+
+    private void refreshMonitors() {
+        long now = System.currentTimeMillis();
+        if (now - monitorsAt < 1000 && myUsable.width > 0) return;
+        monitorsAt = now;
+        myUsable = usable(window.getGraphicsConfiguration());
+        myHome = monitorFor((int) Math.round(homeX)).getBounds();
+        java.util.List<Rectangle> screens = new java.util.ArrayList<>();
+        for (java.awt.GraphicsDevice d : GraphicsEnvironment.getLocalGraphicsEnvironment().getScreenDevices()) screens.add(d.getDefaultConfiguration().getBounds());
+        allScreens = screens;
+    }
+
+    /** His home monitor's area. */
+    private Rectangle homeMonitor() {
+        refreshMonitors();
+        return myHome;
+    }
+
+    /** Whether some monitor other than his home one shows part of this. */
+    private boolean onAnotherMonitor(Rectangle r) {
+        refreshMonitors();
+        for (Rectangle s : allScreens) if (!s.equals(myHome) && s.intersects(r)) return true;
+        return false;
     }
 
     private Rectangle screenBounds() {
@@ -2807,7 +2841,8 @@ public final class Clawdtop {
     private Integer appSpotX;   // where he sits for the window in front (null: his usual spot)
     private String appSpotKey;  // which of your saved spots that is
     private Foreground.Front lastFront = Foreground.Front.UNKNOWN; // the last real window in front (not his, not the taskbar)
-    private int xBeforeDrag = Integer.MIN_VALUE; // his usual spot before you last dragged him (if that drag was for an app)
+    private int xBeforeDrag;              // his usual spot before you last dragged him (if that drag was for an app)...
+    private boolean haveXBeforeDrag;      // ...if there's one saved (his usual spot can be "none": Settings.NO_X)
 
     /** Spots you gave him for an app, or just one window or tab: he walks over when it's in front, and back after. */
     private void followAppSpot(Foreground.Front front) {
@@ -2815,7 +2850,7 @@ public final class Clawdtop {
         if (front.app().isEmpty() || cls.equals("Shell_TrayWnd") || cls.equals("Shell_SecondaryTrayWnd")
                 || cls.startsWith("NotifyIconOverflow") || cls.equals("TopLevelWindowForOverflowXamlIsland")
                 || java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow() != null) return; // the taskbar, or him
-        if (!front.app().equals(lastFront.app()) || !front.title().equals(lastFront.title())) xBeforeDrag = Integer.MIN_VALUE;
+        if (!front.app().equals(lastFront.app()) || !front.title().equals(lastFront.title())) haveXBeforeDrag = false;
         lastFront = front;
         String key = settings.appSpotKey(front.app(), front.title());
         if (java.util.Objects.equals(key, appSpotKey)) return;
@@ -2830,8 +2865,11 @@ public final class Clawdtop {
     private void rememberSpot(String key, String name) {
         int x = window.getX();
         settings.setAppSpot(key, x);
-        if (appSpotKey == null && xBeforeDrag != Integer.MIN_VALUE) settings.setX(xBeforeDrag); // that drag was for this, not his usual spot
-        xBeforeDrag = Integer.MIN_VALUE;
+        if (appSpotKey == null && haveXBeforeDrag) { // that drag was for this, not his usual spot
+            if (xBeforeDrag == Settings.NO_X) settings.setSpot(settings.spot()); // (he had no dragged spot: back to none)
+            else settings.setX(xBeforeDrag);
+        }
+        haveXBeforeDrag = false;
         appSpotKey = key;
         appSpotX = x;
         place();
@@ -3089,7 +3127,7 @@ public final class Clawdtop {
             if (hide != hidden) {
                 hidden = hide;
                 showSticky();
-                window.setVisible(!hidden);
+                window.setVisible(!hidden && !offEdge);
                 if (hidden) bubble.hide();
                 // (hiding for your game or video: a song or jam ends, rather than starting over from the top later and getting cut off)
                 if (hidden && (pet.mood() == Pet.Mood.PIANO || pet.jamming())) pet.stopPiano();
@@ -3170,7 +3208,7 @@ public final class Clawdtop {
                 job.tick(frameMs, body, pet);
                 if (job.over()) job = null;
             }
-            Rectangle area = usable(window.getGraphicsConfiguration()); // (laps and falls keep off a Mac's menu bar and a side taskbar or Dock)
+            Rectangle area = popupBounds(); // his monitor's usable area (laps and falls keep off a Mac's menu bar and a side taskbar or Dock)
             body.setCeiling(area.y);
             body.setUnit(unit);
             body.setMistakes(settings.on("mistakes"));
@@ -3183,7 +3221,7 @@ public final class Clawdtop {
                 readyShown = false;
             }
             // (away from home on another monitor, the floor is that monitor's taskbar: a fall there lands on it, not in mid-air)
-            double floor = body.state() == Body.State.HOME ? groundY : floorUnder(body.x());
+            double floor = body.state() == Body.State.HOME || inCorner ? groundY : floorUnder(body.x());
             body.tick(frameMs, mouse.x, mouse.y, homeX, floor, 12 * unit, area.x, area.x + area.width);
             pet.follow(body.state());
             creations();
@@ -3212,9 +3250,10 @@ public final class Clawdtop {
             // walking off the edge (stomping off, moving out) or back in: out of sight once he's past his own monitor's
             // edge, rather than strolling along the next monitor
             Body.State st = body.state();
-            Rectangle home = monitorFor((int) Math.round(homeX)).getBounds();
-            boolean pastEdge = (st == Body.State.AWAY || st == Body.State.OUT || st == Body.State.WALK)
-                    && (body.x() < home.x - 2 || body.x() > home.x + home.width + 2);
+            Rectangle home = homeMonitor();
+            Rectangle me = window.getBounds();
+            boolean outside = me.x >= home.x + home.width || me.x + me.width <= home.x; // (all of him, not just his feet)
+            boolean pastEdge = outside && (st == Body.State.AWAY || st == Body.State.OUT || (st == Body.State.WALK && offEdge)) && onAnotherMonitor(me);
             if (pastEdge && !offEdge) {
                 offEdge = true;
                 window.setVisible(false);
@@ -3483,6 +3522,7 @@ public final class Clawdtop {
                     Rectangle screen = screenBounds();
                     boolean fromRight = homeX > screen.x + screen.width / 2.0;
                     body.walkIn(fromRight ? screen.x + screen.width + 120 : screen.x - 120);
+                    offEdge = true; // (out of sight till he's on his own screen: not walking along the next monitor)
                     snapTo(body.x(), groundY); // (on the taskbar, off the side of the screen)
                     window.setVisible(true);
                     pet.moving(true);

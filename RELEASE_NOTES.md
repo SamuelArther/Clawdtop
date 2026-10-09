@@ -1,7 +1,10 @@
-Fix: laps and walks stay on his own screen.
+Fix: follow-ups to the monitor changes (5.3-5.8).
 
-- His lap around the screen runs below a Mac's menu bar and stays clear of a taskbar or Dock on the side (before, the top part ran underneath the menu bar).
-- When he stomps off in a huff, or walks out to move to another computer, he disappears once he's past his monitor's edge, instead of strolling along your other monitor.
+- Dragging him to a spot for one app (like "Sit here when Chrome is in front") could replace his usual spot too. Fixed.
+- He walks smoothly off and on at the screen's edge again (5.8 made him pop out a little early). He only goes out of sight when another monitor is there to see him on.
+- Walking home across monitors, he stays visible the whole way.
+- During a full-screen game, he walks back to his corner at the right height.
+- He checks your monitors at most once a second instead of many times a second (smoother on a Mac).
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 
