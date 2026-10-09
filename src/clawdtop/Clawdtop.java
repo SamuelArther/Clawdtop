@@ -915,7 +915,7 @@ public final class Clawdtop {
     // ---- Your to-do list, the sticky note, finding files, finished downloads, screen time, keeping awake ----
     private final Sticky sticky = new Sticky();
     private final java.util.Map<String, Long> downloadsSeen = new java.util.HashMap<>(); // name -> size, when last looked
-    private final java.util.Map<String, Long> downloadsGrowing = new java.util.HashMap<>(); // new ones, not done yet: name -> size
+    private final java.util.Map<String, long[]> downloadsGrowing = new java.util.HashMap<>(); // new ones, not done yet: name -> {size, time, looks the same}
     private boolean downloadsLooked;
     private final java.util.ArrayDeque<Path> downloadsDone = new java.util.ArrayDeque<>(); // to tell you about
     private long screenMsToday, screenSavedAt, lastScreenTick;
@@ -1020,8 +1020,13 @@ public final class Clawdtop {
                 for (var e : now.entrySet()) {
                     String name = e.getKey();
                     if (downloadsSeen.containsKey(name)) continue;
-                    Long before = downloadsGrowing.put(name, e.getValue());
-                    if (before != null && before.equals(e.getValue()) && e.getValue() > 0) { // stopped growing: done
+                    long size = e.getValue(), time = changed.getOrDefault(name, 0L);
+                    long[] before = downloadsGrowing.get(name);
+                    boolean same = before != null && before[0] == size && before[1] == time;
+                    long looks = same ? before[2] + 1 : 0;
+                    downloadsGrowing.put(name, new long[] {size, time, looks});
+                    // done: the same size and time on three looks in a row (not just a pause: some downloads stop for a moment)
+                    if (looks >= 2 && size > 0) {
                         downloadsGrowing.remove(name);
                         downloadsSeen.put(name, e.getValue());
                         if (changed.getOrDefault(name, 0L) > recent) downloadsDone.add(folder.resolve(name)); // (not an old file copied in)
@@ -1056,6 +1061,14 @@ public final class Clawdtop {
     private void countScreenTime(long nowMs) {
         java.time.LocalDate today = java.time.LocalDate.now();
         if (!today.equals(screenDay)) {
+            if (screenDay != null) settings.setText("screen." + screenDay, String.valueOf(screenMsToday)); // (the end of yesterday)
+            for (String old : settings.textNames("screen.")) { // only the last week is kept
+                try {
+                    if (java.time.LocalDate.parse(old.substring(7)).isBefore(today.minusDays(7))) settings.setText(old, "");
+                } catch (RuntimeException notADate) {
+                    settings.setText(old, "");
+                }
+            }
             screenDay = today;
             screenMsToday = parseLong(settings.text("screen." + today), 0);
             lastScreenTick = nowMs;
@@ -1146,7 +1159,7 @@ public final class Clawdtop {
             var clip = java.awt.Toolkit.getDefaultToolkit().getSystemClipboard();
             if (clip.isDataFlavorAvailable(java.awt.datatransfer.DataFlavor.imageFlavor)) {
                 java.awt.Image image = (java.awt.Image) clip.getData(java.awt.datatransfer.DataFlavor.imageFlavor);
-                java.awt.image.BufferedImage picture = new java.awt.image.BufferedImage(image.getWidth(null), image.getHeight(null), java.awt.image.BufferedImage.TYPE_INT_RGB);
+                java.awt.image.BufferedImage picture = new java.awt.image.BufferedImage(image.getWidth(null), image.getHeight(null), java.awt.image.BufferedImage.TYPE_INT_ARGB);
                 java.awt.Graphics2D g = picture.createGraphics();
                 g.drawImage(image, 0, 0, null);
                 g.dispose();
@@ -3061,6 +3074,7 @@ public final class Clawdtop {
     void start() {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> { // never leave an app see-through (or the computer kept awake)
             Awake.stop();
+            if (screenDay != null) settings.setText("screen." + screenDay, String.valueOf(screenMsToday)); // (today's screen time so far)
             long w = tackleWindow;
             if (w != 0) WindowTricks.reveal(w, tackleStyle);
         }));

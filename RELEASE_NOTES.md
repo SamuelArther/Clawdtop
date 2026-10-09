@@ -1,9 +1,9 @@
-Fix: reminders and your to-do list understand you better.
+Fix: downloads, screen time, copied pictures and links.
 
-- "remind me at 9 tonight to..." is 9 at night now (it could pick 9 in the morning). "this evening", "this afternoon" and "in the morning" work too.
-- Crossing things off understands "I'm done with the dishes", "I just finished my homework" and "cross the dishes off my list".
-- If more than one thing matches ("homework"), he asks which one.
-- Questions like "did grandma call?" no longer cross off "call grandma".
+- Download alerts wait until a download is really finished (some apps pause mid-download, which used to look "done" and then never got announced). More download apps are recognized.
+- Screen time no longer loses minutes when he restarts or at midnight, and old days get tidied away.
+- "save what I copied" keeps see-through parts of a picture (they used to turn black).
+- "clean my link" works on links with unusual characters.
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 

@@ -148,7 +148,8 @@ final class FindFile {
     /** Whether a file in Downloads is still downloading (the browser's half-done file). */
     static boolean partial(String name) {
         String n = name.toLowerCase(Locale.ROOT);
-        return Arrays.asList(".crdownload", ".part", ".partial", ".download", ".tmp", ".opdownload", ".!ut", ".aria2").stream().anyMatch(n::endsWith)
+        return Arrays.asList(".crdownload", ".part", ".partial", ".download", ".tmp", ".opdownload", ".!ut", ".!qb", ".aria2", ".fdmdownload", ".bc!",
+                ".filepart", ".dtapart").stream().anyMatch(n::endsWith)
                 || n.startsWith(".") || n.startsWith("~$") || n.equals("desktop.ini") || n.equals("thumbs.db");
     }
 }

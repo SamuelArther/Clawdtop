@@ -34,13 +34,14 @@ final class Extras {
     static String cleanLink(String text) {
         if (text == null) return null;
         String link = text.strip();
-        if (!link.matches("(?i)https?://\\S+")) return null;
+        // (taken apart by hand, not by java.net.URI: real links often have characters URI won't accept, like "|")
+        Matcher parts = Pattern.compile("(?i)(https?://([^/?#\\s:]+)(?::\\d+)?([^?#\\s]*))(\\?[^#\\s]*)?(#\\S*)?").matcher(link);
+        if (!parts.matches()) return null;
         try {
-            URI uri = URI.create(link);
-            String host = uri.getHost() == null ? "" : uri.getHost().toLowerCase(Locale.ROOT);
-            String query = uri.getRawQuery();
+            String host = parts.group(2).toLowerCase(Locale.ROOT), path = parts.group(3);
+            String query = parts.group(4) == null ? null : parts.group(4).substring(1);
             // a redirect wrapper: the real link is inside
-            if (query != null && (host.matches("(www\\.)?google\\.[a-z.]+") && uri.getPath().equals("/url") || host.matches("l\\.(facebook|instagram)\\.com"))) {
+            if (query != null && (host.matches("(www\\.)?google\\.[a-z.]+") && path.equals("/url") || host.matches("l\\.(facebook|instagram)\\.com"))) {
                 for (String pair : query.split("&")) {
                     String[] kv = pair.split("=", 2);
                     if (kv.length == 2 && (kv[0].equals("q") || kv[0].equals("url") || kv[0].equals("u"))) {
@@ -58,9 +59,8 @@ final class Extras {
                 if (pair.isEmpty() || (TRACKING.matcher(name).matches() && !shareJunk)) continue;
                 kept.add(pair);
             }
-            String base = link.substring(0, link.indexOf('?'));
-            String fragment = uri.getRawFragment() == null ? "" : "#" + uri.getRawFragment();
-            return base + (kept.isEmpty() ? "" : "?" + String.join("&", kept)) + fragment;
+            String fragment = parts.group(5) == null ? "" : parts.group(5);
+            return parts.group(1) + (kept.isEmpty() ? "" : "?" + String.join("&", kept)) + fragment;
         } catch (RuntimeException notALink) {
             return null;
         }

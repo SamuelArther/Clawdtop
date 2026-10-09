@@ -673,6 +673,8 @@ public class ClawdtopTest {
         check("keep feature elsewhere", Extras.cleanLink("https://site.com/x?feature=dark"), "https://site.com/x?feature=dark");
         check("unwrap google link", Extras.cleanLink("https://www.google.com/url?q=https%3A%2F%2Fnews.com%2Fstory%3Futm_source%3Dg&sa=D"), "https://news.com/story");
         check("not a link", Extras.cleanLink("hello there"), null);
+        check("odd characters in a link", Extras.cleanLink("https://example.com/a?q=a|b&utm_source=x") + " " + Extras.cleanLink("https://example.com:8080/x?a=1&gclid=z#s"),
+                "https://example.com/a?q=a|b https://example.com:8080/x?a=1#s");
         String pw = Extras.password(new java.util.Random(7));
         check("password", pw.length() + " " + pw.matches(".*[a-z].*") + pw.matches(".*[A-Z].*") + pw.matches(".*[2-9].*") + pw.matches(".*[!@#$%&*?\\-+=].*")
                 + " " + pw.matches(".*[0O1lI].*"), "16 truetruetruetrue false");

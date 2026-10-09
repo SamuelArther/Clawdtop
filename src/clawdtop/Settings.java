@@ -481,6 +481,13 @@ public final class Settings {
         save();
     }
 
+    /** The names of the remembered bits of text that start with this (like "screen." for each day's screen time). */
+    public java.util.List<String> textNames(String prefix) {
+        java.util.List<String> names = new java.util.ArrayList<>();
+        for (String key : values.stringPropertyNames()) if (key.startsWith("text." + prefix)) names.add(key.substring(5));
+        return names;
+    }
+
     /** Your to-do list, in order. */
     public java.util.List<String> todos() {
         String all = values.getProperty("todos", "");
