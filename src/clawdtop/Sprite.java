@@ -344,11 +344,18 @@ public final class Sprite {
                 box(g, unit, LEFT + x + 0.5, top + 3, 0.6, 0.6, EYE);
             } else if (mood == Pet.Mood.BOOPED) {
                 box(g, unit, LEFT + x + (x == 3 ? 1.2 : -1.2), eyeY, 1, 2, EYE); // cross-eyed
+            } else if (mood == Pet.Mood.WOOZY) {
+                // swirly eyes: each one a little dot going round and round (the two go opposite ways), with a fading trail
+                double cx = LEFT + x + 0.5, cy = top + 3;
+                for (int k = 3; k >= 0; k--) {
+                    double a = pet.time() / 90.0 * (x == 3 ? 1 : -1) - k * 0.7;
+                    int alpha = 255 - k * 60;
+                    box(g, unit, cx - 0.4 + Math.cos(a) * 0.8, cy - 0.4 + Math.sin(a) * 0.8, 0.8, 0.8,
+                            new Color(EYE.getRed(), EYE.getGreen(), EYE.getBlue(), alpha));
+                }
             } else if (pet.eyesLit()) {
-                // excited: big wide eyes with a little shine in them
+                // excited: his eyes just go big and wide
                 box(g, unit, eyeX - 0.3, eyeY - 0.5, 1.6, 2.8, EYE);
-                box(g, unit, eyeX, eyeY - 0.2, 0.6, 0.6, Color.WHITE);
-                box(g, unit, eyeX + 0.7, eyeY + 1.4, 0.3, 0.3, Color.WHITE);
             } else if (mood == Pet.Mood.ANNOYED) {
                 box(g, unit, eyeX, eyeY + 1, 1, 1, EYE);                              // narrowed eyes
                 box(g, unit, eyeX + (x == 3 ? -0.5 : 0), eyeY - 0.5 + (x == 3 ? 0 : 0), 1.5, 0.5, EYE); // grumpy eyebrows
@@ -434,6 +441,21 @@ public final class Sprite {
         }
 
         drawHat(g, unit, pet.hat(), top);
+
+        // Woozy: little yellow birds flying round and round his head
+        if (mood == Pet.Mood.WOOZY) {
+            for (int i = 0; i < 3; i++) {
+                double a = pet.time() / 300.0 + i * Math.PI * 2 / 3;
+                double bx = LEFT + 6 + Math.cos(a) * 6.5, by = top - 1.8 + Math.sin(a) * 1.1;
+                boolean right = Math.sin(a) > 0; // which way he's flying (front of the circle: to the right)
+                Color bird = new Color(255, 214, 60), beak = new Color(255, 140, 40);
+                box(g, unit, bx, by, 1.2, 0.9, bird);                                      // body
+                box(g, unit, right ? bx + 1.2 : bx - 0.4, by + 0.2, 0.4, 0.3, beak);       // beak
+                box(g, unit, right ? bx + 0.8 : bx + 0.1, by + 0.1, 0.25, 0.25, EYE);      // eye
+                boolean flap = ((pet.time() / 120) + i) % 2 == 0;
+                box(g, unit, bx + 0.3, by + (flap ? -0.5 : 0.5), 0.7, 0.4, new Color(240, 190, 40)); // wing
+            }
+        }
 
         // A fly buzzing round him, and his hands clapping at it at the end
         double[] fly = pet.fly();

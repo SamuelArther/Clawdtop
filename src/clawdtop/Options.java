@@ -38,7 +38,7 @@ final class Options {
             Option.on("Antics", "blush", "Gets shy when the cursor rests on him", true),
             Option.on("Antics", "boop", "Goes cross-eyed when you swipe across his face (boop!)", true),
             Option.on("Antics", "morning", "A big good-morning stretch each day", true),
-            Option.on("Antics", "spins", "Spinning when the cursor zooms past", true),
+            Option.on("Antics", "spins", "Seeing birds when the cursor zooms past", true),
             Option.on("Antics", "naps", "Sitting, lying down and napping", true),
             Option.on("Antics", "eyes", "Eyes follow your cursor", true),
             Option.on("Antics", "blinks", "Blinking", true),

@@ -256,7 +256,11 @@ public class ClawdtopTest {
         Pet spinner = new Pet(16);
         spinner.takeBeep();
         spinner.spin();
-        check("the cursor zooming past spins him round", spinner.mood() + " " + spinner.takeLine(), "SPIN Whoa!");
+        check("the cursor zooming past makes him woozy (no spinning round)", spinner.mood(), Pet.Mood.WOOZY);
+        check("and he says so", spinner.takeLine() != null, true);
+        for (int i = 0; i < 100; i++) spinner.tick(33, 0, 0, false, false);
+        spinner.spin();
+        check("but not again straight away", spinner.mood() != Pet.Mood.WOOZY, true);
         spinner.party("It's FRIDAY!!");
         for (int i = 0; i < 20; i++) spinner.tick(33, 0, 0, false, false);
         check("Friday afternoon: confetti", spinner.mood(), Pet.Mood.PARTY);

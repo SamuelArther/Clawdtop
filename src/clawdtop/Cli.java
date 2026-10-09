@@ -28,7 +28,37 @@ public final class Cli {
         this.in = in;
     }
 
+    /** Windows terminals: UTF-8 while he talks (so his little picture doesn't come out as gibberish), then back after. */
+    private static void utf8Console() {
+        if (!Platform.WINDOWS) return;
+        try {
+            java.lang.foreign.Linker linker = java.lang.foreign.Linker.nativeLinker();
+            java.lang.foreign.SymbolLookup k32 = java.lang.foreign.SymbolLookup.libraryLookup("kernel32", java.lang.foreign.Arena.global());
+            java.lang.foreign.FunctionDescriptor get = java.lang.foreign.FunctionDescriptor.of(java.lang.foreign.ValueLayout.JAVA_INT);
+            java.lang.foreign.FunctionDescriptor set = java.lang.foreign.FunctionDescriptor.of(java.lang.foreign.ValueLayout.JAVA_INT, java.lang.foreign.ValueLayout.JAVA_INT);
+            java.lang.invoke.MethodHandle getOut = linker.downcallHandle(k32.find("GetConsoleOutputCP").orElseThrow(), get);
+            java.lang.invoke.MethodHandle getIn = linker.downcallHandle(k32.find("GetConsoleCP").orElseThrow(), get);
+            java.lang.invoke.MethodHandle setOut = linker.downcallHandle(k32.find("SetConsoleOutputCP").orElseThrow(), set);
+            java.lang.invoke.MethodHandle setIn = linker.downcallHandle(k32.find("SetConsoleCP").orElseThrow(), set);
+            int oldOut = (int) getOut.invokeExact(), oldIn = (int) getIn.invokeExact();
+            if (oldOut == 0 || oldOut == 65001) return; // no console, or it's UTF-8 already
+            int ok = (int) setOut.invokeExact(65001);
+            ok = (int) setIn.invokeExact(65001);
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                try {
+                    int back = (int) setOut.invokeExact(oldOut);
+                    back = (int) setIn.invokeExact(oldIn);
+                } catch (Throwable ignored) {
+                    // (the terminal's closing anyway)
+                }
+            }));
+        } catch (Throwable noConsole) {
+            // then it's as it was
+        }
+    }
+
     public static void main(String[] args) throws Exception {
+        utf8Console();
         PrintStream out = new PrintStream(System.out, true, StandardCharsets.UTF_8);
         BufferedReader in = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
         Cli cli = new Cli(out, in);

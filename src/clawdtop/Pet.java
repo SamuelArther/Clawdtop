@@ -55,8 +55,10 @@ public final class Pet {
         SNEEZE,
         /** A fly buzzes round him: his eyes follow it, then he claps at it. */
         FLY,
-        /** The cursor zoomed past so fast he spun round. */
+        /** Spinning round (some of the things he codes do that). */
         SPIN,
+        /** The cursor zoomed past so fast his head's spinning: swirly eyes and little birds going round his head. */
+        WOOZY,
         /** A celebration: confetti! */
         PARTY,
         /** Your birthday: party hat, a cake, and a party blower he toots. */
@@ -400,7 +402,7 @@ public final class Pet {
                 }
             }
             case GOODBYE -> { }
-            case SAD, LOVED, JUGGLE, DANCE, WAVE, YELLED, ANNOYED, SPIN, PARTY -> {
+            case SAD, LOVED, JUGGLE, DANCE, WAVE, YELLED, ANNOYED, SPIN, WOOZY, PARTY -> {
                 if (mood == Mood.JUGGLE && !dropped && moodFor > 2800 && moodFor - ms <= 2800 && prefs.on("mistakes") && random.nextInt(3) == 0) {
                     dropped = true; // whoops
                     line = "Whoops!";
@@ -656,12 +658,17 @@ public final class Pet {
         set(Mood.ANNOYED, 3000);
     }
 
-    /** The cursor zoomed right past him: he spins round. */
+    private long woozyAt = -60_000; // (when he last got woozy, by his clock: not again for a bit)
+
+    /** The cursor zoomed right past him: his head's spinning (he stays put; his eyes swirl and birds go round). */
     public void spin() {
         if ((mood != Mood.IDLE && mood != Mood.SIT) || !prefs.on("spins")) return;
-        line = "Whoa!";
+        if (time - woozyAt < 30_000) return;
+        woozyAt = time;
+        String[] whoa = {"Whoa...", "Woah, slow down...", "So... many... cursors...", "Tweet tweet..."};
+        line = whoa[random.nextInt(whoa.length)];
         wants = Beep.WHEE;
-        set(Mood.SPIN, 900);
+        set(Mood.WOOZY, 2600);
     }
 
     /** Something to celebrate: confetti, a happy beep, and what he says. */

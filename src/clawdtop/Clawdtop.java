@@ -160,6 +160,7 @@ public final class Clawdtop {
                 dragFrom = Integer.MIN_VALUE;
                 if (moved) {
                     settings.setX(window.getX());
+                    place(); // this is home now (or he'd jump straight back to where he was)
                 } else if (pet.sleepy()) {
                     pet.poke(); // just wakes him up
                 } else if (pet.mood() == Pet.Mood.PIANO) {
