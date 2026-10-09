@@ -55,6 +55,11 @@ A tiny desktop buddy: Clawd sits on top of your taskbar, right above the clock, 
   launchers' lists (Steam, Epic, EA, Ubisoft, GOG, Xbox, Riot) on this PC and says nice things about your games.
 - **Cute stuff:** rest the cursor on him and he gets shy; swipe across his face for a boop; hiccups; a nightcap when
   he sleeps at night; a good-morning stretch.
+- **Holidays:** fireworks on New Year's and the 4th of July, a heart on Valentine's Day, a ghost on Halloween, snow at
+  Christmas, Easter, April Fools and Thanksgiving. On Veterans Day he wears a little army uniform, salutes, and plays
+  service songs (put MIDI files in his `songs/veterans` folder).
+- **Dress him up:** hats and t-shirts from the shop (earn Clawd Points by spending time with him).
+- **His diary:** `clawd diary` shows what he got up to lately, in his own words.
 - **No tomfoolery:** one switch for serious people. The jokes and gags stop; the useful things stay.
 - Close a coding app and he looks sad for a moment.
 - Full-screen videos? He gets out of the way until you're back.
@@ -87,6 +92,9 @@ Once he's run, any new terminal knows the `clawd` command:
 | `clawd restart` | stop, then start |
 | `clawd status` | whether he's running, and his settings |
 | `clawd controlpanel` | a little menu: his name, spot, size, personality, color, mood right now, beeps, tips, starting with Windows |
+| `clawd ask ...` | ask him something right in the terminal |
+| `clawd joke` | a joke |
+| `clawd diary` | what he got up to lately |
 | `clawd creations` | the little programs he's coded, and where they are |
 | `clawd move` | moves him to another computer on your wifi |
 | `clawd uninstall` | gives you a **save token**, then he says goodbye and crumbles away; the command and his settings go too |
