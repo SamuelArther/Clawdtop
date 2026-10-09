@@ -65,7 +65,8 @@ final class Platform {
 
     // ---- Which app is in front ----
 
-    private static volatile String frontApp = "";
+    private static volatile String frontApp = "", frontTitle = "";
+    private static volatile int[] frontBounds = new int[4]; // left, top, right, bottom, in real pixels (like Windows gives)
     private static Thread watcher;
 
     /** The app in front, by name (like "code" or "terminal"), or "" (looked up in the background every second). */
@@ -73,7 +74,7 @@ final class Platform {
         if (watcher == null && !WINDOWS) {
             watcher = new Thread(() -> {
                 while (true) {
-                    frontApp = lookUpFrontApp();
+                    lookUpFront();
                     try {
                         Thread.sleep(1000);
                     } catch (InterruptedException e) {
@@ -87,18 +88,110 @@ final class Platform {
         return frontApp;
     }
 
-    private static String lookUpFrontApp() {
+    /** The window in front's title and where it is (Mac and Linux), or "" and zeros. */
+    static String frontTitle() {
+        frontApp();
+        return frontTitle;
+    }
+
+    static int[] frontBounds() {
+        frontApp();
+        return frontBounds;
+    }
+
+    /** How many real pixels to one of Java's (2 on a Retina screen), for giving window spots in real pixels. */
+    private static double scale() {
+        try {
+            return java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration()
+                    .getDefaultTransform().getScaleX();
+        } catch (Exception headless) {
+            return 1;
+        }
+    }
+
+    /**
+     * The app in front, its window's title and where it is. Mac: System Events (macOS asks once to allow it; the
+     * title and position need Accessibility, also asked once). Linux: xdotool (X11; Wayland doesn't say).
+     */
+    private static void lookUpFront() {
         if (MAC) {
-            return run("osascript", "-e", "tell application \"System Events\" to get name of first application process whose frontmost is true")
-                    .toLowerCase(Locale.ROOT);
+            String out = run("osascript", "-e", String.join("\n",
+                    "tell application \"System Events\"",
+                    "  set p to first application process whose frontmost is true",
+                    "  set n to name of p",
+                    "  set t to \"\"",
+                    "  set b to \"\"",
+                    "  try",
+                    "    set w to front window of p",
+                    "    set t to name of w",
+                    "    set {x, y} to position of w",
+                    "    set {ww, hh} to size of w",
+                    "    set b to (x as text) & \",\" & (y as text) & \",\" & (ww as text) & \",\" & (hh as text)",
+                    "  end try",
+                    "  return n & \"|\" & t & \"|\" & b",
+                    "end tell"));
+            String[] parts = out.split("\\|", -1);
+            frontApp = parts[0].strip().toLowerCase(Locale.ROOT);
+            frontTitle = parts.length > 1 ? parts[1].strip() : "";
+            frontBounds = parts.length > 2 ? bounds(parts[2], scale()) : new int[4];
+            return;
         }
         String pid = run("xdotool", "getactivewindow", "getwindowpid"); // X11 only; on Wayland this just says nothing
-        if (!pid.matches("\\d+")) return "";
-        try {
-            return Files.readString(Path.of("/proc", pid, "comm")).strip().toLowerCase(Locale.ROOT);
-        } catch (IOException e) {
-            return "";
+        if (!pid.matches("\\d+")) {
+            frontApp = "";
+            return;
         }
+        try {
+            frontApp = Files.readString(Path.of("/proc", pid, "comm")).strip().toLowerCase(Locale.ROOT);
+        } catch (IOException e) {
+            frontApp = "";
+        }
+        frontTitle = run("xdotool", "getactivewindow", "getwindowname");
+        java.util.Map<String, Integer> g = new java.util.HashMap<>();
+        for (String line : run("xdotool", "getactivewindow", "getwindowgeometry", "--shell").split("\\R")) {
+            String[] kv = line.split("=");
+            if (kv.length == 2 && kv[1].strip().matches("-?\\d+")) g.put(kv[0].strip(), Integer.parseInt(kv[1].strip()));
+        }
+        frontBounds = g.containsKey("X") && g.containsKey("WIDTH")
+                ? new int[] {g.get("X"), g.get("Y"), g.get("X") + g.get("WIDTH"), g.get("Y") + g.get("HEIGHT")} : new int[4];
+    }
+
+    /** "x,y,width,height" (in points) as left, top, right, bottom in real pixels. */
+    static int[] bounds(String xywh, double scale) {
+        String[] v = xywh.split(",");
+        if (v.length != 4) return new int[4];
+        try {
+            double x = Double.parseDouble(v[0].strip()), y = Double.parseDouble(v[1].strip()), w = Double.parseDouble(v[2].strip()), h = Double.parseDouble(v[3].strip());
+            return new int[] {(int) (x * scale), (int) (y * scale), (int) ((x + w) * scale), (int) ((y + h) * scale)};
+        } catch (NumberFormatException e) {
+            return new int[4];
+        }
+    }
+
+    // ---- Folder windows (for cleaning) ----
+
+    /** Whether the window in front is a folder window on a Mac or Linux (Finder; Files, Dolphin and friends). */
+    static boolean folderWindow(String app) {
+        return MAC ? app.equals("finder") : java.util.Set.of("nautilus", "nemo", "thunar", "dolphin", "caja", "pcmanfm", "pcmanfm-qt").contains(app);
+    }
+
+    /** The folder the Finder (or a Linux file manager) window in front shows, or null. */
+    static Path folderInFront() {
+        if (MAC) {
+            String out = run("osascript", "-e", "tell application \"Finder\" to if (count of Finder windows) > 0 then POSIX path of (target of front Finder window as alias)");
+            if (out.isBlank() || out.contains("error")) return null;
+            Path p = Path.of(out.strip());
+            return Files.isDirectory(p) ? p : null;
+        }
+        // Linux file managers don't say which folder they show: the title is its name, so look for it in the usual places
+        String title = frontTitle.replaceAll("\\s+[-\u2014]\\s+.*$", "").strip();
+        if (title.isEmpty()) return null;
+        Path home = Path.of(System.getProperty("user.home"));
+        if (title.equals("Home") || title.equals(home.getFileName().toString())) return home;
+        for (Path p : List.of(home.resolve(title), home.resolve("Documents").resolve(title), home.resolve("Downloads").resolve(title), home.resolve("Desktop").resolve(title))) {
+            if (Files.isDirectory(p)) return p;
+        }
+        return null;
     }
 
     // ---- Battery and uptime ----

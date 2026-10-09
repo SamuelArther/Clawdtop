@@ -79,7 +79,10 @@ public final class Foreground {
 
     /** What's in front right now (all "" if it can't be told). */
     public static Front front() {
-        if (!Platform.WINDOWS) return new Front(Platform.frontApp(), "", ""); // Mac and Linux: just the app's name
+        if (!Platform.WINDOWS) { // Mac and Linux: the app, its window's title and where it is (folder windows count as "folder")
+            String app = Platform.frontApp(), title = Platform.frontTitle();
+            return new Front(app, Platform.folderWindow(app) ? "CabinetWClass" : app, title, (app + "|" + title).hashCode() | 1, Platform.frontBounds());
+        }
         if (GET_WINDOW_TEXT == null) return Front.UNKNOWN;
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment window = (MemorySegment) GET_FOREGROUND_WINDOW.invokeExact();
@@ -151,6 +154,7 @@ public final class Foreground {
      */
     public static Path explorerFolder(long handle) {
         if (handle == 0) return null;
+        if (!Platform.WINDOWS) return Platform.folderInFront(); // (the Finder window, or a Linux file manager, in front)
         try {
             Process p = new ProcessBuilder("powershell", "-NoProfile", "-NonInteractive", "-Command",
                     "[Console]::OutputEncoding = [Text.Encoding]::UTF8; " // (so folders like "Música" come through right)

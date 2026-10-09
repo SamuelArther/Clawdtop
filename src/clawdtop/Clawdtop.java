@@ -40,12 +40,22 @@ public final class Clawdtop {
     private Settings settings = Settings.load();
     private long settingsChanged = Settings.changed();
     private final Pet pet = new Pet(System.nanoTime());
-    static { // his menus look like the rest of Windows
+    static { // his menus look like the rest of Windows, and they're compact (small text, snug rows)
+        System.setProperty("apple.awt.UIElement", "true"); // (on a Mac: no Dock icon or menu bar for him, like any desktop buddy)
         if (Platform.WINDOWS && !GraphicsEnvironment.isHeadless()) {
             try {
                 javax.swing.UIManager.setLookAndFeel(javax.swing.UIManager.getSystemLookAndFeelClassName());
             } catch (Exception keepTheDefault) {
                 // fine as it is
+            }
+        }
+        if (!GraphicsEnvironment.isHeadless()) {
+            for (String key : new String[] {"Menu.font", "MenuItem.font", "CheckBoxMenuItem.font", "RadioButtonMenuItem.font", "PopupMenu.font"}) {
+                java.awt.Font f = javax.swing.UIManager.getFont(key);
+                if (f != null) javax.swing.UIManager.put(key, new javax.swing.plaf.FontUIResource(f.deriveFont(Math.max(10f, f.getSize2D() * 0.85f))));
+            }
+            for (String key : new String[] {"Menu.margin", "MenuItem.margin", "CheckBoxMenuItem.margin"}) {
+                javax.swing.UIManager.put(key, new javax.swing.plaf.InsetsUIResource(1, 2, 1, 2));
             }
         }
     }
@@ -166,7 +176,7 @@ public final class Clawdtop {
                     Diary.write("Somebody clicked my flying carpet away. Mid-air. Rude.");
                     return;
                 }
-                if (SwingUtilities.isRightMouseButton(e)) rightHeldSince = System.currentTimeMillis();
+                if (SwingUtilities.isRightMouseButton(e)) rightPressRiding = body.state() != Body.State.HOME; // (dropping him off your cursor: no pet)
                 if (SwingUtilities.isLeftMouseButton(e) && body.state() == Body.State.HOME) {
                     dragFrom = e.getXOnScreen();
                     windowXAtDrag = window.getX();
@@ -181,14 +191,13 @@ public final class Clawdtop {
 
             @Override
             public void mouseReleased(MouseEvent e) {
-                if (e.isPopupTrigger() || SwingUtilities.isRightMouseButton(e)) {
-                    boolean held = rightHeldSince > 0 && System.currentTimeMillis() - rightHeldSince >= HOLD_TO_PET;
-                    rightHeldSince = 0;
-                    if (!held) menu().show(canvas, e.getX(), e.getY()); // a hold was petting him, not asking for the menu
+                if (SwingUtilities.isRightMouseButton(e)) { // a right-click pets him (unless it was to get him off your cursor)
+                    if (!rightPressRiding && body.state() == Body.State.HOME) rightClickPet();
+                    rightPressRiding = false;
                     return;
                 }
                 if (dragFrom == Integer.MIN_VALUE) {
-                    if (job != null && SwingUtilities.isLeftMouseButton(e)) jobs().show(canvas, e.getX(), e.getY());
+                    if (job != null && SwingUtilities.isLeftMouseButton(e) && e.getClickCount() >= 2) jobs().show(canvas, e.getX(), e.getY());
                     return;
                 }
                 boolean moved = Math.abs(e.getXOnScreen() - dragFrom) > 3;
@@ -210,9 +219,10 @@ public final class Clawdtop {
                     pet.stopDucks(); // you clicked his laptop: it shuts. No more ducks
                 } else if (pet.secretlyCoding()) {
                     pet.say("Nothing...."); // what are you doing? nothing.
-                } else if (!clickedTooMuch()) {
-                    pet.poke();
+                } else if (e.getClickCount() >= 2) { // double-click: his menu
                     jobs().show(canvas, e.getX(), e.getY());
+                } else if (!clickedTooMuch()) {
+                    pet.poke(); // one click: hi!
                 }
             }
         };
@@ -881,10 +891,10 @@ public final class Clawdtop {
             }
         }
         if (pet.duckSpam() && newTick && ticks % 7 == 0) dropDuck();
-        explosion.tick(FRAME_MS);
+        explosion.tick(frameMs);
         if (ducks.active() || explosion.active()) {
             Rectangle screen = screenBounds();
-            ducks.tick(FRAME_MS, groundY, screen.x, screen.x + screen.width);
+            ducks.tick(frameMs, groundY, screen.x, screen.x + screen.width);
             boolean still = ducks.settled() && !explosion.active();
             if (duckWindow != null && (!still || !fxStill)) duckWindow.repaint(); // (once they've all landed: drawn once, then left be)
             fxStill = still;
@@ -1101,8 +1111,7 @@ public final class Clawdtop {
         // Useful
         javax.swing.JMenu useful = new javax.swing.JMenu("Useful");
         if (job == null) {
-            JMenuItem clean = new JMenuItem(Platform.WINDOWS ? "Clean a folder..." : "Clean a folder (Windows only for now)");
-            clean.setEnabled(Platform.WINDOWS);
+            JMenuItem clean = new JMenuItem("Clean a folder...");
             clean.addActionListener(e -> startCleaning());
             useful.add(clean);
         }
@@ -1129,6 +1138,7 @@ public final class Clawdtop {
 
         menu.addSeparator();
         menu.add(shop());
+        menu.add(settingsMenu());
         return menu;
     }
 
@@ -1181,7 +1191,7 @@ public final class Clawdtop {
 
     /** Clawd Points for time together, rides, jobs done, and petting (rubbing the mouse back and forth over him). */
     private void earnPoints(Point mouse, boolean moved) {
-        if (moved) activeFor += FRAME_MS;
+        if (moved) activeFor += frameMs;
         if (activeFor >= 5 * 60_000) {
             activeFor = 0;
             settings.earn(Shop.TIME);
@@ -1238,12 +1248,12 @@ public final class Clawdtop {
         funToday += give;
         settings.earn(give);
     }
-    private static final long HOLD_TO_PET = 500;
-    private long rightHeldSince;   // the right button is held down on him: petting
+    private boolean rightPressRiding; // the right button went down while he was riding (so it was to drop him off)
 
-    /** Holding the right button on him pets him: hearts while you hold, points once per pet (not for spamming). */
-    private void holdPet() {
-        if (rightHeldSince == 0 || System.currentTimeMillis() - rightHeldSince < HOLD_TO_PET) return;
+    /** A right-click pets him: hearts, and points once in a while (not for spamming). */
+    private void rightClickPet() {
+        pet.used();
+        if (pet.sleepy()) return; // (asleep: only a left click wakes him)
         if (pet.mood() != Pet.Mood.LOVED) {
             pet.petted();
             long now = System.currentTimeMillis();
@@ -1270,7 +1280,7 @@ public final class Clawdtop {
     private final java.util.ArrayDeque<Runnable> greetings = new java.util.ArrayDeque<>(); // said one at a time
 
     private void cameBack(long awayFor) {
-        if (pet.sleepy()) pet.ask("awake"); // you're back! (he wakes up for it)
+        // (asleep, he stays asleep till you click him: the hellos wait till then)
         greetings.clear();
         long gap = System.currentTimeMillis() - settings.lastSeen();
         if (settings.lastSeen() > 0 && gap >= 2 * 86_400_000L && settings.on("missedYou")) {
@@ -1604,8 +1614,8 @@ public final class Clawdtop {
         return window.getGraphicsConfiguration().getBounds();
     }
 
-    private JPopupMenu menu() {
-        JPopupMenu menu = new JPopupMenu();
+    private javax.swing.JMenu settingsMenu() {
+        javax.swing.JMenu menu = new javax.swing.JMenu("Settings");
         JCheckBoxMenuItem sounds = new JCheckBoxMenuItem("Beeps", settings.sounds());
         sounds.addActionListener(e -> settings.setSounds(sounds.isSelected()));
         menu.add(sounds);
@@ -1858,9 +1868,21 @@ public final class Clawdtop {
         MenuSelectionManager.defaultManager().clearSelectedPath();
     }
 
+    private long lastFrameAt;
+    private int frameMs = FRAME_MS, moodMs = MOOD_MS, moodSoFar; // how long this frame and this mood tick really took (ms)
+
     private void tick() {
-        newTick = ++frames % 2 == 0;
-        if (newTick) ticks++;
+        long nowNanos = System.nanoTime(); // (by the real clock: on a slow or busy computer he doesn't go in slow motion)
+        frameMs = lastFrameAt == 0 ? FRAME_MS : (int) Math.max(1, Math.min(100, (nowNanos - lastFrameAt) / 1_000_000));
+        lastFrameAt = nowNanos;
+        frames++;
+        moodSoFar += frameMs;
+        newTick = moodSoFar >= MOOD_MS - 2;
+        if (newTick) {
+            ticks++;
+            moodMs = Math.min(200, moodSoFar);
+            moodSoFar = 0;
+        }
         PointerInfo pointer = MouseInfo.getPointerInfo();
         Point mouse = pointer != null ? pointer.getLocation() : lastMouse;
         boolean moved = !mouse.equals(lastMouse);
@@ -1955,7 +1977,7 @@ public final class Clawdtop {
             else if (asked != null && asked.startsWith("mood ")) pet.ask(asked.substring(5));
         }
         if (farewell) {
-            pet.tick(FRAME_MS, 0, 0, false, false);
+            pet.tick(frameMs, 0, 0, false, false);
             String line = pet.takeLine();
             if (line != null) bubble.show(line, new Rectangle(window.getX(), window.getY() + FAREWELL_ROOM * settings.unit(),
                     Sprite.WIDTH * settings.unit(), Sprite.HEIGHT * settings.unit()), screenBounds());
@@ -1992,7 +2014,7 @@ public final class Clawdtop {
         if (dragFrom == Integer.MIN_VALUE) {
             Rectangle screen = window.getGraphicsConfiguration().getBounds();
             if (job != null) {
-                job.tick(FRAME_MS, body, pet);
+                job.tick(frameMs, body, pet);
                 if (job.over()) job = null;
             }
             body.setCeiling(screen.y);
@@ -2006,7 +2028,7 @@ public final class Clawdtop {
             } else if (body.hopReady() == 0) {
                 readyShown = false;
             }
-            body.tick(FRAME_MS, mouse.x, mouse.y, homeX, groundY, 12 * unit, screen.x, screen.x + screen.width);
+            body.tick(frameMs, mouse.x, mouse.y, homeX, groundY, 12 * unit, screen.x, screen.x + screen.width);
             pet.follow(body.state());
             creations();
             if (body.takeMissed()) pet.say("Missed! ...I meant to do that.");
@@ -2066,7 +2088,6 @@ public final class Clawdtop {
             SwingUtilities.invokeLater(() -> checkBattery(b));
         });
         checkZoom(mouse);
-        holdPet();
         if (movingOut && body.state() == Body.State.OUT) System.exit(0); // gone to the new computer
         if (huffed && body.state() == Body.State.HOME) {
             huffed = false;
@@ -2080,8 +2101,8 @@ public final class Clawdtop {
         if (head().contains(mouse) || body.state() != Body.State.HOME || job != null || bubble.asking()
                 || (game != null && game.showing()) || yourPiano.showing()) pet.used();
         if (newTick) { // (his moods at their own pace; his window moves every frame)
-            pet.hover(overHim && !movedSinceMood, MOOD_MS);
-            pet.tick(MOOD_MS, mouse.x - eyesX, mouse.y - eyesY, movedSinceMood, devApp);
+            pet.hover(overHim && !movedSinceMood, moodMs);
+            pet.tick(moodMs, mouse.x - eyesX, mouse.y - eyesY, movedSinceMood, devApp);
             movedSinceMood = false;
         }
         boolean playingNow = pet.mood() == Pet.Mood.PIANO;
@@ -2350,7 +2371,7 @@ public final class Clawdtop {
         Rectangle at = head();
         switch (action) {
             case "menu" -> jobs().show(canvas, at.width / 2, at.height / 3);
-            case "settings menu" -> menu().show(canvas, at.width / 2, at.height / 3);
+            case "settings menu" -> jobs().show(canvas, at.width / 2, at.height / 3);
             case "close menus" -> javax.swing.MenuSelectionManager.defaultManager().clearSelectedPath();
             case "ask" -> askBox.show("Ask me anything!", at, screenBounds(), this::answer);
             case "type" -> askBox.field().setText("why is the sky blue?");

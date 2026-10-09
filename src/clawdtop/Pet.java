@@ -259,9 +259,8 @@ public final class Pet {
 
         // Moving the mouse near a sleeping or lying Clawd wakes him up
         double distance = Math.hypot(dx, dy);
-        if ((mood == Mood.SLEEP || mood == Mood.LIE) && mouseMoved && distance < 120) {
-            sinceUsed = 0; // (you came over to see him)
-            if (mood == Mood.SLEEP) wants = Beep.WAKE;
+        if (mood == Mood.LIE && mouseMoved && distance < 120) { // lying down (not asleep): the cursor coming over perks him up
+            sinceUsed = 0;
             set(Mood.IDLE, idleTime());
         }
 

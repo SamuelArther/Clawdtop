@@ -66,9 +66,11 @@ public class ClawdtopTest {
         napper.poke();
         check("tapping him wakes him up with a little hop", napper.mood() + " " + napper.takeBeep() + " " + napper.sleepy(), "HAPPY WAKE false");
         lonely.tick(33, 40, 10, true, false);
-        check("moving it near him does, with a beep", lonely.mood() + " " + lonely.takeBeep(), "IDLE WAKE");
+        check("moving the mouse near him doesn't wake him (only a click does)", lonely.mood() + " " + lonely.takeBeep(), "SLEEP null");
         lonely.poke();
-        check("clicking him makes him happy", lonely.mood() + " " + lonely.takeBeep(), "HAPPY CLICKED");
+        check("clicking him wakes him", lonely.mood() + " " + lonely.takeBeep(), "HAPPY WAKE");
+        lonely.poke();
+        check("and clicking him again makes him happy", lonely.mood() + " " + lonely.takeBeep(), "HAPPY CLICKED");
 
         // ---- Riding your cursor ----
         Body body = new Body();
