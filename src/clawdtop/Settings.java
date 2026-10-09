@@ -429,6 +429,18 @@ public final class Settings {
         save();
     }
 
+    /** The jam tracks he's recorded his parts for (by file name), so next time he just plays them. */
+    public boolean jamRecorded(String name) {
+        return java.util.Arrays.asList(values.getProperty("jams", "").split("\\|")).contains(name);
+    }
+
+    public void addJam(String name) {
+        if (jamRecorded(name)) return;
+        String jams = values.getProperty("jams", "");
+        values.setProperty("jams", jams.isEmpty() ? name : jams + "|" + name);
+        save();
+    }
+
     /** Gives something back (huts are gone from the shop: their points come back). */
     public void disown(String id) {
         if (!owns(id)) return;

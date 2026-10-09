@@ -59,6 +59,8 @@ public final class Pet {
         SPIN,
         /** The cursor zoomed past so fast his head's spinning: swirly eyes and little birds going round his head. */
         WOOZY,
+        /** A jam session: laptop out, cords in, he records each part, slams the button, and jams to the whole song. */
+        JAM,
         /** A celebration: confetti! */
         PARTY,
         /** Your birthday: party hat, a cake, and a party blower he toots. */
@@ -343,11 +345,35 @@ public final class Pet {
                         beat += song.beats()[i];
                     }
                 }
-                if (moodFor > nextChange) {
+                if (moodFor > nextChange && jamming) { // that part's recorded: next one (or the big button)
+                    nextJamPart();
+                } else if (moodFor > nextChange) {
                     String[] thanks = {"Thank you, thank you!", "*bows*", "I've been practicing.", "That's all I know. For now."};
                     line = thanks[random.nextInt(thanks.length)];
                     wants = Beep.HAPPY;
                     song = null;
+                    set(Mood.HAPPY, 900);
+                }
+            }
+            case JAM -> {
+                if (jamStep == JAM_SETUP && moodFor > nextChange) {
+                    nextJamPart();
+                } else if (jamStep == JAM_TYPING && moodFor > nextChange) { // (playing one he's recorded before: straight to the button)
+                    jamStep = JAM_SLAM;
+                    line = "Okay... here it comes.";
+                    set(Mood.JAM, 1500);
+                } else if (jamStep == JAM_SLAM && moodFor >= JAM_SLAM_AT && moodFor - ms < JAM_SLAM_AT) {
+                    wants = Beep.CLICKED; // SLAM
+                    line = "And... GO!";
+                } else if (jamStep == JAM_SLAM && moodFor > nextChange) {
+                    jamStep = JAM_PLAYING;
+                    set(Mood.JAM, Math.max(4000, jamSong.fullMs()) + 600);
+                } else if (jamStep == JAM_PLAYING && moodFor > nextChange) {
+                    String[] done = {"WHAT a jam.", "And that's the album.", "*bows* Thank you, thank you.", "We should start a band."};
+                    line = done[random.nextInt(done.length)];
+                    wants = Beep.HAPPY;
+                    jamming = false;
+                    jamSong = null;
                     set(Mood.HAPPY, 900);
                 }
             }
@@ -995,7 +1021,7 @@ public final class Pet {
     /** Busy with something that shouldn't be cut short: a job, coding, a ride, a fall, moving house... */
     private boolean busy() {
         return switch (mood) {
-            case WORK, PEEK, PACK, CODING, SORRY, MADE, CARPET, LAUNCHPAD, ROCKET, DUCKS, THINK, PIANO, FETCH, FOCUS, LAP, PANT, RIDE, FALL, DIZZY, SHAKE, WALK, CARRY, UNPACK, BIRTHDAY,
+            case WORK, PEEK, PACK, CODING, SORRY, MADE, CARPET, LAUNCHPAD, ROCKET, DUCKS, THINK, PIANO, JAM, FETCH, FOCUS, LAP, PANT, RIDE, FALL, DIZZY, SHAKE, WALK, CARRY, UNPACK, BIRTHDAY,
                     GOODBYE, FREAKOUT -> true;
             default -> false;
         };
@@ -1034,6 +1060,114 @@ public final class Pet {
     }
 
     /** Plays a song (or, on the drums, a beat; null: one he makes up) on one of his instruments. */
+    // ---- Jam sessions ----
+    static final int JAM_SETUP = 0, JAM_TYPING = 8, JAM_SLAM = 9, JAM_PLAYING = 10;
+    static final long JAM_SLAM_AT = 900; // ms into the slam: hand comes down
+    private static final Piano.Instrument[] JAM_PARTS = {Piano.Instrument.PIANO, Piano.Instrument.GUITAR, Piano.Instrument.BASS, Piano.Instrument.DRUMS};
+    private Piano.Song jamSong; // the song file he's jamming to
+    private java.util.List<Piano.Part> jamParts = java.util.List.of(); // its own parts (drums, bass, guitar...), if it was split
+    private int jamStep;        // setting up, recording part 1 to 4, the big button, then playing it
+    private boolean jamming;
+
+    /** A jam session to a song file: laptop out, a cord into each instrument, a part on each, SLAM, then the whole song. */
+    public boolean jam(Piano.Song full) {
+        return jam(full, java.util.List.of());
+    }
+
+    /** The same, recording the track's own parts (from Piano.jamParts); with none, a bit of the tune on each instrument. */
+    public boolean jam(Piano.Song full, java.util.List<Piano.Part> parts) {
+        if (busy() || mood == Mood.SLEEP || full == null || full.midi() == null) return false;
+        jamParts = parts;
+        jamSong = full;
+        jamming = true;
+        jamStep = JAM_SETUP;
+        line = "Jam session! Let me plug in...";
+        wants = Beep.HAPPY;
+        set(Mood.JAM, 2200);
+        return true;
+    }
+
+    /** A jam he's recorded before: laptop out, a bit of typing, SLAM, and it plays again. */
+    public boolean jamAgain(Piano.Song full) {
+        if (busy() || mood == Mood.SLEEP || full == null || full.midi() == null) return false;
+        jamSong = full;
+        jamming = true;
+        jamStep = JAM_TYPING;
+        line = "Ooh, this one! Let me find it...";
+        wants = Beep.HAPPY;
+        set(Mood.JAM, 2600);
+        return true;
+    }
+
+    /** Whether he's just finished recording every part (once, for remembering the jam is recorded). */
+    public boolean takeJamRecorded() {
+        boolean r = jamRecorded;
+        jamRecorded = false;
+        return r;
+    }
+
+    private boolean jamRecorded;
+
+    /** Records the next part (piano, guitar, bass, drums), or after the last one, gets ready to slam the button. */
+    private void nextJamPart() {
+        int part = jamStep; // (0 to 3: the part about to be recorded)
+        if (jamStep == JAM_SETUP || jamStep < JAM_PARTS.length) {
+            if (jamStep >= JAM_PARTS.length) part = JAM_PARTS.length;
+        }
+        int partCount = jamParts.isEmpty() ? JAM_PARTS.length : jamParts.size();
+        if (jamStep == JAM_SETUP) part = 0;
+        if (part < partCount) {
+            jamStep = part + 1;
+            Piano.Instrument on = jamParts.isEmpty() ? JAM_PARTS[part] : jamParts.get(part).instrument();
+            instrument = on;
+            song = !jamParts.isEmpty() ? jamParts.get(part).bit()
+                    : on == Piano.Instrument.DRUMS ? Piano.BEATS[random.nextInt(Piano.BEATS.length)] : jamSnippet(part);
+            mistakeAt = -1;
+            songNote = 0;
+            note = 0;
+            line = switch (on) {
+                case DRUMS -> part == 0 ? "Drums first!" : "And drums!";
+                case BASS -> "Bass line...";
+                case GUITAR -> "Now guitar!";
+                case VOICE -> "And the vocals... la la laaa!";
+                default -> "Keys...";
+            };
+            set(Mood.PIANO, PIANO_INTRO + song.length() + 300);
+            return;
+        }
+        jamStep = JAM_SLAM;
+        song = null;
+        jamRecorded = true;
+        line = "All recorded. Now for the big button...";
+        set(Mood.JAM, 1500);
+    }
+
+    /** A little bit of the song's tune for one part (each part plays the next bit). */
+    private Piano.Song jamSnippet(int part) {
+        int[] all = jamSong.notes();
+        double[] beats = jamSong.beats();
+        int length = Math.min(10, Math.max(4, all.length / 4));
+        int from = Math.min(Math.max(0, all.length - length), part * length);
+        int[] notes = java.util.Arrays.copyOfRange(all, from, Math.min(all.length, from + length));
+        double[] these = java.util.Arrays.copyOfRange(beats, from, Math.min(beats.length, from + length));
+        return new Piano.Song(jamSong.name(), notes, these, jamSong.beatMs());
+    }
+
+    /** Whether he's in a jam session (laptop out, cords plugged in). */
+    public boolean jamming() {
+        return jamming && (mood == Mood.JAM || mood == Mood.PIANO);
+    }
+
+    /** Which step of the jam session: JAM_SETUP, 1 to 4 (recording a part), JAM_SLAM or JAM_PLAYING. */
+    public int jamStep() {
+        return jamStep;
+    }
+
+    /** The song file playing, with its own instruments, at the end of a jam session (or null). */
+    public java.io.File jamPlaying() {
+        return mood == Mood.JAM && jamStep == JAM_PLAYING && jamSong != null ? jamSong.midi() : null;
+    }
+
     public boolean play(Piano.Instrument on, Piano.Song which) {
         if (busy() || mood == Mood.SLEEP) return false;
         instrument = on;
@@ -1164,6 +1298,14 @@ public final class Pet {
 
     /** Stops playing (you clicked him). */
     public void stopPiano() {
+        if (mood == Mood.JAM || (mood == Mood.PIANO && jamming)) {
+            jamming = false;
+            jamSong = null;
+            song = null;
+            line = "Okay, okay. Jam's over.";
+            set(Mood.IDLE, idleTime());
+            return;
+        }
         if (mood != Mood.PIANO) return;
         song = null;
         line = "Okay, okay. I'll stop.";
@@ -1303,6 +1445,10 @@ public final class Pet {
 
     private void set(Mood next, long howLong) {
         if (mood == Mood.PACK && next != Mood.PACK) sorryAfterPack = false; // (only right after the laptop shuts)
+        if (jamming && next != Mood.JAM && next != Mood.PIANO && next != Mood.HAPPY) { // interrupted mid-jam: that's that
+            jamming = false;
+            jamSong = null;
+        }
         if ((mood == Mood.CODING && next != Mood.CODING && next != Mood.PACK) || (mood == Mood.PACK && next != Mood.PACK)) {
             coding = null; // interrupted mid-code (or the laptop's away): that one's not happening
             deleting = false;

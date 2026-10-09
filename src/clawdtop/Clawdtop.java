@@ -305,7 +305,15 @@ public final class Clawdtop {
     /** Plays a whole MIDI file while he plays it on his piano (null stops it). */
     private int midiRound; // which MIDI start is the current one (an older one still loading gets closed)
 
+    private boolean sequencerBand; // the song file's playing with its own instruments (a jam session), not all piano
+
     private void playMidi(java.io.File file) {
+        playMidi(file, false);
+    }
+
+    private void playMidi(java.io.File file, boolean fullBand) {
+        if (java.util.Objects.equals(file, sequencerFile) && fullBand != sequencerBand && file != null) sequencerFile = null; // (same song, other way: restart)
+        sequencerBand = fullBand;
         if (java.util.Objects.equals(file, sequencerFile)) return;
         if (sequencer != null) {
             sequencer.stop();
@@ -319,7 +327,8 @@ public final class Clawdtop {
             try {
                 javax.sound.midi.Sequencer s = javax.sound.midi.MidiSystem.getSequencer();
                 s.open();
-                s.setSequence(Piano.pianoOnly(javax.sound.midi.MidiSystem.getSequence(file))); // (all piano: it's his piano he's playing)
+                javax.sound.midi.Sequence seq = javax.sound.midi.MidiSystem.getSequence(file);
+                s.setSequence(fullBand ? Piano.fullBand(seq) : Piano.pianoOnly(seq)); // (all piano: it's his piano he's playing; a jam: the whole band)
                 s.start();
                 SwingUtilities.invokeLater(() -> {
                     if (round == midiRound) sequencer = s;
@@ -356,6 +365,35 @@ public final class Clawdtop {
     static String songTitle(java.io.File f) {
         String name = f.getName().replaceAll("(?i)\\.midi?$", "").replace('_', ' ');
         return Piano.SERVICE_SONGS.getOrDefault(name.toLowerCase(java.util.Locale.ROOT), name);
+    }
+
+    /** A jam session to a song file: recording the parts (the first time), or just playing it again. */
+    private void jamTo(java.io.File f, boolean again) {
+        worker.execute(() -> {
+            Piano.Song song = Piano.fromMidi(f);
+            java.util.List<Piano.Part> parts = again ? java.util.List.of() : Piano.jamParts(f); // (its own tracks: drums, bass, guitar...)
+            SwingUtilities.invokeLater(() -> {
+                if (song == null) pet.say("I tried, but I can't read that music.");
+                else if (again ? pet.jamAgain(song) : pet.jam(song, parts)) {
+                    earnFun(Shop.SONG);
+                    jamFile = f.getName();
+                } else pet.say("Give me a sec, I'm busy. Then we jam!");
+            });
+        });
+    }
+
+    private String jamFile; // the jam track he's on (to remember once its parts are recorded)
+
+    /** Opens one of his song folders (made if it isn't there yet). */
+    private void openSongFolder(String which) {
+        try {
+            Path folder = which.isEmpty() ? songsFolder() : songsFolder().resolve(which);
+            java.nio.file.Files.createDirectories(folder);
+            Useful.lastOpened = System.currentTimeMillis();
+            java.awt.Desktop.getDesktop().open(folder.toFile());
+        } catch (Exception ignored) {
+            // no file browser here
+        }
     }
 
     /** He sings a song file: just his little voice, following the tune. */
@@ -879,7 +917,7 @@ public final class Clawdtop {
                 item.addActionListener(e -> { if (pet.play(Piano.Instrument.VOICE, song)) earnFun(Shop.SONG); });
                 sing.add(item);
             }
-            java.util.List<java.io.File> singable = allSongFiles();
+            java.util.List<java.io.File> singable = songs(songsFolder().resolve("sing"));
             if (!singable.isEmpty()) sing.addSeparator();
             for (java.io.File f : singable) {
                 JMenuItem item = new JMenuItem(songTitle(f));
@@ -887,6 +925,24 @@ public final class Clawdtop {
                 sing.add(item);
             }
             fun.add(sing);
+            java.util.List<java.io.File> jams = songs(songsFolder().resolve("jams"));
+            javax.swing.JMenu jam = new javax.swing.JMenu("Jam session");
+            for (java.io.File f : jams) {
+                boolean done = settings.jamRecorded(f.getName());
+                JMenuItem item = new JMenuItem((done ? "Listen: " : "Record: ") + songTitle(f));
+                item.addActionListener(e -> jamTo(f, done));
+                jam.add(item);
+                if (done) {
+                    JMenuItem again = new JMenuItem("    (record it again)");
+                    again.addActionListener(e -> jamTo(f, false));
+                    jam.add(again);
+                }
+            }
+            if (!jams.isEmpty()) jam.addSeparator();
+            JMenuItem jamFolder = new JMenuItem("Your jam tracks folder (put MIDI files in it)...");
+            jamFolder.addActionListener(e -> openSongFolder("jams"));
+            jam.add(jamFolder);
+            fun.add(jam);
             for (Piano.Instrument inst : new Piano.Instrument[] {Piano.Instrument.GUITAR, Piano.Instrument.BASS, Piano.Instrument.DRUMS}) {
                 javax.swing.JMenu menuFor = new javax.swing.JMenu(switch (inst) {
                     case GUITAR -> "Guitar";
@@ -1922,7 +1978,9 @@ public final class Clawdtop {
         wasPlaying = playingNow;
         int note = pet.takeNote();
         if (note > 0 && mayBeep() && pet.playingMidi() == null) beeps.play(pet.instrument(), note, pet.noteLength());
-        playMidi(mayBeep() ? pet.playingMidi() : null); // (muted, quiet hours or hidden: the song stops)
+        if (pet.takeJamRecorded() && jamFile != null) settings.addJam(jamFile); // (next time: he just plays it)
+        java.io.File band = pet.jamPlaying();
+        playMidi(!mayBeep() ? null : band != null ? band : pet.playingMidi(), band != null); // (muted, quiet hours or hidden: the song stops)
         Pet.Beep beep = pet.takeBeep();
         if (beep != null && mayBeep()) beeps.play(beep);
         // what he says (not while he's hidden for your video, and never over a question he's asking you)
@@ -2068,7 +2126,7 @@ public final class Clawdtop {
         updates.setInitialDelay(20_000);
         updates.start();
         try {
-            java.nio.file.Files.createDirectories(songsFolder().resolve("veterans")); // so you can see where songs go
+            for (String folder : new String[] {"veterans", "sing", "jams"}) java.nio.file.Files.createDirectories(songsFolder().resolve(folder)); // so you can see where songs go
         } catch (IOException ignored) {
             // no songs folder, then
         }

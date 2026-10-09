@@ -256,7 +256,7 @@ public final class Sprite {
         double lift = Math.min(pet.lift(), Math.max(0, 7 - hatHeight(pet.hat()))); // (a tall hat: smaller hops, so it fits)
         double top = GROUND - 2 - 8 + drop - lift; // his body is 8 tall, on legs 2 tall
         // His one dance: bobbing his body down and up to the beat, feet planted (dancing, music time, the disco ball)
-        boolean dancing = mood == Pet.Mood.DANCE || mood == Pet.Mood.VIBE || made(pet, Creation.Effect.DISCO) || made(pet, Creation.Effect.MUSIC);
+        boolean dancing = mood == Pet.Mood.DANCE || mood == Pet.Mood.VIBE || (mood == Pet.Mood.JAM && pet.jamStep() == Pet.JAM_PLAYING) || made(pet, Creation.Effect.DISCO) || made(pet, Creation.Effect.MUSIC);
         double bob = dancing ? (Math.sin(pet.time() / 300.0 * Math.PI) > 0 ? 0.8 : 0) : 0;
         top += bob;
 
@@ -333,6 +333,25 @@ public final class Sprite {
             boolean up = (pet.time() / 140) % 2 == 0;
             box(g, unit, LEFT - 2, top + (up ? -1 : 1), 1.2, 2.5, body);
             box(g, unit, LEFT + 13.8, top + (up ? 1 : -1), 1.2, 2.5, body);
+        } else if (mood == Pet.Mood.JAM) {
+            int step = pet.jamStep();
+            if (step == Pet.JAM_SLAM) { // hand way up... then SLAM, down on the laptop
+                boolean up = pet.moodTime() < Pet.JAM_SLAM_AT;
+                box(g, unit, LEFT - 2, up ? top - 3 : GROUND - 3.6, 1.6, up ? 3 : 1.6, body);
+                if (!up && pet.moodTime() < Pet.JAM_SLAM_AT + 250) { // a little flash where it hit
+                    box(g, unit, LEFT - 3.6, GROUND - 4.8, 0.6, 0.6, new Color(255, 230, 120));
+                    box(g, unit, LEFT - 0.6, GROUND - 4.8, 0.6, 0.6, new Color(255, 230, 120));
+                }
+                box(g, unit, LEFT + 13, top + 4, 2, 2, body);
+            } else if (step == Pet.JAM_PLAYING) { // jamming: hands up and down to the beat
+                boolean up = (pet.time() / 300) % 2 == 0;
+                box(g, unit, LEFT - 2, top + (up ? 0 : 3), 1, 2, body);
+                box(g, unit, LEFT + 14, top + (up ? 3 : 0), 1, 2, body);
+            } else { // typing on his laptop, down beside him
+                boolean tap = (pet.time() / 110) % 2 == 0;
+                box(g, unit, LEFT - 2, GROUND - 3.6 - (tap ? 0.4 : 0), 1.6, 1.6, body);
+                box(g, unit, LEFT + 13, top + 4, 2, 2, body);
+            }
         } else if (mood == Pet.Mood.PIANO && pet.instrument() == Piano.Instrument.VOICE) {
             // singing: one hand on his chest, the other out, swaying a little with the notes
             box(g, unit, LEFT + 2, top + 5, 2, 2, hand);
@@ -410,6 +429,7 @@ public final class Sprite {
                 box(g, unit, eyeX, eyeY, 1, 2, EYE);
             }
         }
+        if (pet.jamming()) drawJamGear(g, pet, unit, top, mood);
         if (mood == Pet.Mood.PIANO) { // his instrument
             switch (pet.instrument()) {
                 case GUITAR -> drawGuitar(g, pet, unit, top, false);
@@ -872,6 +892,36 @@ public final class Sprite {
         if (down) {
             box(g, unit, bx + 4, by - 3, 0.7, 0.6, new Color(255, 214, 102));
             box(g, unit, bx + 4.5, by - 4.3, 0.25, 1.4, new Color(255, 214, 102));
+        }
+    }
+
+    /** A jam session: his laptop on the floor beside him, a cord to whatever he's playing, REC while he records. */
+    private static void drawJamGear(Graphics2D g, Pet pet, int unit, double top, Pet.Mood mood) {
+        Color shell = new Color(70, 74, 84), screen = new Color(30, 34, 44), cord = new Color(40, 40, 46);
+        double lx = LEFT - 4.6, ly = GROUND - 1;
+        box(g, unit, lx, ly, 4.2, 0.6, shell);            // the bottom half
+        box(g, unit, lx + 0.2, ly - 2.6, 3.8, 2.6, shell); // the lid, open
+        box(g, unit, lx + 0.5, ly - 2.3, 3.2, 2, screen);
+        boolean recording = mood == Pet.Mood.PIANO;
+        int step = pet.jamStep();
+        if (recording && (pet.time() / 400) % 2 == 0) box(g, unit, lx + 0.8, ly - 2, 0.7, 0.7, new Color(230, 50, 50)); // REC
+        if (mood == Pet.Mood.JAM && step == Pet.JAM_PLAYING) { // the song playing: little bars bouncing
+            for (int i = 0; i < 4; i++) {
+                double h = 0.4 + Math.abs(Math.sin(pet.time() / (140.0 + i * 37) + i)) * 1.4;
+                box(g, unit, lx + 0.8 + i * 0.7, ly - 0.4 - h, 0.5, h, new Color(120, 220, 160));
+            }
+        } else if (mood == Pet.Mood.JAM) { // code scrolling by as he types
+            for (int i = 0; i < 3; i++) {
+                double w = 1 + ((pet.time() / 250 + i * 3) % 4) * 0.5;
+                box(g, unit, lx + 0.8, ly - 2 + i * 0.6, w, 0.3, new Color(120, 200, 255));
+            }
+        }
+        if (recording) { // the cord, from the laptop to his instrument, sagging a little
+            double x0 = lx + 4.2, y0 = ly + 0.2, x1 = LEFT + 4, y1 = top + 7.5;
+            for (double t = 0; t <= 1; t += 0.08) {
+                double x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t + Math.sin(t * Math.PI) * 0.8;
+                box(g, unit, x, y, 0.35, 0.35, cord);
+            }
         }
     }
 
