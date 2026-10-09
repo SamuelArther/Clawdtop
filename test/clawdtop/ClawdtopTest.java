@@ -799,6 +799,11 @@ public class ClawdtopTest {
         Handy.Unzipped unzipped = Handy.unzip(zipFile);
         check("unzip", unzipped.folder().getFileName() + " " + Files.exists(unzipped.folder().resolve("a.txt")) + " " + Files.exists(unzipped.folder().resolve("sub/b.txt"))
                 + " " + Files.exists(handy.getParent().resolve("evil.txt")) + " " + Files.exists(handy.resolve("evil.txt")), "stuff true true false false");
+        // words and colors
+        check("define what", WebSearch.wordToDefine("define curious") + " " + WebSearch.wordToDefine("What does ubiquitous mean?") + " "
+                + WebSearch.wordToDefine("what's the meaning of life is it 42") + " " + WebSearch.wordToDefine("definition of \"serendipity\""), "curious ubiquitous null serendipity");
+        check("color names", Extras.colorName(new java.awt.Color(58, 123, 213)) + " / " + Extras.colorName(new java.awt.Color(250, 250, 250)) + " / "
+                + Extras.colorName(new java.awt.Color(215, 119, 87)) + " / " + Extras.hex(new java.awt.Color(58, 123, 213)), "blue / white / Clawd orange / #3A7BD5");
         // the desktop: reading icon spots (Windows' script and Finder say the same shape), sorting files for Neat
         Desktop.Layout desk = Desktop.read("DESKTOP|/home/me/Desktop\nskin|177,2\nmy song.mid|2427,1032\nnot an icon\n");
         check("desktop read", desk.folder().getFileName() + " " + desk.icons(), "Desktop [Icon[name=skin, x=177, y=2], Icon[name=my song.mid, x=2427, y=1032]]");

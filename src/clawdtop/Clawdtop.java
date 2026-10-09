@@ -956,6 +956,26 @@ public final class Clawdtop {
             pet.say(had ? "Down it comes!" : "I'm not holding up a note right now.");
             return true;
         }
+        // what a word means
+        String word = WebSearch.wordToDefine(question);
+        if (word != null && settings.on("webSearch")) {
+            if (settings.on("kidFriendly") && !Brain.noBadWords(word).equals(word)) {
+                pet.say("Let's pick a different word!");
+                return true;
+            }
+            pet.say("Let me look up \"" + word + "\"...");
+            worker.execute(() -> {
+                String meaning = WebSearch.define(word);
+                SwingUtilities.invokeLater(() -> pet.say(meaning == null ? "Hmm, I couldn't find \"" + word + "\" in the dictionary. (Is it spelled right?)"
+                        : Brain.noBadWords(meaning)));
+            });
+            return true;
+        }
+        // the color under your mouse
+        if (q.matches("(what colou?r is (this|that|it|under my (mouse|cursor|pointer))|colou?r picker|pick a colou?r( for me)?|what'?s this colou?r|grab a colou?r|eyedropper)")) {
+            pickColor();
+            return true;
+        }
         // finding a file
         java.util.List<String> lookFor = FindFile.wordsIn(question);
         if (lookFor != null) {
@@ -1220,6 +1240,25 @@ public final class Clawdtop {
                     });
                 }, head(), popupBounds());
         bubble.expireIn(30_000);
+    }
+
+    /** "What color is this?": you point at it, he counts to three, and tells you (and copies the code). */
+    private void pickColor() {
+        pet.say("Point your mouse at the color... 3...");
+        later(1000, () -> pet.say("Point your mouse at the color... 2..."));
+        later(2000, () -> pet.say("Point your mouse at the color... 1..."));
+        later(3000, () -> {
+            try {
+                java.awt.Point at = MouseInfo.getPointerInfo().getLocation();
+                java.awt.Color c = new java.awt.Robot().getPixelColor(at.x, at.y);
+                String hex = Extras.hex(c);
+                setClipboard(hex);
+                pet.say("That's " + Extras.colorName(c) + "! " + hex + " (red " + c.getRed() + ", green " + c.getGreen() + ", blue " + c.getBlue() + ")\nI copied the code for you."
+                        + (Platform.MAC && c.getRed() + c.getGreen() + c.getBlue() == 0 ? "\n(All black? On a Mac I need Screen Recording permission to see colors.)" : ""));
+            } catch (Exception cant) {
+                pet.say("Hmm, I can't see the screen's colors on this computer.");
+            }
+        });
     }
 
     /** Puts up his sticky note (or takes it down, for ""). */

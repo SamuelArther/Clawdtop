@@ -171,6 +171,37 @@ final class Extras {
         return Character.toUpperCase(line.charAt(0)) + line.substring(1);
     }
 
+    // ---- Colors ----
+
+    private static final Object[][] COLOR_NAMES = {
+            {"black", 0, 0, 0}, {"white", 255, 255, 255}, {"gray", 128, 128, 128}, {"light gray", 200, 200, 200}, {"dark gray", 64, 64, 64},
+            {"red", 220, 30, 30}, {"dark red", 130, 10, 10}, {"pink", 255, 160, 190}, {"hot pink", 255, 60, 150}, {"orange", 255, 140, 0},
+            {"Clawd orange", 215, 119, 87}, {"brown", 120, 72, 30}, {"tan", 210, 180, 140}, {"yellow", 250, 220, 30}, {"gold", 212, 175, 55},
+            {"lime green", 120, 230, 40}, {"green", 30, 160, 60}, {"dark green", 10, 80, 30}, {"mint", 160, 230, 190}, {"teal", 0, 128, 128},
+            {"cyan", 40, 220, 230}, {"sky blue", 120, 190, 240}, {"blue", 30, 90, 220}, {"navy", 15, 30, 100}, {"purple", 120, 50, 170},
+            {"lavender", 190, 170, 230}, {"magenta", 220, 40, 200}, {"beige", 240, 225, 200}, {"cream", 255, 250, 225}, {"maroon", 110, 20, 40}};
+
+    /** The nearest everyday name for a color ("sky blue"). */
+    static String colorName(java.awt.Color c) {
+        String best = "gray";
+        double bestDistance = Double.MAX_VALUE;
+        for (Object[] named : COLOR_NAMES) {
+            int r = (Integer) named[1], g = (Integer) named[2], b = (Integer) named[3];
+            double mean = (c.getRed() + r) / 2.0; // (a quick "how different does it look" measure: redmean)
+            double d = (2 + mean / 256) * Math.pow(c.getRed() - r, 2) + 4 * Math.pow(c.getGreen() - g, 2) + (2 + (255 - mean) / 256) * Math.pow(c.getBlue() - b, 2);
+            if (d < bestDistance) {
+                bestDistance = d;
+                best = (String) named[0];
+            }
+        }
+        return best;
+    }
+
+    /** "#3A7BD5". */
+    static String hex(java.awt.Color c) {
+        return String.format("#%02X%02X%02X", c.getRed(), c.getGreen(), c.getBlue());
+    }
+
     // ---- Your to-do list ----
 
     /**

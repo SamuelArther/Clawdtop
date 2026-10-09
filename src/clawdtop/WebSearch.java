@@ -49,6 +49,27 @@ final class WebSearch {
         return extract == null || extract.isBlank() ? null : new Found(trim(extract), "Wikipedia (" + title + ")");
     }
 
+    private static final java.util.regex.Pattern DEFINE = java.util.regex.Pattern.compile(
+            "^(?:please )?(?:define|what does|what's the meaning of|whats the meaning of|what is the meaning of|meaning of|definition of|what's the definition of|whats the definition of|what is the definition of)"
+                    + " (?:the word )?\"?([a-z][a-z'-]{0,30})\"?(?: mean)?$");
+
+    /** "define curious", "what does ubiquitous mean?": the word, or null if it isn't asking that. */
+    static String wordToDefine(String question) {
+        java.util.regex.Matcher m = DEFINE.matcher(question.toLowerCase(java.util.Locale.ROOT).strip().replaceAll("[?!.]+$", ""));
+        return m.matches() ? m.group(1) : null;
+    }
+
+    /** A word's meaning, from a free dictionary (dictionaryapi.dev): "curious (adjective): eager to know...", or null. */
+    static String define(String word) {
+        String json = get("https://api.dictionaryapi.dev/api/v2/entries/en/" + enc(word));
+        if (json == null || !json.startsWith("[")) return null;
+        String meaning = value(json, "definition");
+        if (meaning == null || meaning.isBlank()) return null;
+        String kind = value(json, "partOfSpeech"), example = value(json, "example");
+        return word + (kind == null ? "" : " (" + kind + ")") + ": " + trim(meaning)
+                + (example == null || example.isBlank() || example.length() > 140 ? "" : "\nLike: \"" + example + "\"");
+    }
+
     /** Whether a question is about the weather. */
     static boolean aboutWeather(String question) {
         // (only the weather where you are now: "what temperature does water boil at" is a real question)
