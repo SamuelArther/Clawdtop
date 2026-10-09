@@ -771,11 +771,6 @@ public final class Clawdtop {
             pet.say(elsewhere);
             return true;
         }
-        String picked = Extras.choose(question, new java.util.Random());
-        if (picked != null) {
-            pet.say(picked);
-            return true;
-        }
         String app = Extras.appFor(question);
         if (app != null) {
             pet.say("Opening it!");
@@ -789,15 +784,7 @@ public final class Clawdtop {
             return true;
         }
         // your to-do list
-        java.util.regex.Matcher todo = java.util.regex.Pattern.compile("^(?:please )?(?:add|put) (.+?) (?:to|on) (?:my |the )?(?:to-?do |to do )?list$|^(?:to-?do|to do):? (.+)$").matcher(q);
-        if (todo.matches()) {
-            String what = question.strip().replaceAll("[?!.]+$", "");
-            String said = todo.group(1) != null ? todo.group(1) : todo.group(2);
-            int at = what.toLowerCase(java.util.Locale.ROOT).indexOf(said);
-            addTodo(at >= 0 ? what.substring(at, at + said.length()) : said); // (as you typed it, capitals and all)
-            return true;
-        }
-        if (q.matches("(what'?s on |show |read )?(me )?my (to-?do |to do )?list|what do i (have|need) to do( today)?|my to-?dos?")) {
+        if (q.matches("(what'?s on |show |read |open )?(me )?(my |the )?(to-?do |to do |todo )?list|(my |the )?(to-?do|to do|todo)s?( list)?|what do i (have|need) to do( today)?")) {
             java.util.List<String> list = settings.todos();
             if (list.isEmpty()) pet.say("Your list's empty! Nothing to do. (Add things: \"add homework to my list\")");
             else {
@@ -806,6 +793,12 @@ public final class Clawdtop {
                 if (list.size() > 8) b.append("\n(and ").append(list.size() - 8).append(" more)");
                 pet.say(b.toString());
             }
+            return true;
+        }
+        java.util.regex.Matcher todo = java.util.regex.Pattern.compile("^(?:please )?(?:add|put) (.+?) (?:to|on|onto) (?:my |the )?(?:to-?do |to do |todo )?list$|^(?:to-?do|to do|todo): (.+)$",
+                java.util.regex.Pattern.CASE_INSENSITIVE).matcher(question.strip().replaceAll("[?!.]+$", ""));
+        if (todo.matches()) {
+            addTodo(todo.group(1) != null ? todo.group(1) : todo.group(2)); // (as you typed it, capitals and all)
             return true;
         }
         if (q.matches("(clear|empty|delete|erase) my (to-?do |to do )?list")) {
@@ -885,6 +878,12 @@ public final class Clawdtop {
         }
         if (q.matches("(please )?save (what i copied|my clipboard|the clipboard|what's (on )?my clipboard|this picture i copied)( to (a file|my desktop))?")) {
             saveClipboard();
+            return true;
+        }
+        // choosing for you ("pizza or tacos?"): last, so it never grabs a question meant for something else
+        String picked = Extras.choose(question, new java.util.Random());
+        if (picked != null) {
+            pet.say(picked);
             return true;
         }
         // locking up

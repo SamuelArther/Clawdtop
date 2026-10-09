@@ -1,8 +1,10 @@
-Fix: keep-awake mode really keeps Windows awake now.
+Fix: he understands what you meant.
 
-- On Windows, "keep my computer awake" said it worked but didn't (a number got read wrong), so your PC could still sleep. Fixed, and if it ever can't, he tells you.
-- "stop coffee mode" and "turn off caffeine mode" now turn it off.
-- Saying stop right after asking for it no longer leaves it running.
+- Questions with "or" in them ("who's taller, LeBron or Jordan?") go to his brain instead of him just picking one.
+- "show my to-do list" shows it (it used to add an item called "list"). "to-do: X" still adds.
+- "where are my keys" or "find my phone" aren't file searches anymore; "find pictures of my dog" finds them.
+- Places he doesn't know the time zone of get looked up instead of a shrug.
+- Fixed a rare crash when adding a to-do.
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 

@@ -685,12 +685,19 @@ public class ClawdtopTest {
         check("choose", Extras.choose("choose between pizza, tacos or burgers", new java.util.Random(1)) != null, true);
         check("this or that", Extras.choose("pizza or tacos?", new java.util.Random(1)).matches(".*(Pizza|pizza|Tacos|tacos).*"), true);
         check("a question with or", Extras.choose("is it cold or hot", new java.util.Random(1)), null);
+        check("questions with or aren't choosing", Extras.choose("true or false the earth is flat", new java.util.Random(1)) + " " + Extras.choose("who's taller lebron or jordan", new java.util.Random(1))
+                + " " + Extras.choose("put chips or pretzels on the list", new java.util.Random(1)) + " " + Extras.choose("pick up the kids and the dog", new java.util.Random(1)), "null null null null");
+        check("time somewhere he doesn't know", Extras.timeIn("what time is it in florida", noon, java.time.ZoneId.of("America/Chicago")) + " "
+                + (Extras.timeIn("whats the time in tokyo", noon, java.time.ZoneId.of("America/Chicago")) != null), "null true");
+        check("not every where's-my is a file", FindFile.wordsIn("where is my mom") + " " + FindFile.wordsIn("where are my keys") + " " + FindFile.wordsIn("find my phone")
+                + " " + FindFile.wordsIn("where's my history essay") + " " + FindFile.wordsIn("find pictures of my dog") + " " + FindFile.wordsIn("find my essay about volcanoes"),
+                "null null null [history, essay] [dog] [essay, volcanoes]");
         check("pick a number isn't choosing", Extras.choose("pick a number between 1 and 5", new java.util.Random(1)), null);
         check("open app", Extras.appFor("open the calculator") != null && Extras.appFor("open downloads").equals("folder:Downloads"), true);
         check("open nothing", Extras.appFor("open sesame"), null);
         // finding files, downloads, the sticky note
         check("find words", FindFile.wordsIn("find my history essay") + " " + FindFile.wordsIn("Where did I save the birthday pictures?") + " "
-                + FindFile.wordsIn("find the file called budget_2026") + " " + FindFile.wordsIn("find the area of a circle"), "[history, essay] [birthday, pictures] [budget, 2026] null");
+                + FindFile.wordsIn("find the file called budget_2026") + " " + FindFile.wordsIn("find the area of a circle"), "[history, essay] [birthday] [budget, 2026] null");
         Path lookIn = Files.createTempDirectory("clawdtop-find");
         Files.createDirectories(lookIn.resolve("School/.hidden"));
         Files.writeString(lookIn.resolve("School/History Essay final.docx"), "x");

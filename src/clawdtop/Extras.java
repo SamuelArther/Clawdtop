@@ -111,7 +111,7 @@ final class Extras {
             Map.entry("bangkok", "Asia/Bangkok"), Map.entry("thailand", "Asia/Bangkok"), Map.entry("manila", "Asia/Manila"), Map.entry("philippines", "Asia/Manila"),
             Map.entry("jakarta", "Asia/Jakarta"), Map.entry("vatican", "Europe/Rome"), Map.entry("hawaii time", "Pacific/Honolulu"));
 
-    private static final Pattern WHAT_TIME_IN = Pattern.compile("^(?:what(?:'s| is) the time|what time is it|time) (?:right now |now )?in ([a-z .]+?)(?: right now| now)?$");
+    private static final Pattern WHAT_TIME_IN = Pattern.compile("^(?:what(?:'?s| is) the time|what time is it|what time's it|time) (?:right now |now )?in ([a-z .]+?)(?: right now| now)?$");
 
     /** "What time is it in Tokyo?": the time there (and how far ahead or behind you), or null if it isn't that question. */
     static String timeIn(String question, Instant now, ZoneId here) {
@@ -119,7 +119,7 @@ final class Extras {
         if (!m.matches()) return null;
         String place = m.group(1).replaceAll("\\.", "").replaceFirst("^the ", "").strip();
         String zone = CITIES.get(place);
-        if (zone == null) return "Hmm, I don't know what time zone " + place + " is in.\n(Try a big city near it, like \"Tokyo\" or \"Chicago\".)";
+        if (zone == null) return null; // (somewhere he doesn't know: his brain, or a lookup, might)
         ZonedDateTime there = now.atZone(ZoneId.of(zone)), mine = now.atZone(here);
         String day = there.toLocalDate().equals(mine.toLocalDate()) ? "" : " on " + there.getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.ENGLISH);
         long diff = (there.getOffset().getTotalSeconds() - mine.getOffset().getTotalSeconds()) / 60;
@@ -149,15 +149,20 @@ final class Extras {
         String q = question.toLowerCase(Locale.ROOT).strip().replaceAll("[?!.]+$", "");
         List<String> options = new ArrayList<>();
         Matcher m = CHOOSE.matcher(q);
-        if (m.matches() && !m.group(1).startsWith("a number") && !m.group(1).startsWith("a random number")) {
+        // (a real "choose": "choose between...", "pick for me...", "decide: ..." or a list with "or": not "pick up the kids")
+        boolean clearly = m.matches() && (q.matches(".*\\b(between|for me|one)\\b.*") || q.contains(":") || m.group(1).contains(" or "));
+        if (clearly && !m.group(1).startsWith("a number") && !m.group(1).startsWith("a random number")) {
             for (String o : m.group(1).split(",\\s*(?:or\\s+|and\\s+)?|\\s+or\\s+|\\s+and\\s+")) if (!o.isBlank()) options.add(o.strip());
         } else {
             Matcher t = THIS_OR_THAT.matcher(q);
-            if (!t.matches() || q.matches("(heads or tails|yes or no|true or false)")) return null;
-            // (just "this or that", not a question with an "or" in it: "is it cold or hot")
-            if (!q.startsWith("should i ") && (t.group(1).split(" ").length > 3 || t.group(1).matches("(is|are|am|do|does|did|can|could|what|how|why|who|where|when|will|would|was|were|which|have|has) .*"))) return null;
-            options.add(t.group(1).strip());
-            options.add(t.group(2).strip());
+            if (!t.matches() || q.matches("(heads or tails|yes or no|true or false)( .*)?") || q.matches(".* (yes or no|true or false)")) return null;
+            // (just "this or that", not a question with an "or" in it: "is it cold or hot", "who's taller lebron or jordan")
+            String a = t.group(1).strip(), b = t.group(2).strip();
+            boolean asking = a.matches("(is|are|am|do|does|did|can|could|what|what's|whats|how|how's|why|who|who's|whos|where|where's|when|will|would|was|were|which|have|has|should|put|add|tell|explain|give) .*");
+            if (!q.startsWith("should i ") && (a.split(" ").length > 3 || asking)) return null;
+            if (b.split(" ").length > 3) return null; // ("pizza or tacos for dinner tonight with friends": a sentence)
+            options.add(a);
+            options.add(b);
         }
         if (options.size() < 2) return null;
         String pick = options.get(random.nextInt(options.size()));

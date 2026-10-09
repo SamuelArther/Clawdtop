@@ -23,16 +23,28 @@ final class FindFile {
     private FindFile() {
     }
 
-    private static final Pattern ASK = Pattern.compile("^(?:can you |please |help me )?(?:find my |find (?:the |a )?(?:file|document|doc|picture|photo|pic|song|video)s? "
-            + "(?:called |named )?|where(?:'s| is| are) my |where did i (?:put|save|leave) (?:my |the )?)(.+?)(?: file| document| doc)?$");
-    private static final List<String> FILLER = List.of("the", "a", "an", "my", "file", "files", "called", "named", "that", "one", "i", "made", "saved", "for");
+    private static final Pattern ASK = Pattern.compile("^(?:can you |please |help me )?(find my |find (?:the |a |some )?(?:file|document|doc|picture|photo|pic|song|video)s? "
+            + "(?:called |named |of |about )?|where(?:'s| is| are) my |where did i (?:put|save|leave) (?:my |the )?)(.+?)(?: file| document| doc)?$");
+    private static final List<String> FILLER = List.of("the", "a", "an", "my", "file", "files", "called", "named", "that", "one", "i", "made", "saved", "for",
+            "of", "about", "from", "with", "and", "on", "in", "picture", "pictures", "photo", "photos", "pic", "pics", "song", "songs", "video", "videos",
+            "document", "documents", "doc", "docs");
+    /** Things you might ask "where's my..." about that aren't files (those are for his brain, not a search). */
+    private static final List<String> NOT_FILES = List.of("phone", "keys", "key", "wallet", "glasses", "mom", "dad", "mum", "cat", "dog", "shoes", "shoe", "remote",
+            "charger", "headphones", "airpods", "earbuds", "backpack", "car", "friend", "friends", "way", "mind", "brother", "sister", "homework folder", "socks",
+            "jacket", "hat", "bike", "controller", "mouse", "keyboard", "pencil", "book", "lunch", "money", "family", "parents", "grandma", "grandpa");
+    /** Words that make "where's my ..." sound like a file. */
+    private static final Pattern FILEISH = Pattern.compile(".*\\b(essay|file|document|doc|pdf|picture|photo|pic|screenshot|video|song|resume|project|report|presentation|slides|spreadsheet"
+            + "|homework|assignment|paper|notes|download|recording|drawing|zip|installer|save|world|mod)s?\\b.*|.*\\.[a-z0-9]{2,4}$");
 
     /** The words to look for, if that was a "find my file" question (else null). */
     static List<String> wordsIn(String question) {
-        Matcher m = ASK.matcher(question.toLowerCase(Locale.ROOT).strip().replaceAll("[?!.]+$", ""));
+        Matcher m = ASK.matcher(question.toLowerCase(Locale.ROOT).strip().replaceAll("[?!]+$", "").replaceAll("\\.+$", ""));
         if (!m.matches()) return null;
+        String what = m.group(2).strip();
+        if ((m.group(1).startsWith("find my") || m.group(1).startsWith("where")) && NOT_FILES.contains(what.replaceFirst("^(the|my) ", ""))) return null; // ("find my phone": not a file)
+        if (m.group(1).startsWith("where") && !m.group(1).startsWith("where did") && !FILEISH.matcher(what).matches()) return null; // ("where are my keys")
         List<String> words = new ArrayList<>();
-        for (String w : m.group(1).split("[\\s_\\-]+")) if (!w.isBlank() && !FILLER.contains(w)) words.add(w);
+        for (String w : what.split("[\\s_\\-]+")) if (!w.isBlank() && !FILLER.contains(w)) words.add(w);
         return words.isEmpty() ? null : words;
     }
 
