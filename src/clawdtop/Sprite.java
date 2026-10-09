@@ -345,13 +345,12 @@ public final class Sprite {
             } else if (mood == Pet.Mood.BOOPED) {
                 box(g, unit, LEFT + x + (x == 3 ? 1.2 : -1.2), eyeY, 1, 2, EYE); // cross-eyed
             } else if (mood == Pet.Mood.WOOZY) {
-                // swirly eyes: each one a little dot going round and round (the two go opposite ways), with a fading trail
+                // swirly eyes: each one a little two-bladed spinner going round and round (the two go opposite ways)
                 double cx = LEFT + x + 0.5, cy = top + 3;
-                for (int k = 3; k >= 0; k--) {
-                    double a = pet.time() / 90.0 * (x == 3 ? 1 : -1) - k * 0.7;
-                    int alpha = 255 - k * 60;
-                    box(g, unit, cx - 0.4 + Math.cos(a) * 0.8, cy - 0.4 + Math.sin(a) * 0.8, 0.8, 0.8,
-                            new Color(EYE.getRed(), EYE.getGreen(), EYE.getBlue(), alpha));
+                double a = pet.time() / 110.0 * (x == 3 ? 1 : -1);
+                for (int k = 0; k < 2; k++) {
+                    double b = a + k * Math.PI;
+                    box(g, unit, cx - 0.35 + Math.cos(b) * 0.65, cy - 0.35 + Math.sin(b) * 0.65, 0.7, 0.7, EYE);
                 }
             } else if (pet.eyesLit()) {
                 // excited: his eyes just go big and wide

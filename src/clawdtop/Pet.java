@@ -1081,7 +1081,7 @@ public final class Pet {
     /** A reminder you asked for. Returns false if he's in the middle of something (it waits a moment). */
     public boolean remind(String what) {
         if (busy() && mood != Mood.FOCUS) return false;
-        line = "Reminder: " + what + "!";
+        line = "Reminder: " + what + (what.matches(".*[.!?]$") ? "" : "!");
         wants = Beep.HORN;
         set(Mood.REMIND, 3500);
         return true;

@@ -354,6 +354,11 @@ public final class Clawdtop {
 
     /** Answers your question: math goes to Calculator (he doesn't trust himself); the rest, his brain. */
     private void answer(String question) {
+        answer(question, true);
+    }
+
+    /** Answers a question (points: only the first time it's asked, not again after his brain's installed). */
+    private void answer(String question, boolean firstTime) {
         if (question.toLowerCase(java.util.Locale.ROOT).matches("\\W*(help|what can you do|what do you do|commands|how do (i|you) use you)\\W*")) {
             pet.say("Things you can ask me:\nAny question (I'll think about it)\nMath like \"what's 12 times 7\" (we'll use Calculator)\n"
                     + "\"remind me in 10 minutes to stretch\"\n\"set a timer for 5 minutes\", \"start a stopwatch\"\nMore fun stuff is in my menu!");
@@ -381,11 +386,15 @@ public final class Clawdtop {
             stopwatch(watch > 0);
             return;
         }
-        if (settings.on("earnPoints")) settings.earn(Shop.ASK);
+        if (firstTime && settings.on("earnPoints")) settings.earn(Shop.ASK);
         Reminders.Reminder reminder = Reminders.parse(question);
         if (reminder != null) {
             reminders.add(new Object[] {System.currentTimeMillis() + reminder.inMs(), reminder.what()});
             pet.say(reminder.what().equals("time's up!") ? "Timer set for " + reminder.when() + "! Tick tock." : "Okay! I'll remind you in " + reminder.when() + ".");
+            return;
+        }
+        if (Reminders.soundsLikeOne(question)) {
+            pet.say("I can only do reminders like these:\n\"remind me in 10 minutes to stretch\"\n\"set a timer for 5 minutes\"\n(Times like \"at 5pm\" or \"tomorrow\" are too tricky for me.)");
             return;
         }
         MathHelp.Problem sum = MathHelp.parse(question);
@@ -393,31 +402,49 @@ public final class Clawdtop {
             mathHelp(sum, 0);
             return;
         }
-        if (thinking) return;
+        if (MathHelp.tooTricky(question)) {
+            pet.say("I wouldn't trust myself with that one.....\nCalculator can do it though! It has buttons for\npercent, square roots and powers.");
+            Useful.open("calc");
+            return;
+        }
+        if (thinking) {
+            pet.say("Still thinking about the last one! One at a time.");
+            return;
+        }
         thinking = true;
         String model = Brain.model(settings.choice("brain"));
         pet.think(true);
         pet.say("Hmm, let me think...");
-        boolean web = settings.on("webSearch");
+        boolean web = settings.on("webSearch"), kid = settings.on("kidFriendly");
         Thread t = new Thread(() -> {
-            WebSearch.Found found = web ? WebSearch.lookUp(question) : null;
-            String problem = !brain.running() ? "no ollama" : !brain.has(model) ? "no brain" : null;
-            String reply = problem == null
-                    ? brain.ask(question, model, settings.personality(), settings.on("kidFriendly"), settings.name(), found) : null;
+            WebSearch.Found found = null;
+            String problem = "broken", reply = null;
+            try {
+                found = web ? WebSearch.lookUp(question) : null;
+                problem = !brain.running() ? "no ollama" : !brain.has(model) ? "no brain" : null;
+                reply = problem == null ? brain.ask(question, model, settings.personality(), kid, settings.name(), found) : null;
+            } catch (RuntimeException oops) {
+                problem = null; // (he just says his brain froze)
+                reply = null;
+            }
+            WebSearch.Found looked = found;
+            String trouble = problem, answer = reply;
             SwingUtilities.invokeLater(() -> {
+                WebSearch.Found found2 = looked;
+                String problem2 = trouble, reply2 = answer;
                 thinking = false;
                 pet.think(false);
-                if (problem != null && found != null) {
+                if (problem2 != null && found2 != null && !kid) {
                     // no brain yet, but he looked it up
-                    pet.say(Brain.wrap("I looked it up! " + Brain.clean(found.text()) + " (from " + found.source() + ")", 46));
-                } else if (problem != null) {
+                    pet.say(Brain.wrap("I looked it up! " + Brain.clean(found2.text()) + " (from " + found2.source() + ")", 46));
+                } else if (problem2 != null) {
                     // no brain yet: he installs it (with a notice), then answers
                     pet.say("I need my brain for that! Getting it ready now...\nI'll answer as soon as it's done.");
-                    prepareBrain(() -> answer(question));
-                } else if (reply == null) {
+                    prepareBrain(() -> answer(question, false));
+                } else if (reply2 == null) {
                     pet.say("Hmm... my brain froze. Try again?");
                 } else {
-                    pet.say(Brain.wrap(reply, 46));
+                    pet.say(Brain.wrap(reply2, 46));
                 }
             });
         }, "clawd-brain");
@@ -461,34 +488,35 @@ public final class Clawdtop {
     }
 
     private boolean brainBusy; // installing his brain right now
+    private final java.util.List<Runnable> afterBrain = new java.util.ArrayList<>(); // questions waiting for it
+    private String lastBrainNote; // what he last said about installing (said again if he was still in his box)
 
     /** Gets his brain ready in the background (installing Ollama and the model if needed), then runs then (if any). */
     void prepareBrain(Runnable then) {
+        if (then != null) afterBrain.add(then);
         if (brainBusy) return;
         brainBusy = true;
         String model = Brain.model(settings.choice("brain"));
         Thread t = new Thread(() -> {
-            boolean ok = BrainInstall.ensure(brain, model, note -> SwingUtilities.invokeLater(() -> pet.say(note)));
+            boolean ok = false;
+            try {
+                ok = BrainInstall.ensure(brain, model, note -> SwingUtilities.invokeLater(() -> {
+                    lastBrainNote = note;
+                    if (!boxed) pet.say(note);
+                }));
+            } catch (RuntimeException failed) {
+                ok = false;
+            }
+            boolean ready = ok;
             SwingUtilities.invokeLater(() -> {
                 brainBusy = false;
-                if (ok && then != null) then.run();
-                else if (ok) pet.say("My brain is ready! Ask me anything.");
+                java.util.List<Runnable> waiting = new java.util.ArrayList<>(afterBrain);
+                afterBrain.clear();
+                if (ready && !waiting.isEmpty()) waiting.forEach(Runnable::run);
+                else if (ready) pet.say("My brain is ready! Ask me anything.");
+                else if (!waiting.isEmpty()) pet.say("I couldn't get my brain working this time.\nIs the internet on? Ask me again in a bit.");
             });
         }, "clawd-brain-install");
-        t.setDaemon(true);
-        t.start();
-    }
-
-    /** Downloads his brain (a few minutes), then answers the question you asked. */
-    private void downloadBrain(String model, String question) {
-        pet.say("Downloading my brain... this takes a few minutes.\nI'll answer as soon as it's done!");
-        Thread t = new Thread(() -> {
-            boolean ok = brain.download(model);
-            SwingUtilities.invokeLater(() -> {
-                if (ok) answer(question);
-                else pet.say("The download didn't work. Is the internet on?");
-            });
-        }, "clawd-brain-download");
         t.setDaemon(true);
         t.start();
     }
@@ -497,18 +525,28 @@ public final class Clawdtop {
      * A math question: he doesn't trust himself, so he opens Calculator, says which buttons to press, and watches it.
      * Right: "Good job!". Wrong: "Not quite entered right..." (and he watches for another go, up to three).
      */
+    private Process mathWatcher; // watching Calculator for the current sum (an older one gets stopped)
+    private int mathRound;
+
     private void mathHelp(MathHelp.Problem sum, int tries) {
+        if (tries == 0 && !MathHelp.possible(sum)) {
+            pet.say("Ooh, dividing by zero! Even Calculator can't do that one.\n(Nobody can. It's a math rule.)");
+            return;
+        }
         if (tries == 0) {
             pet.say("I wouldn't trust myself to answer right.....\nLet's ask Calculator! Press:\n" + sum.buttons());
             Useful.open("calc");
         }
         if (!Platform.WINDOWS) return; // (watching Calculator's display only works on Windows)
+        if (mathWatcher != null) mathWatcher.destroy(); // a new sum: stop watching for the old one
+        int round = ++mathRound;
         Thread t = new Thread(() -> {
             String result = "TIMEOUT";
             try {
                 String encoded = java.util.Base64.getEncoder().encodeToString(MathHelp.watcherScript().getBytes(java.nio.charset.StandardCharsets.UTF_16LE));
                 Process p = new ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
-                        "-EncodedCommand", encoded).redirectErrorStream(true).start();
+                        "-WindowStyle", "Hidden", "-EncodedCommand", encoded).redirectErrorStream(true).start();
+                SwingUtilities.invokeLater(() -> { if (round == mathRound) mathWatcher = p; else p.destroy(); });
                 for (String line : new String(p.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).split("\\R")) {
                     if (line.startsWith("DONE|") || line.equals("CLOSED") || line.equals("TIMEOUT")) result = line;
                 }
@@ -517,6 +555,8 @@ public final class Clawdtop {
             }
             String got = result;
             SwingUtilities.invokeLater(() -> {
+                if (round != mathRound) return; // an old sum
+                mathWatcher = null;
                 if (!got.startsWith("DONE|")) return; // closed it, or gave up: that's fine
                 double shown = MathHelp.shown(got.substring(got.lastIndexOf('|') + 1));
                 if (sum.right(shown)) {
@@ -1581,6 +1621,11 @@ public final class Clawdtop {
                     ? "Hii.......... I think I remember you...." + (settings.name().isEmpty() ? "" : " " + settings.name() + ", right?")
                     : "Hi" + (settings.name().isEmpty() ? "" : " " + settings.name()) + "!! I'm so happy to be here!";
             bubble.show(hi, head(), screenBounds());
+            if (brainBusy && lastBrainNote != null) { // what he's been up to in his box: getting his brain ready
+                javax.swing.Timer later = new javax.swing.Timer(7000, e -> { if (brainBusy && lastBrainNote != null) pet.say(lastBrainNote); });
+                later.setRepeats(false);
+                later.start();
+            }
         }
         // His body: on his perch, or riding your cursor, flying off, dizzy, walking home
         if (dragFrom == Integer.MIN_VALUE) {

@@ -24,7 +24,7 @@ final class Brain {
     static String model(String size) {
         return switch (size) {
             case "Tiny" -> "qwen2.5:0.5b";   // ~400 MB download, ~0.7 GB memory: for really old computers
-            case "Smart" -> "gemma3:1b";      // ~800 MB download, ~1.4 GB memory
+            case "Chatty", "Smart" -> "gemma3:1b"; // ~800 MB download, ~1.4 GB memory: more personality, a bit slower
             default -> "qwen2.5:1.5b";       // ~1 GB download, ~1.6 GB memory: knows the most
         };
     }
@@ -33,7 +33,7 @@ final class Brain {
     static String downloadSize(String size) {
         return switch (size) {
             case "Tiny" -> "about 400 MB";
-            case "Smart" -> "about 800 MB";
+            case "Chatty", "Smart" -> "about 800 MB";
             default -> "about 1 GB";
         };
     }
@@ -82,7 +82,7 @@ final class Brain {
             question = question + "\n\n(Something I found online that might help, from " + found.source() + ": " + found.text() + ")";
         }
         String body = "{\"model\":" + json(model) + ",\"stream\":false,\"keep_alive\":\"1m\","
-                + "\"options\":{\"num_ctx\":2048,\"num_predict\":180,\"temperature\":0.7},"
+                + "\"options\":{\"num_ctx\":2048,\"num_predict\":220,\"temperature\":0.7},"
                 + "\"messages\":[{\"role\":\"system\",\"content\":" + json(systemPrompt(personality, kidFriendly, name)) + "},"
                 + "{\"role\":\"user\",\"content\":" + json(question) + "}]}";
         try {
@@ -91,7 +91,9 @@ final class Brain {
             HttpResponse<String> answer = http.send(r, HttpResponse.BodyHandlers.ofString());
             if (answer.statusCode() != 200) return null;
             String content = content(answer.body());
-            return content == null || content.isBlank() ? null : clean(content);
+            if (content == null || content.isBlank()) return null;
+            if (answer.body().contains("\"done_reason\":\"length\"")) content = toLastSentence(content); // ran out of room mid-sentence
+            return clean(content);
         } catch (IOException | InterruptedException e) {
             return null;
         }
@@ -110,7 +112,10 @@ final class Brain {
             case SLEEPY -> "You are sleepy and cozy: you sometimes yawn (\"*yawn*\") but you still answer properly.";
             default -> "You are chill and easygoing, warm and a little funny.";
         };
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
         return "You are Clawd, a tiny orange pixel crab who lives on the user's computer taskbar and keeps them company. "
+                + "Today is " + now.format(java.time.format.DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy", Locale.ENGLISH))
+                + " and it's " + now.format(java.time.format.DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH)) + ". "
                 + mood + " "
                 + (name.isBlank() ? "" : "The user's name is " + name + ". ")
                 + "Answer any question as well as you can, in 1 to 3 short sentences (under 60 words), in plain words. "
@@ -124,15 +129,30 @@ final class Brain {
                 + " Don't use emoji or markdown.";
     }
 
+    // Bad words, anywhere in a word ("bullsh..." too), plus a few that only count as whole words (so Moby-Dick and
+    // Scunthorpe are safe). Anything that matches becomes "beep".
     private static final Pattern BAD = Pattern.compile(
-            "(?i)\\b(fuck\\w*|shit\\w*|bitch\\w*|bastard\\w*|asshole\\w*|dick|damn\\w*|crap|piss\\w*|cunt\\w*|slut\\w*|whore\\w*)\\b");
+            "(?i)(\\w*(fuck|shit|bitch|whore|slut|asshole|bastard|motherf|nigg|fagg)\\w*"
+                    + "|\\b(cunt\\w*|retard(ed|s)?|dick(head)?s?|damn\\w*|goddamn\\w*|crap(py|s)?|piss\\w*|cock(s|sucker)?|twat|wank\\w*|douche\\w*|prick|jackass|dumbass)\\b)");
+
+    /** Text with any bad words beeped out (for anything he says back to you: reminders, names, answers). */
+    static String noBadWords(String text) {
+        return text == null ? null : BAD.matcher(text).replaceAll("beep");
+    }
+
+    /** Cuts an answer that stopped mid-sentence back to its last full sentence. */
+    static String toLastSentence(String text) {
+        String t = text.strip();
+        int stop = Math.max(t.lastIndexOf('.'), Math.max(t.lastIndexOf('!'), t.lastIndexOf('?')));
+        return stop > 20 ? t.substring(0, stop + 1) : t + "...";
+    }
 
     /** His answer, tidied: no markdown or emoji, no bad words (just in case), not too long. */
     static String clean(String text) {
         String t = text.replace("**", "").replace("__", "").replace("`", "").replaceAll("(?m)^#+\\s*", "").replaceAll("(?m)^\\s*[-*]\\s+", "- ");
         t = t.replace('’', '\'').replace('‘', '\'').replace('“', '"').replace('”', '"')
                 .replace('—', '-').replace('–', '-'); // curly quotes and dashes, made plain
-        t = t.replaceAll("[^\\x00-\\x7E\\n]", ""); // plain characters only (no emoji)
+        t = t.replaceAll("[\\p{So}\\p{Sk}\\p{Cs}\\p{Co}\\p{Cn}\\x{FE0F}\\x{200D}]", ""); // no emoji (letters like é and ° stay)
         t = BAD.matcher(t).replaceAll("beep");
         t = t.strip();
         if (t.length() > 420) {
@@ -200,7 +220,11 @@ final class Brain {
                     case 'r' -> { }
                     case 'u' -> {
                         if (i + 4 < response.length()) {
-                            out.append((char) Integer.parseInt(response.substring(i + 1, i + 5), 16));
+                            try {
+                                out.append((char) Integer.parseInt(response.substring(i + 1, i + 5), 16));
+                            } catch (NumberFormatException broken) {
+                                // skip it
+                            }
                             i += 4;
                         }
                     }

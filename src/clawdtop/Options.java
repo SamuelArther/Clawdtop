@@ -89,7 +89,7 @@ final class Options {
             // His brain (Ask me a question, through Ollama on this PC)
             Option.on("Brain", "askMe", "\"Ask me a question\" in his menu", true),
             Option.on("Brain", "kidFriendly", "Kid-friendly answers, for little kids (normal is more accurate; no bad words either way)", false),
-            Option.pick("Brain", "brain", "Brain size (all under 2 GB of memory)", "Normal", "Tiny", "Normal", "Smart"),
+            Option.pick("Brain", "brain", "Brain size (all under 2 GB of memory)", "Normal", "Tiny", "Normal", "Chatty"),
             Option.on("Brain", "webSearch", "Look things up online when you ask him something (Wikipedia, DuckDuckGo)", false),
             // Being useful
             Option.on("Useful", "updates", "Checks for a newer version of him when he starts", true),

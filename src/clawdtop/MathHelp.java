@@ -113,6 +113,17 @@ final class MathHelp {
         return new Problem(numbers, ops);
     }
 
+    /** Math he can't read out as button presses (percent, roots, powers...): Calculator can still do it. */
+    static boolean tooTricky(String question) {
+        String q = question.toLowerCase(Locale.ROOT);
+        return q.matches(".*\\d.*") && q.matches(".*(%|percent|square root|root of|to the power|squared|cubed|half of|\\^).*");
+    }
+
+    /** Whether the answer is a real number (not dividing by zero). */
+    static boolean possible(Problem p) {
+        return Double.isFinite(p.leftToRight()) && Double.isFinite(p.properly());
+    }
+
     /** The number Calculator's display reads out ("Display is 1,234.5"), or NaN. */
     static double shown(String display) {
         Matcher m = Pattern.compile("(-?[\\d,]+(?:\\.\\d+)?)\\s*$").matcher(display.strip());
@@ -135,26 +146,32 @@ final class MathHelp {
                 "$A = [System.Windows.Automation.AutomationElement]",
                 "$S = [System.Windows.Automation.TreeScope]",
                 "$root = $A::RootElement",
-                "$byName = New-Object System.Windows.Automation.PropertyCondition($A::NameProperty, 'Calculator')",
+
                 "$expId = New-Object System.Windows.Automation.PropertyCondition($A::AutomationIdProperty, 'CalculatorExpression')",
                 "$resId = New-Object System.Windows.Automation.PropertyCondition($A::AutomationIdProperty, 'CalculatorResults')",
                 "$deadline = (Get-Date).AddMinutes(3)",
                 "$first = $null",
-                "$seen = $false",
+                "$changed = $false",
+                "$win = $null",
                 "while ((Get-Date) -lt $deadline) {",
-                "  $win = $root.FindFirst($S::Children, $byName)",
-                "  if ($win) {",
-                "    $seen = $true",
-                "    $exp = $win.FindFirst($S::Descendants, $expId)",
-                "    $res = $win.FindFirst($S::Descendants, $resId)",
-                "    if ($res) {",
-                "      $e = if ($exp) { $exp.Current.Name } else { '' }",
-                "      $r = $res.Current.Name",
-                "      $now = $e + '|' + $r",
-                "      if ($first -eq $null) { $first = $now }",
-                "      elseif ($now -ne $first -and $e.TrimEnd().EndsWith('=')) { Write-Output ('DONE|' + $now); exit }",
+                "  if (-not $win) {", // Calculator's window, found by its display (so it works in any language)
+                "    foreach ($c in $root.FindAll($S::Children, [System.Windows.Automation.Condition]::TrueCondition)) {",
+                "      try { if ($c.Current.ClassName -eq 'ApplicationFrameWindow' -and $c.FindFirst($S::Descendants, $resId)) { $win = $c; break } } catch { }",
                 "    }",
-                "  } elseif ($seen) { Write-Output 'CLOSED'; exit }",
+                "  }",
+                "  if ($win) {",
+                "    try {",
+                "      $exp = $win.FindFirst($S::Descendants, $expId)",
+                "      $res = $win.FindFirst($S::Descendants, $resId)",
+                "    } catch { Write-Output 'CLOSED'; exit }",
+                "    if (-not $res) { Write-Output 'CLOSED'; exit }",
+                "    $e = if ($exp) { $exp.Current.Name } else { '' }",
+                "    $r = $res.Current.Name",
+                "    $now = $e + '|' + $r",
+                "    if ($first -eq $null) { $first = $now }",
+                "    elseif ($now -ne $first) { $changed = $true }",
+                "    if ($changed -and $e.TrimEnd().EndsWith('=')) { Write-Output ('DONE|' + $now); exit }",
+                "  }",
                 "  Start-Sleep -Milliseconds 600",
                 "}",
                 "Write-Output 'TIMEOUT'");
