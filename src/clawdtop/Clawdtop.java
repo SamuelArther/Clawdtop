@@ -1077,7 +1077,8 @@ public final class Clawdtop {
 
     private void showFound(java.util.List<Path> found, int i, java.util.List<String> words, Path home) {
         if (found.isEmpty()) {
-            pet.say("I couldn't find a file called \"" + String.join(" ", words) + "\".\n(I looked in Desktop, Documents, Downloads, Pictures, Music and Videos.)");
+            pet.say("I couldn't find a file called \"" + String.join(" ", words) + "\".\n(I looked in Desktop, Documents, Downloads, Pictures, Music and " + (Platform.MAC ? "Movies" : "Videos")
+                    + (FindFile.places(home).stream().anyMatch(p -> p.getFileName().toString().startsWith("OneDrive")) ? ", and OneDrive" : "") + ".)");
             return;
         }
         Path file = found.get(i);
