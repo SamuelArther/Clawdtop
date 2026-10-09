@@ -38,6 +38,18 @@ final class Platform {
     }
 
     /** Runs a little command and gives back what it printed (or "" if it didn't work), waiting at most a couple of seconds. */
+    /** Whether a program is on the PATH (like parec on Linux). */
+    static boolean onPath(String program) {
+        for (String dir : System.getenv().getOrDefault("PATH", "").split(java.io.File.pathSeparator)) {
+            try {
+                if (!dir.isBlank() && java.nio.file.Files.isExecutable(java.nio.file.Path.of(dir.strip(), program))) return true;
+            } catch (RuntimeException badPath) {
+                // skip it
+            }
+        }
+        return false;
+    }
+
     static String run(String... command) {
         try {
             Process p = new ProcessBuilder(command).redirectErrorStream(true).start();
