@@ -1,6 +1,8 @@
-Important fix for Windows: blank buttons.
+Fix: keep-awake mode really keeps Windows awake now.
 
-- On Windows, the buttons in his setup screen and his ask box showed up as empty white boxes (white words on a white button), so you couldn't read them. They're his orange buttons again, and the pointer turns into a hand over them.
+- On Windows, "keep my computer awake" said it worked but didn't (a number got read wrong), so your PC could still sleep. Fixed, and if it ever can't, he tells you.
+- "stop coffee mode" and "turn off caffeine mode" now turn it off.
+- Saying stop right after asking for it no longer leaves it running.
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 

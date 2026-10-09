@@ -854,7 +854,8 @@ public final class Clawdtop {
             keepAwake(true);
             return true;
         }
-        if (q.matches("(you can )?(let|allow) (my |the )?(computer|pc|laptop|mac|screen) (sleep|go to sleep|nap)( again| now)?|stop keeping (it|my computer|the computer) awake")) {
+        if (q.matches("(you can )?(let|allow) (my |the )?(computer|pc|laptop|mac|screen) (sleep|go to sleep|nap)( again| now)?|stop keeping (it|my computer|the computer) awake"
+                + "|(stop|end|turn off|no more) (the )?(coffee|caffeine|stay awake|keep awake)( mode)?")) {
             if (Awake.on()) keepAwake(false);
             else pet.say("I'm not keeping it awake right now.");
             return true;
@@ -1089,8 +1090,11 @@ public final class Clawdtop {
         return h + (h == 1 ? " hour" : " hours") + (m > 0 ? " " + m + (m == 1 ? " minute" : " minutes") : "");
     }
 
+    private boolean awakeWanted; // (what you last asked for: starting takes a moment, and you might change your mind)
+
     /** Keeps the computer awake (he holds his coffee), or stops. */
     private void keepAwake(boolean on) {
+        awakeWanted = on;
         if (!on) {
             Awake.stop();
             pet.setCoffee(false);
@@ -1098,14 +1102,20 @@ public final class Clawdtop {
             return;
         }
         pet.say("Brewing...");
-        worker.execute(() -> {
+        Thread brew = new Thread(() -> { // (its own thread: not stuck behind a file search)
             boolean ok = Awake.start();
             SwingUtilities.invokeLater(() -> {
+                if (!awakeWanted) { // you said stop while it was brewing
+                    Awake.stop();
+                    return;
+                }
                 pet.setCoffee(ok);
                 pet.say(ok ? "Got my coffee! I'll keep your computer awake (no sleeping, no dark screen)\nuntil you tell me to stop, or I go."
                         : "Hmm, I couldn't keep it awake on this computer.");
             });
-        });
+        }, "clawd-coffee");
+        brew.setDaemon(true);
+        brew.start();
     }
 
     /** How you copy, on this computer. */

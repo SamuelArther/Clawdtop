@@ -24,7 +24,8 @@ final class Awake {
             if (Platform.WINDOWS) {
                 String script = String.join("\n",
                         "Add-Type -Name Awake -Namespace Clawd -MemberDefinition '[DllImport(\"kernel32.dll\")] public static extern uint SetThreadExecutionState(uint f);'",
-                        "[void][Clawd.Awake]::SetThreadExecutionState(0x80000003)", // (keep running, keep the screen on)
+                        // (keep running, keep the screen on: ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED, as a uint: PowerShell reads 0x80000003 as a negative int)
+                        "if ([Clawd.Awake]::SetThreadExecutionState([uint32]2147483651) -eq 0) { exit 1 }",
                         "while (Get-Process -Id " + me + " -ErrorAction SilentlyContinue) { Start-Sleep -Seconds 5 }");
                 helper = new ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden",
                         "-EncodedCommand", java.util.Base64.getEncoder().encodeToString(script.getBytes(StandardCharsets.UTF_16LE))).start();
@@ -34,8 +35,9 @@ final class Awake {
                 helper = new ProcessBuilder("systemd-inhibit", "--what=idle:sleep", "--who=Clawdtop", "--why=Keeping your computer awake",
                         "sh", "-c", "while kill -0 " + me + " 2>/dev/null; do sleep 5; done").start();
             }
-            Thread.sleep(400);
-            return helper.isAlive();
+            Thread.sleep(Platform.WINDOWS ? 2500 : 400); // (long enough for it to have failed, if it was going to)
+            if (!helper.isAlive()) helper = null;
+            return helper != null;
         } catch (Exception cant) {
             helper = null;
             return false;
