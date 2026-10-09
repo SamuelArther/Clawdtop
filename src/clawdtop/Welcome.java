@@ -339,12 +339,31 @@ final class Welcome {
                 "(Your question goes to Wikipedia and DuckDuckGo. Nothing else does.)"}, null,
                 button("Yes, look things up", () -> {
                     settings.set("webSearch", "true");
-                    askBeeps();
+                    askBrain();
                 }),
                 button("No, stay offline", () -> {
                     settings.set("webSearch", "false");
-                    askBeeps();
+                    askBrain();
                 }));
+    }
+
+    /**
+     * His brain (for answering any question) is a big free download, Ollama and a small model, so he asks first. Not
+     * asked on Linux (he can't install it there himself), or if Ollama's already here.
+     */
+    void askBrain() {
+        if (!settings.on("askMe") || BrainInstall.ollama() == null || BrainInstall.installed()) {
+            if (BrainInstall.installed()) settings.setFlag("brainOk", true);
+            askBeeps();
+            return;
+        }
+        show(new String[] {"Want me to get my brain? Then I can answer any question.", "It's Ollama: free, " + BrainInstall.totalSize(settings.choice("brain"))
+                        + " to download, installed just for you.", "(Without it I still do lots: reminders, notes, math, jokes...)"}, null,
+                button("Yes, get it", () -> {
+                    settings.setFlag("brainOk", true);
+                    askBeeps();
+                }),
+                button("Not now", this::askBeeps));
     }
 
     void askBeeps() {
@@ -380,9 +399,8 @@ final class Welcome {
         }
         java.util.List<String> lines = new java.util.ArrayList<>(java.util.List.of("All set" + (who.isEmpty() ? "" : ",") + who + "!",
                 "I'm in a box down on your " + Platform.BAR + ".", "Click it to let me out!"));
-        if (settings.on("askMe")) {
-            lines.add("(I'm also getting my brain ready in the background, so I can answer your questions:");
-            lines.add("Ollama, free, " + Brain.downloadSize(settings.choice("brain")) + " to download. You don't have to do anything.)");
+        if (settings.on("askMe") && settings.flag("brainOk") && !BrainInstall.installed()) {
+            lines.add("(I'll get my brain ready in the background. You don't have to do anything.)");
         }
         show(lines.toArray(new String[0]), null,
                 button("OK!", () -> {

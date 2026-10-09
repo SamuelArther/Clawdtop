@@ -36,12 +36,12 @@ public final class SmokeSetup {
         String[][] steps = {
                 {"welcome type Sam", "name"}, {"welcome click Next", "where"}, {"welcome click Above the clock", "personality"},
                 {"welcome click Bouncy", "birthday"}, {"welcome click Skip", "home"}, {"welcome click Next", "military"}, {"welcome click No", "answers"},
-                {"welcome click Normal (recommended)", "web search"}, {"welcome click No, stay offline", "beeps"}, {"welcome click Shh, no beeps", "startup"},
+                {"welcome click Normal (recommended)", "web search"}, {"welcome click No, stay offline", "brain"}, {BrainInstall.installed() || BrainInstall.ollama() == null ? "" : "welcome click Not now", "beeps"}, {"welcome click Shh, no beeps", "startup"},
                 {"welcome click Not now", "all set"}, {"welcome click OK!", "the box"}};
         shot("welcome");
         for (String[] step : steps) {
             Thread.sleep(700);
-            SwingUtilities.invokeAndWait(() -> clawd[0].smoke(step[0]));
+            if (!step[0].isEmpty()) SwingUtilities.invokeAndWait(() -> clawd[0].smoke(step[0])); // ("": that step isn't asked on this computer)
             Thread.sleep(500);
             shot(step[1]);
         }

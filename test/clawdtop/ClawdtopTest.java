@@ -479,6 +479,8 @@ public class ClawdtopTest {
         snapshot(hello.panel(), frames0.resolve("welcome 3e web search.png"));
         click(hello.panel(), "No, stay offline");
         check("he only looks things up online if you say so", Settings.load().on("webSearch"), false);
+        if (BrainInstall.ollama() != null && !BrainInstall.installed()) click(hello.panel(), "Not now"); // (his brain: only if you say so)
+        check("he only downloads his brain if you say so", Settings.load().flag("brainOk") == BrainInstall.installed(), true);
         check("reading what Wikipedia and DuckDuckGo send back", WebSearch.value("{\"batchcomplete\":\"\",\"query\":{\"search\":[{\"ns\":0,\"title\":\"Rayleigh scattering\"}]}}", "title")
                 + " / " + WebSearch.value("{\"Abstract\":\"x\",\"AbstractText\":\"An octopus has \\\"eight\\\" arms.\"}", "AbstractText"), "Rayleigh scattering / An octopus has \"eight\" arms.");
         check("normal answers (recommended), or kid-friendly for little kids", Settings.load().on("kidFriendly"), false);

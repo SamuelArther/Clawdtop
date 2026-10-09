@@ -560,6 +560,9 @@ public final class Cli {
         Install.removeCommand();
         forgetEverything(keep);
         out.println("...he's gone. (To remove the program too, delete the Clawdtop folder.)");
+        if (BrainInstall.installed()) {
+            out.println(DIM + "(His brain, Ollama, is its own app and stays. If you don't want it, uninstall Ollama like any other app.)" + RESET);
+        }
     }
 
     /** Asks whether to keep your songs and the things he coded (if there are any). */

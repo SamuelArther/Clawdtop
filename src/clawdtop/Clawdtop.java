@@ -703,8 +703,21 @@ public final class Clawdtop {
                 if (problem2 != null && found2 != null && !kid) {
                     // no brain yet, but he looked it up
                     pet.say(Brain.wrap("I looked it up! " + Brain.clean(found2.text()) + " (from " + found2.source() + ")", 46));
+                } else if (problem2 != null && !settings.flag("brainOk") && !BrainInstall.installed() && BrainInstall.ollama() != null) {
+                    // no brain yet, and you haven't said he can get it: he asks first (it's a big download)
+                    pet.speak();
+                    bubble.ask("I need my brain for that one! It's a free download (Ollama, " + BrainInstall.totalSize(settings.choice("brain"))
+                            + ")\nthat I install just for you. Want me to get it?", new String[] {"Get it", "Not now"}, choice -> {
+                                if (choice != 0) {
+                                    pet.say("Okay! I can still do reminders, notes, math, jokes and more.");
+                                    return;
+                                }
+                                settings.setFlag("brainOk", true);
+                                pet.say("Getting it ready now... I'll answer as soon as it's done.");
+                                prepareBrain(() -> answer(question, false));
+                            }, head(), screenBounds());
                 } else if (problem2 != null) {
-                    // no brain yet: he installs it (with a notice), then answers
+                    // no brain yet: he gets it ready (with a notice), then answers
                     pet.say("I need my brain for that! Getting it ready now...\nI'll answer as soon as it's done.");
                     prepareBrain(() -> answer(question, false));
                 } else if (reply2 == null) {
@@ -3279,7 +3292,7 @@ public final class Clawdtop {
             boxed = true;
             window.setVisible(false); // he's in his box, which shows up when you've finished meeting him
             welcome.onFinished(() -> {
-                if (settings.on("askMe") && System.getProperty("clawdtop.home") == null) prepareBrain(null); // his brain, in the background
+                if (settings.on("askMe") && settings.flag("brainOk") && System.getProperty("clawdtop.home") == null) prepareBrain(null); // his brain (you said yes)
                 settings = Settings.load(); // a save token may have brought back his color and the rest
                 settingsChanged = Settings.changed();
                 pet.setColor(settings.awtColor());

@@ -1,7 +1,8 @@
-Fix: you can always read what he says.
+Fix: he asks before getting his brain.
 
-- During tic-tac-toe, his longer speech bubbles could hide under the game board. The board now sits higher, out of their way, and a bubble that's already up comes back on top when he says something new.
-- "How's my computer?" says "On for 25 minutes" instead of "On for 0 hours" on a computer that just started.
+- His brain (Ollama, a free download of about 2 GB) used to start downloading right after setup without asking. Now setup asks first, and if you said "not now", he asks again only when you ask a question that needs it. Everything else works without it.
+- A download that stalls no longer hangs forever (he gives up after a minute and says why), and leftover download files get cleaned up.
+- If the disk is nearly full, he says so instead of "is the internet on?".
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 
