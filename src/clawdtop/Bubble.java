@@ -103,7 +103,12 @@ final class Bubble {
         hideAt = Long.MAX_VALUE;
         window.setSize(size(lines, buttons));
         follow(clawd, screen);
+        boolean wasUp = window.isVisible();
         window.setVisible(true);
+        if (wasUp) { // (already up: brought back on top, above his own windows like tic-tac-toe or the sticky note, without taking the keyboard)
+            window.setAlwaysOnTop(false);
+            window.setAlwaysOnTop(true);
+        }
         window.repaint();
     }
 

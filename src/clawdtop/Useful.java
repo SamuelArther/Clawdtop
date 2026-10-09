@@ -54,14 +54,19 @@ final class Useful {
         return null;
     }
 
+    /** How long the computer's been on, in words: "25 minutes", "3 hours", "2 days 4 hours". */
+    static String onFor(long ms) {
+        long minutes = ms / 60_000, hours = ms / 3_600_000L % 24, days = ms / 86_400_000L;
+        if (days == 0 && hours == 0) return minutes < 2 ? "just a minute" : minutes + " minutes";
+        return (days > 0 ? days + (days == 1 ? " day" : " days") + (hours > 0 ? " " : "") : "") + (hours > 0 || days == 0 ? hours + (hours == 1 ? " hour" : " hours") : "");
+    }
+
     /** "How's my computer?": a few lines about it, in plain words (and a little joke if it's all fine). */
     static String checkup() {
         List<String> lines = new ArrayList<>();
         long up = uptime();
         if (up >= 0) {
-            long days = up / 86_400_000L, hours = up / 3_600_000L % 24;
-            lines.add("On for " + (days > 0 ? days + (days == 1 ? " day " : " days ") : "") + hours + (hours == 1 ? " hour" : " hours")
-                    + (days >= 7 ? " (it could use a restart!)" : ""));
+            lines.add("On for " + onFor(up) + (up >= 7 * 86_400_000L ? " (it could use a restart!)" : ""));
         }
         if (ManagementFactory.getOperatingSystemMXBean() instanceof com.sun.management.OperatingSystemMXBean os) {
             long total = os.getTotalMemorySize(), free = os.getFreeMemorySize();

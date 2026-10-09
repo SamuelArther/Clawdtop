@@ -1,7 +1,7 @@
-Fix: he can't get stuck waiting on Windows.
+Fix: you can always read what he says.
 
-- If File Explorer (or another Windows helper) hung, he could wait on it forever, and then songs, weather, download alerts and more stopped working until you restarted him. Now he gives up after 10 seconds and carries on.
-- Songs load on their own, so a dropped song or a jam starts right away instead of waiting behind a file search.
+- During tic-tac-toe, his longer speech bubbles could hide under the game board. The board now sits higher, out of their way, and a bubble that's already up comes back on top when he says something new.
+- "How's my computer?" says "On for 25 minutes" instead of "On for 0 hours" on a computer that just started.
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 

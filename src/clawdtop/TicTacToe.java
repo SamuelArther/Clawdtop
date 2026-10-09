@@ -122,7 +122,7 @@ final class TicTacToe {
         Dimension size = new Dimension(CELL * 3 + PAD * 2, CELL * 3 + TOP + PAD);
         window.setSize(size);
         int x = Math.max(screen.x + 4, Math.min(screen.x + screen.width - size.width - 4, clawd.x + clawd.width / 2 - size.width + 40));
-        window.setLocation(x, Math.max(screen.y + 4, clawd.y - size.height - 56)); // above his speech bubble
+        window.setLocation(x, Math.max(screen.y + 4, clawd.y - size.height - 170)); // above his speech bubbles (room for a few lines, so they never hide under it)
         window.showAndFocus(panel);
     }
 
