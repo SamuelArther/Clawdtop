@@ -24,6 +24,9 @@ public final class Settings {
         return appData != null ? Path.of(appData, "Clawdtop") : Path.of(System.getProperty("user.home"), ".clawdtop");
     }
 
+    /** When this program last saved the file itself (so that isn't mistaken for a change from the clawd command). */
+    static volatile long lastSaved;
+
     /** When the settings file last changed (0 if it isn't there), to notice changes made from the clawd command. */
     static long changed() {
         try {
@@ -51,6 +54,7 @@ public final class Settings {
             try (Writer out = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
                 values.store(out, "Clawdtop");
             }
+            lastSaved = Files.getLastModifiedTime(file).toMillis();
         } catch (IOException e) {
             // couldn't save: it still works this time
         }

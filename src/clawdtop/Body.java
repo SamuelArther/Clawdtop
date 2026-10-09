@@ -28,6 +28,7 @@ public final class Body {
     static final double TACKLE_SPEED = 800; // px/s: charging at a taskbar icon
     static final long DIVE_TIME = 380;      // the flying dive onto it
     private boolean diving, tackled;
+    private double fallFrom; // how he was turned when he was launched
     private long diveFor;
     private double diveFromX;
 
@@ -163,7 +164,12 @@ public final class Body {
                 vx *= Math.pow(0.6, dt);
                 x = Math.max(left, Math.min(right, x + vx * dt));
                 y += vy * dt;
-                angle = headFirst ? Math.min(Math.PI, stateFor / 160.0 * Math.PI) : 0; // shaken off: he flips, head first
+                if (headFirst) { // shaken off (or blown up): he flips, head first, carrying on from however he was turned
+                    double target = fallFrom < 0 ? -Math.PI : Math.PI;
+                    angle = fallFrom + (target - fallFrom) * Math.min(1, stateFor / (160.0 * Math.abs(target - fallFrom) / Math.PI + 1e-9));
+                } else {
+                    angle = 0;
+                }
                 if (y >= groundY) {
                     y = groundY;
                     if (headFirst) {
@@ -305,7 +311,7 @@ public final class Body {
                     case 1 -> { fx = left; fy = groundY - d; }
                     case 2 -> { fx = left + d; fy = top; }
                     case 3 -> { fx = right; fy = top + d; }
-                    default -> { fx = right - legs[4] + d; fy = groundY; }
+                    default -> { fx = right - d; fy = groundY; } // along the bottom, back home
                 }
                 double from = leg == 0 ? 0 : turns[leg - 1];
                 double turn = from + (turns[leg] - from) * Math.min(1, d / (8 * unitPx)); // round the corner
@@ -397,8 +403,7 @@ public final class Body {
     public void launchFrom(double fromX, double fromY, double sideways) {
         x = fromX;
         y = fromY;
-        angle = 0;
-        launch(sideways);
+        launch(sideways); // (he keeps however he's turned, and flips on round from there)
     }
 
     private long awayFor;
@@ -516,6 +521,7 @@ public final class Body {
     }
 
     private void set(State next) {
+        if (next == State.FALL) fallFrom = Math.IEEEremainder(angle, Math.PI * 2); // how he's turned as he starts falling (-PI to PI)
         state = next;
         stateFor = 0;
         hover = 0;

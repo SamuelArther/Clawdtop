@@ -42,6 +42,7 @@ public final class Clawdtop {
     private final Beeps beeps = new Beeps();
     private boolean wasPlaying; // on his piano (or guitar, or drums) last frame
     private boolean rightWasDown; // the right mouse button, last frame
+    private String heldLine;      // something he wanted to say while he was asking you something
     private final Tips tips = new Tips();
     private final Bubble bubble = new Bubble();
     private String lastKind;
@@ -106,6 +107,12 @@ public final class Clawdtop {
 
     /** On the taskbar's top edge, above the clock (or wherever he was dragged to). */
     private void place() {
+        place(true);
+    }
+
+    /** Works out his spot (and puts him there, unless he's about to walk over). */
+    private void place(boolean move) {
+        if (inCorner) return; // watching your game from the corner: back to his spot when it's over
         Rectangle usable = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
         Rectangle screen = window.getGraphicsConfiguration().getBounds();
         int w = window.getWidth();
@@ -118,7 +125,7 @@ public final class Clawdtop {
         };
         x = Math.max(screen.x, Math.min(screen.x + screen.width - w, x));
         bottom -= settings.number("nudge"); // nudged up (or down) if you like
-        window.setLocation(x, bottom - h + settings.unit()); // his feet just touch the taskbar
+        if (move) window.setLocation(x, bottom - h + settings.unit()); // his feet just touch the taskbar
         homeX = x + Sprite.feetX() * settings.unit();
         groundY = bottom;
         if (hut != null) useItems();
@@ -960,11 +967,22 @@ public final class Clawdtop {
         }
     }
 
+    /** Puts his window where his body is right now (before showing him, so he doesn't flash at home first). */
+    private void snapToBody() {
+        snapTo(body.x(), body.y());
+    }
+
+    private void snapTo(double feetX, double feetY) {
+        int unit = settings.unit();
+        window.setLocation((int) Math.round(feetX - Sprite.feetX() * unit), (int) Math.round(feetY - window.getHeight() + unit));
+    }
+
     /** After hiding for five seconds: he drops in from the top of the screen with his party hat, cake and blower. */
     private void birthdaySurprise() {
         birthdayHiding = false;
         Rectangle screen = screenBounds();
         body.dropIn(homeX, screen.y - window.getHeight());
+        snapToBody();
         window.setVisible(true);
         pet.setBirthdayToday(true);
         pendingBirthday = true;
@@ -977,6 +995,10 @@ public final class Clawdtop {
     /** The cursor zooming right past him, really fast: he spins round. */
     private void checkZoom(Point mouse) {
         long now = System.currentTimeMillis();
+        if (dragFrom != Integer.MIN_VALUE) { // you're dragging him: the cursor's on him the whole time, that's no boop
+            zoomFrom = null;
+            return;
+        }
         if (zoomFrom != null) {
             double speed = zoomFrom.distance(mouse) / Math.max(1, now - zoomAt) * 1000; // px a second
             Rectangle near = head();
@@ -988,7 +1010,8 @@ public final class Clawdtop {
                 double px = zoomFrom.x + (mouse.x - zoomFrom.x) * k / 12.0, py = zoomFrom.y + (mouse.y - zoomFrom.y) * k / 12.0;
                 if (Math.abs(px - eyesX) < 7 * settings.unit() && Math.abs(py - eyesY) < 4 * settings.unit()) acrossFace = true;
             }
-            if (acrossFace && speed > 450) pet.booped();
+            boolean fromOutside = Math.abs(zoomFrom.x - eyesX) >= 7 * settings.unit() || Math.abs(zoomFrom.y - eyesY) >= 4 * settings.unit();
+            if (acrossFace && fromOutside && speed > 450) pet.booped();
             else if (speed > 4000 && near.contains(mouse)) pet.spin();
         }
         zoomFrom = mouse;
@@ -1089,7 +1112,7 @@ public final class Clawdtop {
         pet.setShirt(settings.wearing("shirt"));
         int unit = settings.unit();
         hut.show(settings.wearing("hut"), unit, (int) Math.round(homeX - Sprite.feetX() * unit + 2 * unit), (int) Math.round(groundY),
-                !boxed && !hidden && !farewell);
+                !boxed && !hidden && !farewell && !inCorner);
     }
 
     private long remindedWater = System.currentTimeMillis(), remindedStretch = System.currentTimeMillis();
@@ -1246,7 +1269,7 @@ public final class Clawdtop {
                     settings.forgetAppSpot(appSpotKey);
                     appSpotKey = null;
                     appSpotX = null;
-                    place();
+                    place(false);
                     body.walkHome();
                     pet.say("Okay, back to my usual spot.");
                 });
@@ -1278,7 +1301,7 @@ public final class Clawdtop {
         if (body.state() != Body.State.HOME || job != null || inCorner || dragFrom != Integer.MIN_VALUE || pet.busyNow()) return; // in a bit
         appSpotKey = key;
         appSpotX = key == null ? null : settings.appSpot(key);
-        place();
+        place(false);
         body.walkHome();
     }
 
@@ -1309,6 +1332,7 @@ public final class Clawdtop {
             "I got this one!", "Hold on! That's my job!"};
     private volatile long tackleWindow;      // the app window he's hiding till he gets to its icon (0: none)
     private volatile long tackleStyle = -1;  // its style, to put back
+    private boolean tackleLooking;           // still finding its icon on the taskbar
     private long tackleUntil;                // never hidden longer than this, whatever happens
     private long lastFrontWindow;
     private final java.util.Set<Long> seenPrograms = new java.util.HashSet<>();
@@ -1318,7 +1342,8 @@ public final class Clawdtop {
         if (!WindowTricks.available()) return;
         long now = System.currentTimeMillis();
         if (tackleWindow != 0) {
-            if (now > tackleUntil || (body.state() != Body.State.TACKLE && now > tackleUntil - 5000)) endTackle(); // something went wrong: just open it
+            // something went wrong (he got picked up, say): just open it
+            if (now > tackleUntil || (!tackleLooking && body.state() != Body.State.TACKLE)) endTackle();
             return;
         }
         long front = WindowTricks.front();
@@ -1342,6 +1367,7 @@ public final class Clawdtop {
         tackleWindow = front;
         tackleStyle = style;
         tackleUntil = now + 7000;
+        tackleLooking = true;
         Thread.ofPlatform().daemon().start(() -> { // (and in case he's stuck somehow: it's back in 8 seconds regardless)
             try {
                 Thread.sleep(8000);
@@ -1364,12 +1390,14 @@ public final class Clawdtop {
             }
             WindowTricks.TaskbarButton found = button;
             SwingUtilities.invokeLater(() -> {
+                tackleLooking = false;
                 if (tackleWindow != front) return;
                 Rectangle s = window.getGraphicsConfiguration().getBounds();
                 double scale = window.getGraphicsConfiguration().getDefaultTransform().getScaleX();
                 double x = found == null ? -1 : s.x + found.centerX() / scale;
                 if (found == null || x < s.x || x > s.x + s.width || body.state() != Body.State.HOME) {
                     endTackle(); // no icon to tackle (or he got busy): there it is anyway
+                    bubble.hide();
                     return;
                 }
                 body.tackle(x);
@@ -1483,23 +1511,28 @@ public final class Clawdtop {
                 } else {
                     place();
                 }
+                useItems(); // his hut stays at home while he's in the corner
             }
             if (hide != hidden) {
                 hidden = hide;
                 window.setVisible(!hidden);
+                if (hidden) bubble.hide();
+                useItems(); // his hut hides (and comes back) with him
             }
         }
         // Now and then (once a day, a while after he starts): something nice about your games
         if (ticks % 1800 == 900 && ticks > 30 * 60 * 20 && new java.util.Random().nextInt(6) == 0) admireGames("idle");
         // Every couple of seconds: settings changed from the clawd command (clawd controlpanel)?
-        if (ticks % 60 == 0 && Settings.changed() != settingsChanged && !farewell) {
-            settingsChanged = Settings.changed();
-            String oldSize = settings.size();
+        long settingsNow = ticks % 60 == 0 ? Settings.changed() : settingsChanged;
+        if (settingsNow != settingsChanged && settingsNow == Settings.lastSaved) settingsChanged = settingsNow; // (his own save)
+        if (settingsNow != settingsChanged && !farewell) {
+            settingsChanged = settingsNow;
+            String oldSize = settings.size(), oldSpot = settings.spot() + "/" + settings.x() + "/" + settings.number("nudge");
             settings = Settings.load();
             pet.setPersonality(settings.personality());
             pet.changeColor(settings.awtColor()); // a few seconds later, suddenly: he'll freak out
             if (!oldSize.equals(settings.size())) resize();
-            else if (body.state() == Body.State.HOME) place();
+            else if (body.state() == Body.State.HOME && !oldSpot.equals(settings.spot() + "/" + settings.x() + "/" + settings.number("nudge"))) place();
             useItems();
             useOptions();
         }
@@ -1559,6 +1592,7 @@ public final class Clawdtop {
             body.setCeiling(screen.y);
             body.setUnit(unit);
             body.setMistakes(settings.on("mistakes"));
+            if (moveOutPending && body.state() == Body.State.HOME) walkOffToMove();
             body.tick(FRAME_MS, mouse.x, mouse.y, homeX, groundY, 12 * unit, screen.x, screen.x + screen.width);
             pet.follow(body.state());
             creations();
@@ -1568,7 +1602,7 @@ public final class Clawdtop {
                 explosion.start(body.x(), groundY - 2 * unit);
                 showFx();
                 Rectangle s = window.getGraphicsConfiguration().getBounds();
-                body.launchFrom(body.x(), groundY, body.x() > s.x + s.width / 2.0 ? -550 : 550);
+                body.launchFrom(body.x(), body.y(), body.x() > s.x + s.width / 2.0 ? -550 : 550);
                 pet.say(TACKLE_YELLS[new java.util.Random().nextInt(TACKLE_YELLS.length)]);
                 Diary.write("Tackled a taskbar icon. It exploded. Worth it.");
             }
@@ -1635,7 +1669,16 @@ public final class Clawdtop {
         playMidi(pet.playingMidi());
         Pet.Beep beep = pet.takeBeep();
         if (beep != null && mayBeep()) beeps.play(beep);
+        // what he says (not while he's hidden for your video, and never over a question he's asking you)
         String line = pet.takeLine();
+        if (hidden) line = null;
+        else if (bubble.asking()) { // keep it for after you've answered
+            if (line != null) heldLine = line;
+            line = null;
+        } else if (line == null && heldLine != null) {
+            line = heldLine;
+            heldLine = null;
+        }
         if (line != null) bubble.show(line, head(), screenBounds());
         bubble.tick();
         if (bubble.showing()) bubble.follow(head(), screenBounds());
@@ -1669,14 +1712,20 @@ public final class Clawdtop {
     private void moveOut() {
         if (job != null) job.stop(body, pet);
         bubble.show("Off to the new place! Bye!", head(), screenBounds());
+        movingOut = true;
+        moveOutPending = true; // off he goes once he's back on the taskbar (he might be riding, or falling)
+    }
+
+    /** Moving out: he picks up his boxes and walks off the edge of the screen (once he's home to pack). */
+    private void walkOffToMove() {
+        moveOutPending = false;
         pet.moving(true);
         Rectangle screen = screenBounds();
         boolean right = homeX > screen.x + screen.width / 2.0;
         body.walkOff(right ? screen.x + screen.width + 200 : screen.x - 200, Long.MAX_VALUE);
-        movingOut = true;
     }
 
-    private boolean movingOut;
+    private boolean movingOut, moveOutPending;
 
     /** clawd uninstall: he says bye, then crumbles away into dust, and the program ends. */
     private void sayGoodbye() {
@@ -1736,7 +1785,7 @@ public final class Clawdtop {
 
     /** Whether he may beep right now (beeps on, and not in quiet hours). */
     private boolean mayBeep() {
-        if (!settings.sounds()) return false;
+        if (!settings.sounds() || hidden) return false; // (hidden for your video: not a peep)
         if (!settings.on("quietHours")) return true;
         int hour = java.time.LocalTime.now().getHour(), from = settings.number("quietFrom"), to = settings.number("quietTo");
         boolean quiet = from <= to ? hour >= from && hour < to : hour >= from || hour < to;
@@ -1783,17 +1832,19 @@ public final class Clawdtop {
                 if (welcome.movedIn()) {
                     // moved in from another computer: he walks in from the side with his boxes, and unpacks
                     boxed = false;
-                    window.setVisible(true);
                     Rectangle screen = screenBounds();
                     boolean fromRight = homeX > screen.x + screen.width / 2.0;
                     body.walkIn(fromRight ? screen.x + screen.width + 120 : screen.x - 120);
+                    snapTo(body.x(), groundY); // (on the taskbar, off the side of the screen)
+                    window.setVisible(true);
                     pet.moving(true);
                     return;
                 }
                 new Box(settings.unit(), (int) Math.round(homeX), (int) Math.round(groundY), () -> {
                 boxed = false;
-                window.setVisible(true);
                 body.launchFrom(homeX, groundY, (Math.random() < 0.5 ? -1 : 1) * (150 + Math.random() * 250)); // out of the box, not from the corner
+                snapToBody();
+                window.setVisible(true);
                 if (settings.sounds()) beeps.play(Pet.Beep.WHEE);
                 greetWhenHome = true;
                 }).show();
