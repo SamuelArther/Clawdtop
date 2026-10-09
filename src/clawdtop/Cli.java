@@ -169,6 +169,8 @@ public final class Cli {
         out.println("  clawd ask \"...\"      ask him something, right here in the terminal");
         out.println("  clawd joke           a joke");
         out.println("  clawd diary          what he got up to lately, in his own words");
+        out.println("  clawd version        which version of him you have");
+        out.println("  clawd update         get the newest version of him now");
         out.println("  clawd uninstall      remove Clawd from this computer");
     }
 
@@ -177,11 +179,31 @@ public final class Cli {
         try {
             Path pid = Settings.folder().resolve("running.pid");
             if (!Files.exists(pid)) return Optional.empty();
+            if (!lockHeld()) { // nobody's holding his lock: he isn't running (that pid is old, and could be anyone now)
+                Files.deleteIfExists(pid);
+                return Optional.empty();
+            }
             long id = Long.parseLong(Files.readString(pid).strip());
             return ProcessHandle.of(id).filter(ProcessHandle::isAlive)
                     .filter(p -> p.info().command().map(c -> c.toLowerCase(Locale.ROOT).contains("java")).orElse(true));
         } catch (IOException | NumberFormatException e) {
             return Optional.empty();
+        }
+    }
+
+    /** Whether a running Clawd holds his lock file (the sure way to tell he's running). */
+    static boolean lockHeld() {
+        Path lock = Settings.folder().resolve("running.lock");
+        if (!Files.exists(lock)) return false;
+        try (java.nio.channels.FileChannel channel = java.nio.channels.FileChannel.open(lock, java.nio.file.StandardOpenOption.WRITE)) {
+            java.nio.channels.FileLock mine = channel.tryLock();
+            if (mine == null) return true;
+            mine.release();
+            return false;
+        } catch (java.nio.channels.OverlappingFileLockException inThisProgram) {
+            return true;
+        } catch (IOException e) {
+            return true; // can't tell: assume he is (safer than starting a second one)
         }
     }
 
@@ -192,11 +214,18 @@ public final class Cli {
         }
         Path jar = Install.jar();
         if (jar == null) {
-            out.println("I can't find Clawdtop.jar. Build it with build.bat first.");
+            out.println("I can't find Clawdtop.jar. " + (Platform.WINDOWS ? "Build it with build.bat first." : "Build it with ./build.sh first."));
             return;
         }
         new ProcessBuilder(Install.javaw().toString(), "--enable-native-access=ALL-UNNAMED", "-jar", jar.toString()).start();
-        out.println("Clawd's on his way to your taskbar!");
+        for (int i = 0; i < 30 && running().isEmpty(); i++) { // (wait till he's really there)
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException e) {
+                break;
+            }
+        }
+        out.println(running().isPresent() ? "Clawd's on his way to your taskbar!" : "Hmm, he didn't start. Try again in a moment?");
     }
 
     private void stop(boolean say) {
@@ -205,12 +234,18 @@ public final class Cli {
             if (say) out.println("Clawd isn't running.");
             return;
         }
-        clawd.get().destroy();
+        Settings.ask("quit"); // asks him nicely first (so he tidies up), then makes sure
         try {
-            clawd.get().onExit().get(5, java.util.concurrent.TimeUnit.SECONDS);
+            clawd.get().onExit().get(6, java.util.concurrent.TimeUnit.SECONDS);
         } catch (Exception slow) {
             clawd.get().destroyForcibly();
+            try {
+                clawd.get().onExit().get(5, java.util.concurrent.TimeUnit.SECONDS);
+            } catch (Exception stillThere) {
+                // gone soon enough
+            }
         }
+        Settings.takeAsk(); // (in case he never got to read it)
         if (say) out.println("Bye for now! (clawd start brings him back)");
     }
 
@@ -226,7 +261,7 @@ public final class Cli {
         out.println("  Size:        " + s.size().toLowerCase(Locale.ROOT));
         out.println("  Beeps:       " + onOff(s.sounds()));
         out.println("  Tips:        " + onOff(s.tips()));
-        out.println("  With Windows:" + " " + onOff(Startup.on()));
+        out.println("  " + (Platform.WINDOWS ? "With Windows:" : "At login:   ") + " " + onOff(Startup.on()));
         out.println("  Version:     " + Updater.VERSION);
     }
 
@@ -483,13 +518,7 @@ public final class Cli {
         if (answer != null && answer.strip().toLowerCase(Locale.ROOT).startsWith("y")) {
             Startup.set(false);
             Install.removeCommand();
-            Path folder = Settings.folder();
-            if (Files.isDirectory(folder)) {
-                try (var files = Files.list(folder)) {
-                    for (Path f : files.toList()) Files.deleteIfExists(f);
-                }
-                Files.deleteIfExists(folder);
-            }
+            forgetEverything(keepYourFiles());
             out.println("Done. He lives on the new computer now.");
         }
     }
@@ -519,15 +548,39 @@ public final class Cli {
                 stop(false);
             }
         }
+        boolean keep = keepYourFiles();
         Startup.set(false);
         Install.removeCommand();
-        Path folder = Settings.folder();
-        if (Files.isDirectory(folder)) {
-            try (var files = Files.list(folder)) {
-                for (Path f : files.toList()) Files.deleteIfExists(f);
-            }
-            Files.deleteIfExists(folder);
-        }
+        forgetEverything(keep);
         out.println("...he's gone. (To remove the program too, delete the Clawdtop folder.)");
+    }
+
+    /** Asks whether to keep your songs and the things he coded (if there are any). */
+    private boolean keepYourFiles() throws IOException {
+        Path folder = Settings.folder();
+        if (!Files.isDirectory(folder.resolve("songs")) && !Files.isDirectory(Settings.creations())) return false;
+        out.print("Keep your songs and the little programs he made? (Y/n) ");
+        out.flush();
+        String answer = in.readLine();
+        return answer == null || !answer.strip().toLowerCase(Locale.ROOT).startsWith("n");
+    }
+
+    /** Deletes his settings folder (all of it, or all but your songs and his creations), carrying on past anything stuck. */
+    private void forgetEverything(boolean keepYourFiles) {
+        Path folder = Settings.folder();
+        if (!Files.isDirectory(folder)) return;
+        try (var walk = Files.walk(folder)) {
+            for (Path p : walk.sorted(java.util.Comparator.reverseOrder()).toList()) { // (deepest first, so folders are empty)
+                Path inside = folder.relativize(p);
+                if (keepYourFiles && inside.getNameCount() > 0 && java.util.List.of("songs", "creations").contains(inside.getName(0).toString())) continue;
+                try {
+                    Files.deleteIfExists(p);
+                } catch (IOException stuck) {
+                    // (in use, or a folder we kept something in): leave it
+                }
+            }
+        } catch (IOException | java.io.UncheckedIOException e) {
+            // whatever's left can go by hand
+        }
     }
 }

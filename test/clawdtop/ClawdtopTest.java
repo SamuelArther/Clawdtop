@@ -340,6 +340,10 @@ public class ClawdtopTest {
 
         // ---- All the options ----
         Files.deleteIfExists(home.resolve("settings.properties"));
+        Settings appCopy = Settings.load(), panelCopy = Settings.load(); // Clawd and the control panel, both open
+        panelCopy.setName("Panel Name");
+        appCopy.setJokes("Lots");
+        check("two copies saving don't undo each other", Settings.load().name() + " / " + Settings.load().jokes(), "Panel Name / Lots");
         Settings spots = Settings.load();
         spots.setAppSpot(Settings.appKey("Chrome.exe"), 300);
         spots.setAppSpot(Settings.windowKey("YouTube - Google Chrome"), 700);
@@ -505,7 +509,7 @@ public class ClawdtopTest {
         // ---- The clawd command ----
         if (Platform.WINDOWS) check("clawd.cmd runs the command part of Clawdtop with console Java, from its own copy of the jar",
                 Install.script(Path.of("C:\\Java\\bin\\javaw.exe"), Path.of("C:\\Clawdtop\\build\\Clawdtop.jar"), Path.of("C:\\bin\\clawd-command.jar")),
-                "@echo off\r\n\"C:\\Java\\bin\\java.exe\" --enable-native-access=ALL-UNNAMED -Dclawdtop.jar=\"C:\\Clawdtop\\build\\Clawdtop.jar\" -cp \"C:\\bin\\clawd-command.jar\" clawdtop.Cli %*\r\n");
+                "@echo off\r\n\"C:\\Java\\bin\\java.exe\" --enable-native-access=ALL-UNNAMED -Dclawdtop.jar=\"C:\\Clawdtop\\build\\Clawdtop.jar\" -cp \"C:\\bin\\clawd-command.jar\" clawdtop.Cli %* & exit /b\r\n");
         String userPath = "%USERPROFILE%\\bin;C:\\Tools;C:\\Users\\me\\AppData\\Local\\Clawdtop\\bin";
         check("finds its folder on your PATH (any capitals)", Install.hasEntry(userPath, "c:\\users\\me\\appdata\\local\\clawdtop\\bin")
                 + " " + Install.hasEntry("C:\\Tools", "C:\\Users\\me\\AppData\\Local\\Clawdtop\\bin"), "true false");

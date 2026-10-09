@@ -53,6 +53,16 @@ public final class Cleaner {
         if (f.getParent() == null) return "That's a whole drive. Pick a folder inside it.";
         String path = f.toString().toLowerCase(Locale.ROOT);
         Path home = Path.of(System.getProperty("user.home")).toAbsolutePath().normalize();
+        if (Platform.WINDOWS && (path.startsWith("\\\\") || !fixedDrive(f))) {
+            return "That's on a network or USB drive. Those have no Recycle Bin, so I won't clean there.";
+        }
+        if (home.startsWith(f)) return "That folder holds too much that matters. Show me one inside it, like Downloads.";
+        if (Platform.WINDOWS && f.getNameCount() >= 1) { // Windows and programs' folders on any drive (D:\Program Files too)
+            String first = f.getName(0).toString().toLowerCase(Locale.ROOT);
+            if (List.of("windows", "program files", "program files (x86)", "programdata", "$recycle.bin", "system volume information").contains(first)) {
+                return "That's where Windows and your programs live. I'll leave it alone.";
+            }
+        }
         String windows = env("SystemRoot", "C:\\Windows");
         List<String> off = new ArrayList<>(List.of(windows, env("ProgramFiles", "C:\\Program Files"),
                 env("ProgramFiles(x86)", "C:\\Program Files (x86)"), env("ProgramData", "C:\\ProgramData")));
@@ -73,6 +83,23 @@ public final class Cleaner {
             return "That folder holds too much that matters. Show me one inside it, like Downloads.";
         }
         return null;
+    }
+
+    /** Whether this folder is on an ordinary disk inside the computer (Windows), the only kind with a Recycle Bin. */
+    static boolean fixedDrive(Path folder) {
+        try {
+            java.lang.foreign.Linker linker = java.lang.foreign.Linker.nativeLinker();
+            java.lang.foreign.SymbolLookup k32 = java.lang.foreign.SymbolLookup.libraryLookup("kernel32", java.lang.foreign.Arena.global());
+            java.lang.invoke.MethodHandle type = linker.downcallHandle(k32.find("GetDriveTypeW").orElseThrow(),
+                    java.lang.foreign.FunctionDescriptor.of(java.lang.foreign.ValueLayout.JAVA_INT, java.lang.foreign.ValueLayout.ADDRESS));
+            try (java.lang.foreign.Arena arena = java.lang.foreign.Arena.ofConfined()) {
+                String root = folder.getRoot().toString();
+                java.lang.foreign.MemorySegment name = arena.allocateFrom(root.endsWith("\\") ? root : root + "\\", java.nio.charset.StandardCharsets.UTF_16LE);
+                return (int) type.invokeExact(name) == 3; // DRIVE_FIXED
+            }
+        } catch (Throwable cantTell) {
+            return true; // (then the Recycle Bin check decides)
+        }
     }
 
     private static String env(String name, String fallback) {
@@ -112,6 +139,11 @@ public final class Cleaner {
                 continue;
             }
             if (attrs.isDirectory()) {
+                String name = p.getFileName().toString();
+                if (name.startsWith(".") || name.equals("node_modules")) { // .git and friends, and code packages: hands off
+                    kept++;
+                    continue;
+                }
                 if (depth < MAX_DEPTH && walk(p, depth + 1, now, safe, risky)) {
                     safe.add(new Item(p, 0, "an empty folder", false));
                 } else {
@@ -160,7 +192,7 @@ public final class Cleaner {
         String name = p.getFileName().toString();
         String low = name.toLowerCase(Locale.ROOT);
         boolean old = attrs.lastModifiedTime().toInstant().isBefore(now.minus(OLD_INSTALLER));
-        if (old && (low.endsWith(".msi") || low.endsWith(".msix") || ((low.contains("setup") || low.contains("install")) && low.endsWith(".exe")))) {
+        if (old && (low.endsWith(".msi") || low.endsWith(".msix") || ((low.contains("setup") || low.contains("install")) && !low.contains("unins") && low.endsWith(".exe")))) {
             long days = Duration.between(attrs.lastModifiedTime().toInstant(), now).toDays();
             return "an installer from " + (days >= 60 ? days / 30 + " months" : days + " days") + " ago";
         }

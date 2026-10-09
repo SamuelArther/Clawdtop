@@ -11,6 +11,7 @@ import java.util.Properties;
 /** What you chose in Clawd's menu, kept for next time in your user folder (AppData\Roaming\Clawdtop on Windows). */
 public final class Settings {
     private final Properties values = new Properties();
+    private final Properties asLoaded = new Properties(); // what the file said when we read it (to tell what we changed)
     private final Path file;
 
     private Settings(Path file) {
@@ -38,24 +39,56 @@ public final class Settings {
 
     static Settings load() {
         Settings s = new Settings(folder().resolve("settings.properties"));
-        if (Files.exists(s.file)) {
-            try (Reader in = Files.newBufferedReader(s.file, StandardCharsets.UTF_8)) {
-                s.values.load(in);
+        s.values.putAll(read(s.file));
+        s.asLoaded.putAll(s.values);
+        return s;
+    }
+
+    private static Properties read(Path file) {
+        Properties p = new Properties();
+        if (Files.exists(file)) {
+            try (Reader in = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+                p.load(in);
             } catch (IOException | IllegalArgumentException e) {
                 // a damaged file: start over with the defaults
             }
         }
-        return s;
+        return p;
     }
 
+    /**
+     * Saves: only what this copy changed goes in, on top of what's in the file now (so Clawd and the clawd command never
+     * undo each other's changes), and the file is swapped in whole (never half written).
+     */
     private void save() {
         try {
             Files.createDirectories(file.getParent());
-            try (Writer out = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
-                values.store(out, "Clawdtop");
+            try (java.nio.channels.FileChannel lockFile = java.nio.channels.FileChannel.open(file.resolveSibling("settings.lock"),
+                    java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.WRITE);
+                    java.nio.channels.FileLock lock = lockFile.lock()) {
+                Properties now = read(file);
+                for (String key : values.stringPropertyNames()) {
+                    if (!values.getProperty(key).equals(asLoaded.getProperty(key))) now.setProperty(key, values.getProperty(key));
+                }
+                for (String key : asLoaded.stringPropertyNames()) {
+                    if (!values.containsKey(key)) now.remove(key);
+                }
+                Path temp = file.resolveSibling("settings.properties.tmp");
+                try (Writer out = Files.newBufferedWriter(temp, StandardCharsets.UTF_8)) {
+                    now.store(out, "Clawdtop");
+                }
+                try {
+                    Files.move(temp, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+                } catch (IOException cantSwap) {
+                    Files.move(temp, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                }
+                values.clear();
+                values.putAll(now);
+                asLoaded.clear();
+                asLoaded.putAll(now);
+                lastSaved = Files.getLastModifiedTime(file).toMillis();
             }
-            lastSaved = Files.getLastModifiedTime(file).toMillis();
-        } catch (IOException e) {
+        } catch (IOException | java.nio.channels.OverlappingFileLockException e) {
             // couldn't save: it still works this time
         }
     }

@@ -50,7 +50,7 @@ final class Install {
     static String script(Path java, Path jar, Path copy) {
         Path console = java.getFileName().toString().equalsIgnoreCase("javaw.exe") ? java.resolveSibling("java.exe") : java;
         return "@echo off\r\n\"" + console + "\" --enable-native-access=ALL-UNNAMED -Dclawdtop.jar=\"" + jar + "\" -cp \"" + copy
-                + "\" clawdtop.Cli %*\r\n";
+                + "\" clawdtop.Cli %* & exit /b\r\n"; // (exit on the same line: clawd uninstall can delete this file mid-run)
     }
 
     /** The clawd command's own copy of the jar, freshened whenever he starts (unless a clawd command has it open). */
@@ -100,6 +100,14 @@ final class Install {
         try {
             Files.deleteIfExists(folder.resolve("clawd.cmd"));
             Files.deleteIfExists(folder.resolve("clawd-command.jar"));
+        } catch (IOException e) {
+            // (the command's own copy is in use right now: it's tidied up just after, below)
+        }
+        try {
+            // the clawd command is running from its copy of the jar: a moment after it finishes, that goes too
+            new ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command",
+                    "Start-Sleep 3; Remove-Item -LiteralPath '" + folder.toString().replace("'", "''") + "' -Recurse -Force -ErrorAction SilentlyContinue; "
+                            + "Remove-Item -LiteralPath '" + folder.getParent().toString().replace("'", "''") + "' -ErrorAction SilentlyContinue").start();
             Files.deleteIfExists(folder);
             Files.deleteIfExists(folder.getParent());
         } catch (IOException e) {
@@ -127,17 +135,22 @@ final class Install {
 
     /** Your own PATH exactly as stored (with any %VARIABLES% left as they are), "" if you have none, null if unknown. */
     static String userPath() {
+        // (read through PowerShell in UTF-8: reg.exe prints in the old code page, which mangles names like "José")
+        String script = "[Console]::OutputEncoding = [Text.Encoding]::UTF8; $k = Get-Item 'HKCU:\\Environment'; "
+                + "if ($k.GetValueNames() -contains 'Path') { 'VALUE:' + $k.GetValue('Path', '', [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames) } else { 'NONE' }";
         try {
-            Process p = new ProcessBuilder("reg", "query", "HKCU\\Environment", "/v", "Path").redirectErrorStream(true).start();
+            Process p = new ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand",
+                    java.util.Base64.getEncoder().encodeToString(script.getBytes(StandardCharsets.UTF_16LE))).redirectErrorStream(true).start();
             String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            int code = p.waitFor();
-            if (code != 0) return out.contains("unable to find") || out.contains("ERROR") ? "" : null;
+            if (!p.waitFor(20, java.util.concurrent.TimeUnit.SECONDS)) {
+                p.destroyForcibly();
+                return null;
+            }
             for (String line : out.split("\r?\n")) {
-                String t = line.strip();
-                if (t.startsWith("Path ") || t.startsWith("PATH ")) {
-                    int at = t.indexOf("REG_");
-                    int value = t.indexOf("    ", at);
-                    return value < 0 ? "" : t.substring(value).strip();
+                if (line.equals("NONE")) return "";
+                if (line.startsWith("VALUE:")) {
+                    String value = line.substring(6);
+                    return value.contains("\uFFFD") ? null : value; // (couldn't read it properly: leave it alone)
                 }
             }
             return null;
@@ -148,6 +161,7 @@ final class Install {
 
     /** Saves your own PATH (keeping %VARIABLES% working) and tells Windows, so new terminals see it. */
     static void setUserPath(String path) {
+        if (path.contains("\uFFFD")) return; // never write back something that got mangled
         if (path.endsWith("\\")) path += ";"; // a backslash right before the closing quote would confuse Windows' quoting
         try {
             new ProcessBuilder("reg", "add", "HKCU\\Environment", "/v", "Path", "/t", "REG_EXPAND_SZ", "/d", path, "/f")

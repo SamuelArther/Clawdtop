@@ -1650,6 +1650,7 @@ public final class Clawdtop {
         // And anything it asked him to do: a mood, or goodbye
         if (ticks % 30 == 0 && !farewell) {
             String asked = Settings.takeAsk();
+            if (asked != null && asked.equals("quit")) System.exit(0); // clawd stop (his shutdown hooks tidy up)
             if (asked != null && asked.equals("goodbye")) sayGoodbye();
             else if (asked != null && asked.equals("moveout")) moveOut();
             else if (asked != null && asked.startsWith("mood ")) pet.ask(asked.substring(5));
@@ -1906,6 +1907,7 @@ public final class Clawdtop {
             if (w != 0) WindowTricks.reveal(w, tackleStyle);
         }));
         Updater.tidy();
+        Settings.takeAsk(); // (anything the clawd command asked before he started: old news)
         javax.swing.Timer updates = new javax.swing.Timer(20_000, e -> checkForUpdate()); // once he's settled in
         updates.setRepeats(false);
         updates.start();
