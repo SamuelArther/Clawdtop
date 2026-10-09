@@ -1,6 +1,7 @@
 name: tests
 on:
   push:
+    branches: ['**'] # (not tags too: a release's tag push would run everything twice)
   workflow_dispatch:
 jobs:
   test:
