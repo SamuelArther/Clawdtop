@@ -584,6 +584,14 @@ public class ClawdtopTest {
         for (int i = 0; i < 60; i++) pianist.tick(33, 0, 0, false, false);
         save(pianist, Path.of("build", "frames").resolve("playing the piano.png"));
 
+        // ---- Quick answers (no brain needed) ----
+        java.util.Random dice = new java.util.Random(1);
+        check("what time is it", QuickAnswers.answer("What time is it?", dice).startsWith("It's "), true);
+        check("coin, dice, numbers, rock paper scissors", QuickAnswers.answer("flip a coin", dice).contains("...") + " "
+                + QuickAnswers.answer("roll a d20", dice).startsWith("*rattle rattle*") + " " + QuickAnswers.answer("pick a number between 1 and 10", dice).startsWith("Hmm... ")
+                + " " + QuickAnswers.answer("rock", dice).startsWith("I pick "), "true true true true");
+        check("but real questions go to his brain", QuickAnswers.answer("should I learn Python?", dice) + " " + QuickAnswers.answer("why is the sky blue", dice), "null null");
+
         // ---- Reminders and the focus timer ----
         Reminders.Reminder oven = Reminders.parse("Remind me in 10 minutes to check the oven.");
         check("remind me in 10 minutes to...", oven.inMs() + " " + oven.when() + " / " + oven.what(), "600000 10 minutes / check the oven");

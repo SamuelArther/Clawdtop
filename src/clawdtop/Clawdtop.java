@@ -274,6 +274,11 @@ public final class Clawdtop {
                     + "\"remind me in 10 minutes to stretch\"\n\"set a timer for 5 minutes\", \"start a stopwatch\"\nMore fun stuff is in my menu!");
             return;
         }
+        String quick = QuickAnswers.answer(question, new java.util.Random());
+        if (quick != null) {
+            pet.say(quick);
+            return;
+        }
         int watch = Reminders.stopwatch(question);
         if (watch != 0) {
             stopwatch(watch > 0);
