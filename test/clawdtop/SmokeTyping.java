@@ -36,7 +36,7 @@ public final class SmokeTyping {
         System.out.println("after typing a name: " + typed(clawd[0]));
         // finish the hello quickly
         for (String step : new String[] {"welcome type Sam", "welcome click Next", "welcome click Above the clock", "welcome click Chill",
-                "welcome click Skip", "welcome click Next", "welcome click Normal (recommended)", "welcome click Shh, no beeps",
+                "welcome click Skip", "welcome click Next", "welcome click Normal (recommended)", "welcome click No, stay offline", "welcome click Shh, no beeps",
                 "welcome click Not now", "welcome click OK!"}) {
             SwingUtilities.invokeAndWait(() -> clawd[0].smoke(step));
             Thread.sleep(300);

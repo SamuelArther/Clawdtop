@@ -35,7 +35,7 @@ public final class SmokeSetup {
         String[][] steps = {
                 {"welcome type Sam", "name"}, {"welcome click Next", "where"}, {"welcome click Above the clock", "personality"},
                 {"welcome click Bouncy", "birthday"}, {"welcome click Skip", "home"}, {"welcome click Next", "answers"},
-                {"welcome click Normal (recommended)", "beeps"}, {"welcome click Shh, no beeps", "startup"},
+                {"welcome click Normal (recommended)", "web search"}, {"welcome click No, stay offline", "beeps"}, {"welcome click Shh, no beeps", "startup"},
                 {"welcome click Not now", "all set"}, {"welcome click OK!", "the box"}};
         shot("welcome");
         for (String[] step : steps) {
