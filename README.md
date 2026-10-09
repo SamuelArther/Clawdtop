@@ -81,8 +81,9 @@ for a newer version of himself when he starts, and asks before he updates.
 - Close a coding app and he looks sad for a moment.
 - Full-screen videos? He gets out of the way until you're back.
 
-**Click** him to say hi. **Drag** him along the taskbar to move him. **Right-click** for his menu: beeps and tips on or off,
-start with Windows, small / normal / big, back above the clock, spots for the app you're in, and "Bye, Clawd" to close him.
+**Click** him to say hi (and to wake him up: nothing else does). **Double-click** for his menu: everything he can do, the
+shop, and **Settings** (beeps, tips, starting with your computer, size, where he sits, spots for the app you're in, and "Bye,
+Clawd"). **Right-click** to pet him. **Drag** him along the taskbar to move him.
 
 ## Running him
 
