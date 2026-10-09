@@ -3,17 +3,18 @@
 > **A fan project. Not made by, affiliated with, or endorsed by Anthropic.** Clawd, Claude Code's little crab,
 > belongs to Anthropic. Clawdtop is free and always will be.
 
-A tiny desktop buddy: Clawd sits on top of your taskbar, right above the clock, and keeps you company.
+A tiny desktop buddy: Clawd sits on top of your taskbar, right above the clock (on a Mac, just above the Dock), and
+keeps you company. **Double-click him for his menu.** One click says hi; a right-click pets him.
 
 **[Download Clawd](https://github.com/SamuelArther/Clawdtop/releases/latest)** (Windows, Mac or Linux; needs
-Java 22 or newer). Unzip it anywhere (not inside Downloads' zip itself: right-click it > Extract All first) and
+Java 22 or newer). Unzip it first (Windows: right-click the zip > Extract All; Mac: double-click the zip), then
 double-click `Clawdtop.bat` (Windows) or `Clawdtop.command` (Mac). The very first time, your computer double-checks
 him: see [First time on a Mac or Windows](#first-time-on-a-mac-or-windows). He checks for a newer version of himself
 when he starts, and asks before he updates.
 
 - He stands around, breathes and blinks, and **his eyes follow your cursor**.
 - Leave him alone for a while and he **sits down**, then **lies down**, then **falls asleep** (with little z's).
-  Tap him (or move your mouse near him) and he wakes up.
+  Click him to wake him up. (Your cursor nearby perks him up if he's only lying down.)
 - Open **VS Code, a terminal, IntelliJ** or another coding app and **his eyes light up** and he bounces, happy.
 - He talks in **little quiet beeps**, and now and then he has a **tip** for what you're doing, in a little speech
   bubble (all built in, nothing from the internet). Open the **Run box (Win + R)** and he shows handy commands
@@ -30,11 +31,11 @@ when he starts, and asks before he updates.
 - **Big surprises:** on his own he keeps to little things beside him. The big screen-wide surprises (his rocket, the
   flying carpet, the duck flood, pop-ups) happen when you pick **Make something!**, or on his own if you turn on "Big
   surprises" in his options.
-- **Spots for each app:** drag him somewhere while an app is in front, right-click, and pick **Sit here when ... is in
-  front** (or just for that one window or tab). He walks over whenever you switch to it, and back after.
+- **Spots for each app:** drag him somewhere while an app is in front, double-click him, and pick **Settings > Sit here
+  when ... is in front** (or just for that one window or tab). He walks over whenever you switch to it, and back after.
 - **Zoom past him** with the cursor and his eyes swirl while little birds fly round his head.
-- **He cleans folders.** Click him and pick **Clean a folder...**: he hops onto your cursor, you open the folder in
-  File Explorer, and he hops onto that window, pulls out his laptop and looks through it. Then he asks before anything
+- **He cleans folders.** Double-click him and pick **Useful > Clean a folder...**: he hops onto your cursor, you open
+  the folder in File Explorer (or Finder), and he hops onto that window, pulls out his laptop and looks through it. Then he asks before anything
   goes: once for plain junk (temp files, Windows' thumbnail caches, unfinished downloads, Mac leftovers, empty
   folders), and one at a time for things that might matter (installers over a month old, exact "(1)" copies). For
   those, his two little hands peek over the top of the window, then he climbs up to ask. **Everything goes to the
@@ -48,8 +49,8 @@ when he starts, and asks before he updates.
   cloud he made by accident (right over himself), a rubber duck to help him debug, Mini Clawd, hello world in a real
   Windows pop-up, and well over 250 more. He rarely makes the same thing twice. Ask what he's doing and it's
   "Nothing....". The files really appear in `%APPDATA%\Clawdtop\creations` as he types them, and when one goes
-  wrong he looks sorry and deletes it. Click his carpet mid-flight and see what happens. Or click him and pick
-  **Make something!**
+  wrong he looks sorry and deletes it. Click his carpet mid-flight and see what happens. Or double-click him and pick
+  **Fun > Make something!**
 - **Ask him a question** (top of his menu): a small AI brain that runs on your own computer through
   [Ollama](https://ollama.com) (free), using under 2 GB of memory. It's a download of about 2 GB, so he asks first
   (in setup, or the first time you ask something that needs it), then installs it in the background (Ollama's own
@@ -76,7 +77,7 @@ when he starts, and asks before he updates.
 - **Quick helpers you can ask for:** "clean my link" (takes the tracking junk off a link you copied), "make me a
   password", "what time is it in Tokyo", "count my words", "pizza or tacos?", "open the calculator", "save what I
   copied" (a screenshot or text, into a file on your desktop), "how long have I been on the computer today?", "keep
-  my computer awake" (he sets down a steaming mug until you say stop), "define curious" (if you let him look things up
+  my computer awake" (he sets down a steaming mug until you say "let my computer sleep", or untick it in Useful), "define curious" (if you let him look things up
   online) and "what color is this?" (point at any color on your screen: he names it and copies its code).
 - **Your desktop:** drag a song file (.mid) near him on the desktop and he hops over, grabs it and plays it.
   **Tidy my desktop** (in Useful) tackles your files into a Neat folder, sorted by type, and can put them all back.
@@ -108,8 +109,8 @@ Clawd"). **Right-click** to pet him. **Drag** him along the taskbar to move him.
 
 The easy way: **[download the latest release](https://github.com/SamuelArther/Clawdtop/releases/latest)**, unzip it,
 and double-click `Clawdtop.bat` (Windows), `Clawdtop.command` (Mac) or run `./Clawdtop.sh` (Linux). Everything works
-on Mac and Linux except cleaning folders, checking your math on Calculator, hearing your computer's sound and the
-taskbar tackle (Windows only).
+on a Mac too, except checking your math on Calculator, hearing your computer's sound and the taskbar tackle (those are
+Windows only). On Linux, folder cleaning and the desktop features don't work either.
 
 You need Java 22 or newer (free from [Adoptium](https://adoptium.net); `Clawdtop.bat` and `Clawdtop.command` open the
 page for you if it's missing or too old).
