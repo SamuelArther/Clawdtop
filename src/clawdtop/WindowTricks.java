@@ -57,6 +57,59 @@ final class WindowTricks {
         CLASS_NAME = h[9];
     }
 
+    // ---- Hearing about new windows the moment Windows shows them (so a tackled app never flashes up first) ----
+
+    private static volatile java.util.function.LongConsumer onShown;
+
+    /**
+     * Calls shown (on its own thread) with each new top-level window, the instant Windows shows it, until Clawd closes.
+     * Whatever shown does must be quick. Does nothing if it can't be set up (then the twice-a-second check still works).
+     */
+    static void watchShown(java.util.function.LongConsumer shown) {
+        if (!Platform.WINDOWS || onShown != null) return;
+        onShown = shown;
+        Thread t = new Thread(() -> {
+            try {
+                Linker linker = Linker.nativeLinker();
+                SymbolLookup user32 = SymbolLookup.libraryLookup("user32", Arena.global());
+                ValueLayout a = ValueLayout.ADDRESS, i = ValueLayout.JAVA_INT;
+                MethodHandle setHook = linker.downcallHandle(user32.find("SetWinEventHook").orElseThrow(), FunctionDescriptor.of(a, i, i, a, a, i, i, i));
+                MethodHandle getMessage = linker.downcallHandle(user32.find("GetMessageW").orElseThrow(), FunctionDescriptor.of(i, a, a, i, i));
+                MethodHandle translate = linker.downcallHandle(user32.find("TranslateMessage").orElseThrow(), FunctionDescriptor.of(i, a));
+                MethodHandle dispatch = linker.downcallHandle(user32.find("DispatchMessageW").orElseThrow(), FunctionDescriptor.of(ValueLayout.JAVA_LONG, a));
+                MemorySegment callback = linker.upcallStub(java.lang.invoke.MethodHandles.lookup().findStatic(WindowTricks.class, "winEvent",
+                                java.lang.invoke.MethodType.methodType(void.class, MemorySegment.class, int.class, MemorySegment.class, int.class, int.class, int.class, int.class)),
+                        FunctionDescriptor.ofVoid(a, i, a, i, i, i, i), Arena.global());
+                final int eventObjectShow = 0x8002, outOfContext = 0x0000, skipOwnProcess = 0x0002;
+                MemorySegment hook = (MemorySegment) setHook.invokeExact(eventObjectShow, eventObjectShow, MemorySegment.NULL, callback, 0, 0, outOfContext | skipOwnProcess);
+                if (hook.address() == 0) return;
+                try (Arena arena = Arena.ofConfined()) {
+                    MemorySegment msg = arena.allocate(64); // (a MSG: the hook's news arrives through this thread's messages)
+                    while ((int) getMessage.invokeExact(msg, MemorySegment.NULL, 0, 0) > 0) {
+                        int ignored = (int) translate.invokeExact(msg);
+                        long done = (long) dispatch.invokeExact(msg);
+                    }
+                }
+            } catch (Throwable cantHook) {
+                // then the twice-a-second check does it (with a flash)
+            }
+        }, "Clawdtop window news");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    /** Windows' news: a window was shown (only top-level windows themselves are passed on). */
+    private static void winEvent(MemorySegment hook, int event, MemorySegment hwnd, int idObject, int idChild, int thread, int time) {
+        if (idObject != 0 || idChild != 0 || hwnd.address() == 0) return; // (OBJID_WINDOW, the window itself)
+        java.util.function.LongConsumer shown = onShown;
+        if (shown == null) return;
+        try {
+            shown.accept(hwnd.address());
+        } catch (Throwable ignored) {
+            // never let anything escape back into Windows
+        }
+    }
+
     private WindowTricks() {
     }
 
@@ -103,6 +156,22 @@ final class WindowTricks {
         }
     }
 
+    /** A window's title ("" if it has none). */
+    static String title(long window) {
+        if (TITLE_LENGTH == null || window == 0) return "";
+        try (Arena arena = Arena.ofConfined()) {
+            MethodHandle text = Linker.nativeLinker().downcallHandle(SymbolLookup.libraryLookup("user32", Arena.global()).find("GetWindowTextW").orElseThrow(),
+                    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
+            MemorySegment buffer = arena.allocate(1024);
+            int n = (int) text.invokeExact(hwnd(window), buffer, 512);
+            char[] chars = new char[Math.max(0, n)];
+            for (int k = 0; k < chars.length; k++) chars[k] = buffer.get(ValueLayout.JAVA_CHAR_UNALIGNED, k * 2L);
+            return new String(chars);
+        } catch (Throwable e) {
+            return "";
+        }
+    }
+
     static String className(long window) {
         if (CLASS_NAME == null || window == 0) return "";
         try (Arena arena = Arena.ofConfined()) {
@@ -116,38 +185,58 @@ final class WindowTricks {
         }
     }
 
+    private static final int SWP_NOSIZE = 0x1, SWP_NOZORDER = 0x4, SWP_NOACTIVATE = 0x10;
+    private static final java.util.Map<Long, int[]> PARKED = new java.util.concurrent.ConcurrentHashMap<>(); // window -> where it was
+
     /**
-     * Makes a window see-through (it's still open and in front, you just can't see it). Gives back its old style to put
-     * back with {@link #reveal}, or -1 if it can't be done (or it's see-through-able already: then it's left alone).
+     * Hides a window for a moment by parking it off the screen (it's still open, and its app draws it as usual; only
+     * where it sits changes). Gives back 0 if it worked (put it back with {@link #reveal}), or -1 if it couldn't.
+     * (Making it see-through instead breaks how newer apps like Notepad draw themselves.)
      */
     static long vanish(long window) {
-        if (SET_STYLE == null || window == 0) return -1;
-        try {
-            MemorySegment w = hwnd(window);
-            long style = (long) GET_STYLE.invokeExact(w, GWL_EXSTYLE);
-            if ((style & WS_EX_LAYERED) != 0) return -1;
-            long ignored = (long) SET_STYLE.invokeExact(w, GWL_EXSTYLE, style | WS_EX_LAYERED);
-            int ok = (int) LAYERED.invokeExact(w, 0, (byte) 0, LWA_ALPHA);
-            if (ok == 0) {
-                ignored = (long) SET_STYLE.invokeExact(w, GWL_EXSTYLE, style);
-                return -1;
-            }
-            return style;
+        if (!Platform.WINDOWS || window == 0) return -1;
+        try (Arena arena = Arena.ofConfined()) {
+            Linker linker = Linker.nativeLinker();
+            SymbolLookup user32 = SymbolLookup.libraryLookup("user32", Arena.global());
+            MethodHandle rect = linker.downcallHandle(user32.find("GetWindowRect").orElseThrow(), FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS));
+            MemorySegment r = arena.allocate(16);
+            if ((int) rect.invokeExact(hwnd(window), r) == 0) return -1;
+            int x = r.get(ValueLayout.JAVA_INT, 0), y = r.get(ValueLayout.JAVA_INT, 4);
+            if (x <= -30000) return -1; // (minimized: nothing to hide)
+            if (!move(window, -32000, -32000)) return -1;
+            PARKED.put(window, new int[] {x, y});
+            return 0;
         } catch (Throwable e) {
             return -1;
         }
     }
 
-    /** Pops a window you made see-through back (all the way, just as it was). */
-    static void reveal(long window, long oldStyle) {
-        if (SET_STYLE == null || window == 0 || oldStyle < 0) return;
+    /** Puts a parked window back exactly where it was. */
+    static void reveal(long window, long ignored) {
+        int[] was = PARKED.remove(window);
+        if (was != null) move(window, was[0], was[1]);
+    }
+
+    private static boolean move(long window, int x, int y) {
         try {
-            MemorySegment w = hwnd(window);
-            int ok = (int) LAYERED.invokeExact(w, 0, (byte) 255, LWA_ALPHA);
-            long ignored = (long) SET_STYLE.invokeExact(w, GWL_EXSTYLE, oldStyle);
-            ok = (int) REDRAW.invokeExact(w, MemorySegment.NULL, MemorySegment.NULL, RDW_INVALIDATE | RDW_ERASE | RDW_FRAME | RDW_ALLCHILDREN);
+            MethodHandle setPos = Linker.nativeLinker().downcallHandle(SymbolLookup.libraryLookup("user32", Arena.global()).find("SetWindowPos").orElseThrow(),
+                    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT,
+                            ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
+            return (int) setPos.invokeExact(hwnd(window), MemorySegment.NULL, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE) != 0;
         } catch (Throwable e) {
-            // the window's gone, most likely
+            return false;
+        }
+    }
+
+    /** Brings a window to the front (it just popped open: it's what you wanted, so it's on top). */
+    static void toFront(long window) {
+        if (window == 0 || !Platform.WINDOWS) return;
+        try {
+            MethodHandle switchTo = Linker.nativeLinker().downcallHandle(SymbolLookup.libraryLookup("user32", Arena.global()).find("SwitchToThisWindow").orElseThrow(),
+                    FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
+            switchTo.invokeExact(hwnd(window), 1);
+        } catch (Throwable e) {
+            // it's open, just maybe not on top
         }
     }
 

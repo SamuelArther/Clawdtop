@@ -1822,37 +1822,60 @@ public final class Clawdtop {
     private boolean tackleLooking;           // still finding its icon on the taskbar
     private long tackleUntil;                // never hidden longer than this, whatever happens
     private long lastFrontWindow;
-    private final java.util.Set<Long> seenPrograms = new java.util.HashSet<>();
+    private final java.util.Set<Long> seenPrograms = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private volatile boolean tackleReady; // he's free to tackle (worked out every frame, read by Windows' window news too)
 
     /** A new app just opened in front? Hide it, and off he goes to its taskbar icon. */
     private void watchForLaunch() {
         if (!WindowTricks.available()) return;
+        WindowTricks.watchShown(this::tryTackle); // (the instant a new window shows: no flash. The check below is the backup)
         long now = System.currentTimeMillis();
+        tackleReady = tackleWindow == 0 && settings.on("tackle") && !settings.serious() && !hidden && !boxed && body.state() == Body.State.HOME
+                && job == null && !pet.busyNow() && !inCorner && dragFrom == Integer.MIN_VALUE;
         if (tackleWindow != 0) {
             // something went wrong (he got picked up, say): just open it
-            if (now > tackleUntil || (!tackleLooking && body.state() != Body.State.TACKLE)) endTackle();
+            if (now > tackleUntil || (!tackleLooking && tackleStarted && body.state() != Body.State.TACKLE)) endTackle();
             return;
         }
         long front = WindowTricks.front();
         if (front == lastFrontWindow) return;
         lastFrontWindow = front;
-        if (front == 0 || !settings.on("tackle") || settings.serious() || hidden || boxed) return;
-        if (body.state() != Body.State.HOME || job != null || pet.busyNow() || inCorner || dragFrom != Integer.MIN_VALUE) return;
-        long pid = WindowTricks.processOf(front);
+        tryTackle(front);
+    }
+
+    /**
+     * A window that's just appeared: if it's a new app's first window (just opened, not one he opened himself), it
+     * vanishes at once and he goes for its icon. Runs on Windows' window-news thread or the Swing thread, so it's quick.
+     */
+    private synchronized void tryTackle(long hwnd) {
+        if (!tackleReady || tackleWindow != 0 || hwnd == 0 || !WindowTricks.appWindow(hwnd)) return;
+        long pid = WindowTricks.processOf(hwnd);
         long me = ProcessHandle.current().pid();
-        if (pid == 0 || pid == me || !seenPrograms.add(pid)) return; // (each program only the once)
+        if (pid == 0 || pid == me || seenPrograms.contains(pid)) return; // (each program only the once)
         ProcessHandle program = ProcessHandle.of(pid).orElse(null);
         if (program == null) return;
         java.time.Instant started = program.info().startInstant().orElse(null);
         if (started == null || java.time.Duration.between(started, java.time.Instant.now()).toMillis() > 8000) return; // not just opened
-        if (program.parent().map(p -> p.pid() == me).orElse(false) || now - Useful.lastOpened < 10_000) return; // he opened it himself
-        if (!WindowTricks.appWindow(front)) return;
-        String exe = program.info().command().map(c -> Path.of(c).getFileName().toString()).orElse("");
-        String title = Foreground.front().title();
-        long style = WindowTricks.vanish(front);
+        if (program.parent().map(p -> p.pid() == me).orElse(false) || System.currentTimeMillis() - Useful.lastOpened < 10_000) return; // his own
+        if (!seenPrograms.add(pid)) return;
+        long style = WindowTricks.vanish(hwnd);
         if (style < 0) return;
-        tackleWindow = front;
+        tackleWindow = hwnd;
         tackleStyle = style;
+        tackleStarted = false;
+        tackleUntil = System.currentTimeMillis() + 7000;
+        String exe = program.info().command().map(c -> Path.of(c).getFileName().toString()).orElse("");
+        String title = WindowTricks.title(hwnd);
+        SwingUtilities.invokeLater(() -> beginTackle(hwnd, exe, title));
+    }
+
+    private volatile boolean tackleStarted; // (beginTackle has run: he's looking for the icon)
+
+    /** The window's hidden: he says so, and goes looking for its icon on the taskbar. */
+    private void beginTackle(long front, String exe, String title) {
+        if (tackleWindow != front) return;
+        long now = System.currentTimeMillis();
+        tackleStarted = true;
         tackleUntil = now + 7000;
         tackleLooking = true;
         Thread.ofPlatform().daemon().start(() -> { // (and in case he's stuck somehow: it's back in 8 seconds regardless)
@@ -2122,7 +2145,9 @@ public final class Clawdtop {
             creations();
             if (body.takeMissed()) pet.say("Missed! ...I meant to do that.");
             if (body.takeTackled()) {
+                long popped = tackleWindow;
                 endTackle(); // POP: there it is
+                WindowTricks.toFront(popped);
                 explosion.start(body.x(), groundY - 2 * unit);
                 showFx();
                 Rectangle s = window.getGraphicsConfiguration().getBounds();
