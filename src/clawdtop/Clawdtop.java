@@ -270,8 +270,8 @@ public final class Clawdtop {
     }
 
     private void focus(boolean on) {
-        focusUntil = on ? System.currentTimeMillis() + 25 * 60_000L : 0;
-        pet.focus(on, false);
+        if (pet.focus(on, false) || !on) focusUntil = on ? System.currentTimeMillis() + 25 * 60_000L : 0;
+        else pet.say("Let me finish this first, then focus mode!");
     }
     private final Piano yourPiano = new Piano();
     private javax.sound.midi.Sequencer sequencer; // playing a whole MIDI file (his piano just shows it)
@@ -974,29 +974,23 @@ public final class Clawdtop {
      * You've just come back: the program just started, or the mouse moved after a long while (a new login, or waking
      * the computer). He might have missed you, and it might be your birthday.
      */
+    private final java.util.ArrayDeque<Runnable> greetings = new java.util.ArrayDeque<>(); // said one at a time
+
     private void cameBack(long awayFor) {
-        int hourNow = java.time.LocalTime.now().getHour();
-        if (hourNow >= 5 && hourNow < 12 && settings.on("morning") && settings.once("morning:" + java.time.LocalDate.now())) {
-            pet.morning(settings.name());
-        }
-        java.time.LocalDate todayNow = java.time.LocalDate.now();
-        if (todayNow.getMonthValue() == 11 && todayNow.getDayOfMonth() == 11 && settings.once("veterans:" + todayNow.getYear())) {
-            pet.salute();
-            nextVeteransSong = System.currentTimeMillis() + 7000; // and straight after the salute, a song
-        } else if (todayNow.getMonthValue() == 11 && todayNow.getDayOfMonth() == 11 && nextVeteransSong == 0) {
-            nextVeteransSong = System.currentTimeMillis() + 60_000;
-        }
-        Holidays.Holiday holiday = Holidays.on(todayNow);
-        if (holiday != null && settings.on("holidays") && !settings.seen(holiday.id() + ":" + todayNow.getYear())
-                && pet.celebrate(holiday.line(), holiday.show())) {
-            Diary.write(holiday.line().split("\n")[0]);
-            settings.once(holiday.id() + ":" + todayNow.getYear());
-        }
+        if (pet.sleepy()) pet.ask("awake"); // you're back! (he wakes up for it)
+        greetings.clear();
         long gap = System.currentTimeMillis() - settings.lastSeen();
         if (settings.lastSeen() > 0 && gap >= 2 * 86_400_000L && settings.on("missedYou")) {
-            pet.say("Hi.... I missed you..... you've been gone for " + Settings.howLong(gap) + "...."
-                    + (settings.homeNamed() ? "\n" + settings.home() + " was so quiet without you." : ""));
+            String missed = "Hi.... I missed you..... you've been gone for " + Settings.howLong(gap) + "...."
+                    + (settings.homeNamed() ? "\n" + settings.home() + " was so quiet without you." : "");
+            greetings.add(() -> pet.say(missed));
         }
+        int hourNow = java.time.LocalTime.now().getHour();
+        String morningKey = "morning:" + java.time.LocalDate.now();
+        if (hourNow >= 5 && hourNow < 12 && settings.on("morning") && !settings.seen(morningKey)) {
+            greetings.add(() -> { if (pet.morning(settings.name())) settings.once(morningKey); });
+        }
+        greetHoliday();
         settings.setLastSeen(System.currentTimeMillis());
         int year = java.time.LocalDate.now().getYear();
         if (settings.birthdayToday() && settings.on("birthday") && settings.once("birthday:" + year)) {
@@ -1004,6 +998,31 @@ public final class Clawdtop {
             birthdayHiding = true;
             birthdayHideUntil = System.currentTimeMillis() + 5000;
             window.setVisible(false);
+        }
+    }
+
+    /** Veterans Day and holidays (when he starts, when you come back, and at midnight if you're up). */
+    private void greetHoliday() {
+        java.time.LocalDate todayNow = java.time.LocalDate.now();
+        boolean veterans = todayNow.getMonthValue() == 11 && todayNow.getDayOfMonth() == 11;
+        if (veterans && !settings.seen("veterans:" + todayNow.getYear())) {
+            greetings.add(() -> {
+                if (pet.salute()) {
+                    settings.once("veterans:" + todayNow.getYear());
+                    nextVeteransSong = System.currentTimeMillis() + 7000; // and straight after the salute, a song
+                }
+            });
+        } else if (veterans && nextVeteransSong == 0) {
+            nextVeteransSong = System.currentTimeMillis() + 60_000;
+        }
+        Holidays.Holiday holiday = Holidays.on(todayNow);
+        if (holiday != null && settings.on("holidays") && !settings.seen(holiday.id() + ":" + todayNow.getYear())) {
+            greetings.add(() -> {
+                if (!settings.seen(holiday.id() + ":" + todayNow.getYear()) && pet.celebrate(holiday.line(), holiday.show())) {
+                    Diary.write(holiday.line().split("\n")[0]);
+                    settings.once(holiday.id() + ":" + todayNow.getYear());
+                }
+            });
         }
     }
 
@@ -1063,6 +1082,14 @@ public final class Clawdtop {
         java.time.LocalDateTime now = java.time.LocalDateTime.now();
         java.time.LocalDate today = now.toLocalDate();
         int hour = now.getHour();
+        if (!today.equals(lastDay)) { // a new day (up past midnight?): birthday hat on or off, and any holiday
+            if (lastDay != null) {
+                pet.setBirthdayToday(settings.birthdayToday());
+                greetHoliday();
+            }
+            lastDay = today;
+        }
+        if (focusUntil > 0) return; // shh: focus mode
         if ((hour >= 23 || hour < 4) && settings.on("lateNight") && settings.once("late:" + (hour < 4 ? today.minusDays(1) : today))) {
             pet.say("It's late... maybe bed soon?");
         } else if (now.getDayOfWeek() == java.time.DayOfWeek.MONDAY && hour >= 6 && hour < 12 && settings.on("monday") && settings.once("monday:" + today)) {
@@ -1078,6 +1105,8 @@ public final class Clawdtop {
             }
         }
     }
+
+    private java.time.LocalDate lastDay; // (for noticing midnight)
 
     /** The laptop battery: low makes him tired, plugging in perks him up. */
     private void checkBattery(Power.State now) {
@@ -1678,6 +1707,8 @@ public final class Clawdtop {
             pet.birthday(settings.name());
         }
         if (ticks % 300 == 150) checkTimes();
+        if (!greetings.isEmpty() && ticks % 15 == 3 && !pet.busyNow() && pet.takeLineIfAny() == null && !bubble.showing()
+                && body.state() == Body.State.HOME && !hidden && !boxed && !birthdayHiding) greetings.poll().run(); // one at a time
         if (ticks % 900 == 450 && focusUntil == 0) remindMe(nowMs);
         if (ticks % 15 == 7) checkReminders();
         if (ticks % 30 == 11) veteransSongs(nowMs);

@@ -224,6 +224,7 @@ public final class Pet {
      * since last time; devAppInFront whether VS Code, a terminal or another dev app is the window in front.
      */
     public void tick(long ms, double dx, double dy, boolean mouseMoved, boolean devAppInFront) {
+        long real = ms; // (songs and "fall asleep after" go by the real clock, whatever his speed)
         ms = switch (prefs.choice("speed")) { // how fast everything about him goes
             case "Slow" -> ms * 2 / 3;
             case "Fast" -> ms * 3 / 2;
@@ -232,8 +233,8 @@ public final class Pet {
         };
         if (!prefs.on("codingHappy")) devAppInFront = false;
         time += ms;
-        moodFor += ms;
-        sinceMouseMoved = mouseMoved ? 0 : sinceMouseMoved + ms;
+        moodFor += mood == Mood.PIANO ? real : ms;
+        sinceMouseMoved = mouseMoved ? 0 : sinceMouseMoved + real;
 
         // A dev app coming to the front makes him happy for a moment, and his eyes stay lit while it's there
         if (devAppInFront && !devApp) cheer();
@@ -250,7 +251,7 @@ public final class Pet {
             case RIDE, FALL, DIZZY, SHAKE, WALK, WORK, PEEK -> { } // his body or his job decides these (see follow and job)
             case PACK -> {
                 if (moodFor > nextChange) {
-                    if (sorryAfterPack) { // the laptop's shut: now he realizes what he's done
+                    if (sorryAfterPack && guilty != null) { // the laptop's shut: now he realizes what he's done
                         sorryAfterPack = false;
                         line = guilty.after();
                         wants = Beep.AWW;
@@ -391,7 +392,7 @@ public final class Pet {
                 if (moodFor > nextChange) {
                     Creation c = showing;
                     showing = null;
-                    line = c.after();
+                    if (!c.after().isEmpty()) line = c.after();
                     if (c.oops()) {
                         guilty = c;
                         wants = Beep.AWW;
@@ -459,6 +460,10 @@ public final class Pet {
                 }
             }
             case IDLE -> {
+                if (focusing) { // (a reminder or something interrupted focus mode: back to it)
+                    set(Mood.FOCUS, Long.MAX_VALUE);
+                    break;
+                }
                 if (guilty != null && moodFor > 5000 && coding == null) {
                     line = guilty.after(); // something went wrong earlier: own up and delete it
                     wants = Beep.AWW;
@@ -467,15 +472,15 @@ public final class Pet {
                     sneezed = false;
                     line = "Ah... ah...";
                     set(Mood.SNEEZE, 1300);
-                } else if (moodFor > 20_000 && prefs.on("piano") && random.nextInt(40_000) == 0) {
+                } else if (moodFor > Math.min(20_000, nextChange * 2 / 3) && prefs.on("piano") && random.nextInt(40_000) == 0) {
                     playPiano(random.nextInt(3) == 0 ? null : Piano.SONGS[random.nextInt(Piano.SONGS.length)]); // a little tune, just because
-                } else if (moodFor > 15_000 && prefs.on("music") && random.nextInt(30_000) == 0) {
+                } else if (moodFor > Math.min(15_000, nextChange / 2) && prefs.on("music") && random.nextInt(30_000) == 0) {
                     vibe(); // feeling the music
                 } else if (moodFor > 10_000 && prefs.on("hiccups") && random.nextInt(30_000) == 0) {
                     line = "hic!";
                     wants = Beep.CLICKED;
                     set(Mood.HICCUP, 3600);
-                } else if (moodFor > 20_000 && prefs.on("creates") && random.nextInt(24_000) == 0) {
+                } else if (moodFor > Math.min(20_000, nextChange * 2 / 3) && prefs.on("creates") && random.nextInt(24_000) == 0) {
                     wantsToCreate = true; // feeling creative: the window picks what
                 } else if (moodFor > 8000 && prefs.on("flies") && random.nextInt(9000) == 0) {
                     clapped = false;
@@ -516,7 +521,7 @@ public final class Pet {
         }
 
         // A new color, a few seconds after it was picked: suddenly, with no warning. He freaks out.
-        if (newColor != null && (newColorIn -= ms) <= 0) {
+        if (newColor != null && !busy() && (newColorIn -= ms) <= 0) {
             color = newColor;
             newColor = null;
             wants = Beep.PANIC;
@@ -556,6 +561,7 @@ public final class Pet {
 
     /** He has a tip to tell you (a little chirp, and he perks up if he was lying down). */
     public void speak() {
+        if (mood == Mood.SLEEP) return; // shh
         wants = Beep.TIP;
         if (mood == Mood.LIE || mood == Mood.SIT) set(Mood.IDLE, idleTime());
     }
@@ -646,10 +652,14 @@ public final class Pet {
             wants = Beep.PANIC;
             line = "WHY ARE WE YELLING?!";
             set(Mood.YELLED, 2500);
-        } else {
+            yelledAt = true;
+        } else if (yelledAt) {
+            yelledAt = false;
             line = "...thank you.";
         }
     }
+
+    private boolean yelledAt; // he said WHY ARE WE YELLING (so turning Caps Lock off gets a thank you)
 
     /** Clicked over and over: grumpy for a bit. */
     public void annoyed(String says) {
@@ -813,16 +823,17 @@ public final class Pet {
 
     /** Laptop away: what he made comes out (or, after deleting something, he's glad it's gone). */
     private void doneCoding() {
-        set(Mood.IDLE, idleTime());
-        if (deleting) {
-            deleting = false;
+        Creation c = coding;
+        boolean wasDeleting = deleting;
+        set(Mood.IDLE, idleTime()); // (this lets go of coding: we've got it here)
+        coding = null;
+        deleting = false;
+        if (wasDeleting) {
             deleted = guilty;
             guilty = null;
             line = "There. It never happened.";
             return;
         }
-        Creation c = coding;
-        coding = null;
         if (c == null) return;
         made = c;
         wants = c.oops() ? Beep.OOF : Beep.HAPPY;
@@ -1063,19 +1074,31 @@ public final class Pet {
     }
 
     /** Focus timer on (headphones on, quiet) or off ("Time for a break!" and a stretch, if it ran out by itself). */
-    public void focus(boolean on, boolean finished) {
+    public boolean focus(boolean on, boolean finished) {
         if (on) {
+            if (busy() && mood != Mood.FOCUS) return false; // in the middle of something
+            focusing = true;
             line = "Focus mode! I'll be quiet.";
             set(Mood.FOCUS, Long.MAX_VALUE);
-        } else if (mood == Mood.FOCUS) {
-            if (finished) {
-                line = "Time for a break! You did great.\nStand up, stretch, get some water.";
-                wants = Beep.HAPPY;
-                set(Mood.STRETCH, 1800);
-            } else {
-                set(Mood.IDLE, idleTime());
-            }
+            return true;
         }
+        if (!focusing) return false;
+        focusing = false;
+        if (finished) {
+            line = "Time for a break! You did great.\nStand up, stretch, get some water.";
+            wants = Beep.HAPPY;
+            if (!busy() || mood == Mood.FOCUS) set(Mood.STRETCH, 1800);
+        } else if (mood == Mood.FOCUS) {
+            set(Mood.IDLE, idleTime());
+        }
+        return true;
+    }
+
+    private boolean focusing; // the focus timer's on (he goes back to it after anything that interrupts)
+
+    /** Whether the focus timer's on. */
+    public boolean focusing() {
+        return focusing;
     }
 
     /** A reminder you asked for. Returns false if he's in the middle of something (it waits a moment). */
@@ -1170,10 +1193,11 @@ public final class Pet {
     }
 
     /** Veterans Day. */
-    public void salute() {
-        if (busy()) return;
+    public boolean salute() {
+        if (busy() || mood == Mood.SLEEP) return false;
         line = "Happy Veterans Day.\nThank you to everyone who served.";
         set(Mood.SALUTE, 6000);
+        return true;
     }
 
     private boolean hovered;
@@ -1199,11 +1223,12 @@ public final class Pet {
     }
 
     /** Good morning: a great big stretch (the first time you're on the computer each morning). */
-    public void morning(String name) {
-        if (busy() || mood == Mood.SLEEP) return;
+    public boolean morning(String name) {
+        if (busy() || mood == Mood.SLEEP) return false;
         line = "Good morning" + (name.isEmpty() ? "" : ", " + name) + "!";
         wants = Beep.YAWN;
         set(Mood.STRETCH, 1800);
+        return true;
     }
 
     /** Thinking about your question (laptop out), or done thinking (it goes away). */
@@ -1227,6 +1252,11 @@ public final class Pet {
     }
 
     private void set(Mood next, long howLong) {
+        if (mood == Mood.PACK && next != Mood.PACK) sorryAfterPack = false; // (only right after the laptop shuts)
+        if ((mood == Mood.CODING && next != Mood.CODING && next != Mood.PACK) || (mood == Mood.PACK && next != Mood.PACK)) {
+            coding = null; // interrupted mid-code (or the laptop's away): that one's not happening
+            deleting = false;
+        }
         mood = next;
         moodFor = 0;
         nextChange = howLong;
@@ -1402,7 +1432,7 @@ public final class Pet {
     /** While talking: whether his mouth is open (it flaps open and shut with the beeps; a yawn is one big open). */
     public boolean mouthOpen() {
         if (talking <= 0) return false;
-        if (mood == Mood.SLEEP || mood == Mood.LIE) return true;
+        if (mood == Mood.SLEEP || mood == Mood.LIE) return talkLength == 600; // (only a yawn opens his mouth when he's dozy)
         return (talkLength - talking) / 70 % 2 == 0;
     }
 }

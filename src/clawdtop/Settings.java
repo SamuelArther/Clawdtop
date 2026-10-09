@@ -87,7 +87,8 @@ public final class Settings {
 
     /** What "No tomfoolery" turns off: the silly stuff. The useful things (tips, cleaning, reminders) stay. */
     static final java.util.Set<String> TOMFOOLERY = java.util.Set.of("sneezes", "flies", "spins", "creates", "capsLock", "grumpy",
-            "stompOff", "batteryPanic", "freakout", "friday", "friendship", "rides", "shakeOff", "seasonalHats", "monday", "hiccups", "boop");
+            "stompOff", "batteryPanic", "freakout", "friday", "friendship", "rides", "shakeOff", "seasonalHats", "monday", "hiccups", "boop",
+            "piano", "music", "mistakes", "blush", "tackle");
 
     /** No tomfoolery: serious mode. */
     public boolean serious() {
