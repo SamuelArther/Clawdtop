@@ -1111,7 +1111,7 @@ public final class Sprite {
 
     private static void drawTear(Graphics2D g, Pet pet, int unit, double top) {
         long t = pet.moodTime();
-        double cx = LEFT + 6.5, y = top + 3.6, half = 3.6, tall = 5;
+        double cx = LEFT + 6.5, y = top + 4.6, half = 3.6, tall = 4.2; // (below his eyes: you can still see his face)
         if (t < TEAR_FLING) {
             double apart = t < 450 ? 0 : ease((t - 450) / 800.0) * 4;   // how far the halves have come apart
             double shake = t < 450 ? Math.sin(t / 30.0) * 0.2 : 0;
@@ -1123,7 +1123,7 @@ public final class Sprite {
             box(g, unit, lx, y + lift - 0.8, 2.2, 0.9, ZIP_YELLOW);              // the tab
             box(g, unit, lx, y + lift + tall - 0.6, half, 0.6, ZIP_DARK);
             box(g, unit, rx, y - lift + tall - 0.6, half, 0.6, ZIP_DARK);
-            for (int i = 0; i < 8; i++) {
+            for (int i = 0; i < 7; i++) {
                 box(g, unit, cx - 0.6 - apart / 2 + shake, y + lift + 0.3 + i * 0.55, 0.6, 0.55, i % 2 == 0 ? ZIPPER : ZIP_YELLOW);
                 box(g, unit, cx + apart / 2 + shake, y - lift + 0.3 + i * 0.55, 0.6, 0.55, i % 2 == 0 ? ZIP_YELLOW : ZIPPER);
             }
@@ -1150,7 +1150,7 @@ public final class Sprite {
 
     private static void drawStash(Graphics2D g, Pet pet, int unit, double top) {
         long t = pet.moodTime();
-        double base = top + 3.8, y = base, fw = 7.5, fh = 5;
+        double base = top + 4.6, y = base, fw = 7.5, fh = 4.2; // (below his eyes)
         double fx = LEFT - 1.5;
         // pulled out (it grows into his hand), and tucked away again at the end (it shrinks away): all inside his square
         double grow = t < STASH_OPEN ? ease(t / (double) STASH_OPEN) : t < STASH_AWAY ? 1 : 1 - ease((t - STASH_AWAY) / (double) (STASH_GONE - STASH_AWAY));
@@ -1165,9 +1165,9 @@ public final class Sprite {
             box(g, unit, fx, y - 0.8 * grow, 3 * grow, 0.9 * grow, MANILA_DARK); // its tab
         }
         if (in < 1) { // the picture, in his other hand: over to the folder, and down into it
-            double px = LEFT + 8.5 + (fx + 0.9 - LEFT - 8.5) * Math.min(1, in * 2), py = base - 0.8 + Math.max(0, in * 2 - 1) * 3;
-            drawFile(g, unit, "picture", px, py, 1.5);
-            box(g, unit, px + 5.6, py + 1.6, 1.4, 1.6, hand);
+            double px = LEFT + 8.6 + (fx + 1.3 - LEFT - 8.6) * Math.min(1, in * 2), py = base - 0.2 + Math.max(0, in * 2 - 1) * 2.4;
+            drawFile(g, unit, "picture", px, py, 1.2);
+            box(g, unit, px + 4.5, py + 1.2, 1.4, 1.6, hand);
         } else {
             box(g, unit, LEFT + 13, top + 4, 2, 2, body); // (hand free again)
         }
@@ -1175,7 +1175,7 @@ public final class Sprite {
             if (open) box(g, unit, fx, y + 2.6, fw, fh - 2.6, MANILA);         // the front, folded down: open
             else box(g, unit, fx, y + 0.3, fw, fh - 0.3, MANILA);              // shut
             box(g, unit, fx, y + fh - 0.4, fw, 0.4, MANILA_DARK);
-            box(g, unit, fx - 1.2, Math.min(y + 1.8, base + 3), 1.4, 1.6, hand); // holding the folder
+            box(g, unit, fx - 1.2, Math.min(y + 1.4, base + 2.4), 1.4, 1.6, hand); // holding the folder
         } else {
             box(g, unit, LEFT - 2, top + 4, 2, 2, body);
             if (t < STASH_GONE + 300) box(g, unit, LEFT - 2.5, top + 2.5, 0.8, 0.8, new Color(255, 255, 255, 200)); // (a little sparkle: done)
