@@ -95,7 +95,7 @@ final class Sticky {
      */
     void place(int clawdX, int clawdY, int clawdW, int clawdH, java.awt.Rectangle screen, java.awt.Rectangle bubble) {
         if (!window.isVisible()) return;
-        int x = spotX(clawdX, clawdW, screen, bubble), y = clawdY + clawdH - HEIGHT - 14;
+        int x = spotX(clawdX, clawdW, screen, bubble), y = clawdY + clawdH - HEIGHT + 2; // (its bottom on the taskbar, like a sign beside him)
         y = Math.max(screen.y, Math.min(y, screen.y + screen.height - HEIGHT));
         int nowX = window.getX(), step = Math.abs(x - nowX) > 400 ? Math.abs(x - nowX) : 40; // (glides; a big move, like a new screen: straight there)
         int nextX = nowX + Math.max(-step, Math.min(step, x - nowX));

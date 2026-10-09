@@ -20,7 +20,8 @@ public final class SmokeQuick {
         out.mkdirs();
         Path home = Files.createTempDirectory("clawdtop-smoke");
         System.setProperty("clawdtop.home", home.toString());
-        Files.writeString(home.resolve("settings.properties"), "met=true\nname=Tester\nbeeps=false\ntips=false\nmetDate=2026-10-08\n");
+        Files.writeString(home.resolve("settings.properties"), "met=true\nname=Tester\nbeeps=false\ntips=false\nmetDate=2026-10-08\n"
+                + System.getProperty("smoke.settings", "").replace("|", "\n") + "\n"); // (-Dsmoke.settings=size=Big|... : more settings to start with)
         String songs = System.getProperty("smoke.songs"); // (a songs folder to copy in, for singing and jamming)
         if (songs != null) {
             Path from = Path.of(songs);

@@ -255,7 +255,7 @@ public final class Clawdtop {
                     java.io.File first = files.isEmpty() ? null : files.get(0);
                     if (first != null && first.isFile() && Handy.picture(first.toPath())) offerShrink(first.toPath());
                     else if (first != null && first.isFile() && Handy.zip(first.toPath())) offerUnzip(first.toPath());
-                    else pet.say("Hmm, not sure what to do with that one!\nI can play songs (.mid), make pictures smaller, and unzip .zip files.");
+                    else pet.say("Hmm, not sure what to do with that one!\nI can play songs (.mid), make pictures smaller,\nand unzip .zip files.");
                 } catch (Exception ex) {
                     e.dropComplete(false);
                 }
@@ -617,9 +617,9 @@ public final class Clawdtop {
     /** Answers a question (points: only the first time it's asked, not again after his brain's installed). */
     private void answer(String question, boolean firstTime) {
         if (question.toLowerCase(java.util.Locale.ROOT).matches("\\W*(help|what can you do|what do you do|commands|how do (i|you) use you)\\W*")) {
-            pet.say("Things you can ask me:\nAny question (I'll think about it), or math like \"what's 12 times 7\"\n"
-                    + "\"remind me at 3pm to call Grandma\", \"set a timer for 5 minutes\"\n\"add homework to my list\", \"stick a note: dentist at 4\"\n"
-                    + "\"find my essay\", \"what time is it in Tokyo\", \"clean my link\"\n\"make me a password\", \"keep my computer awake\"\n"
+            pet.say("Things you can ask me:\nAny question (I'll think about it)\nMath, like \"what's 12 times 7\"\n"
+                    + "\"remind me at 3pm to call Grandma\"\n\"set a timer for 5 minutes\"\n\"add homework to my list\"\n\"stick a note: dentist at 4\"\n"
+                    + "\"find my essay\"\n\"what time is it in Tokyo\"\n\"clean my link\", \"make me a password\"\n\"keep my computer awake\"\n"
                     + "\"quiz me on the 7 times table\", \"breathe with me\"\nMore fun stuff is in my menu!");
             return;
         }
@@ -636,7 +636,7 @@ public final class Clawdtop {
         }
         if (WebSearch.aboutWeather(question)) {
             if (!settings.on("webSearch")) {
-                pet.say("I can't see outside from in here!\n(Turn on \"look things up online\" in my options and I'll check.)");
+                pet.say("I can't see outside from in here!\n(Turn on \"look things up online\" in my options,\nand I'll check.)");
                 return;
             }
             worker.execute(() -> {
@@ -709,8 +709,8 @@ public final class Clawdtop {
                 } else if (problem2 != null && !settings.flag("brainOk") && !BrainInstall.installed() && BrainInstall.ollama() != null) {
                     // no brain yet, and you haven't said he can get it: he asks first (it's a big download)
                     pet.speak();
-                    bubble.ask("I need my brain for that one! It's a free download (Ollama, " + BrainInstall.totalSize(settings.choice("brain"))
-                            + ")\nthat I install just for you. Want me to get it?", new String[] {"Get it", "Not now"}, choice -> {
+                    bubble.ask("I need my brain for that one!\nIt's a free download (Ollama, " + BrainInstall.totalSize(settings.choice("brain"))
+                            + ") that I install\njust for you. Want me to get it?", new String[] {"Get it", "Not now"}, choice -> {
                                 if (choice != 0) {
                                     pet.say("Okay! I can still do reminders, notes, math, jokes and more.");
                                     return;
@@ -825,7 +825,7 @@ public final class Clawdtop {
         // your to-do list
         if (q.matches("(what'?s on |show |read |open )?(me )?(my |the )?(to-?do |to do |todo )?list|(my |the )?(to-?do|to do|todo)s?( list)?|what do i (have|need) to do( today)?")) {
             java.util.List<String> list = settings.todos();
-            if (list.isEmpty()) pet.say("Your list's empty! Nothing to do. (Add things: \"add homework to my list\")");
+            if (list.isEmpty()) pet.say("Your list's empty! Nothing to do.\n(Add things like this: \"add homework to my list\")");
             else {
                 StringBuilder b = new StringBuilder("On your list:");
                 for (int i = 0; i < Math.min(8, list.size()); i++) b.append("\n").append(i + 1).append(". ").append(list.get(i));
@@ -1102,7 +1102,7 @@ public final class Clawdtop {
                                 return;
                             }
                             if (made == Handy.ALREADY_SMALL) {
-                                pet.say("Good news: that picture's already about as small as I can make it! (" + Handy.size(picture) + ")");
+                                pet.say("Good news: that picture's already about as small\nas I can make it! (" + Handy.size(picture) + ")");
                                 return;
                             }
                             pet.speak();
@@ -1138,7 +1138,7 @@ public final class Clawdtop {
                         SwingUtilities.invokeLater(() -> {
                             if (done == null) {
                                 pet.say("too big".equals(reason) || "too many files".equals(reason) ? "Whoa, that zip is HUGE inside. I stopped, to be safe."
-                                        : "Hmm, I couldn't unzip that one. (It might be damaged, or need a password.)");
+                                        : "Hmm, I couldn't unzip that one.\n(It might be damaged, or need a password.)");
                                 return;
                             }
                             pet.speak();
@@ -1188,7 +1188,7 @@ public final class Clawdtop {
 
     private void showFound(java.util.List<Path> found, int i, java.util.List<String> words, Path home) {
         if (found.isEmpty()) {
-            pet.say("I couldn't find a file called \"" + String.join(" ", words) + "\".\n(I looked in Desktop, Documents, Downloads, Pictures, Music and " + (Platform.MAC ? "Movies" : "Videos")
+            pet.say("I couldn't find a file called \"" + String.join(" ", words) + "\".\n(I looked in Desktop, Documents, Downloads, Pictures,\nMusic and " + (Platform.MAC ? "Movies" : "Videos")
                     + (FindFile.places(home).stream().anyMatch(p -> p.getFileName().toString().startsWith("OneDrive")) ? ", and OneDrive" : "") + ".)");
             return;
         }
@@ -1346,7 +1346,7 @@ public final class Clawdtop {
         if (!on) {
             Awake.stop();
             pet.setCoffee(false);
-            pet.say("Okay, your computer can nap again. *sips the last of the coffee*");
+            pet.say("Okay, your computer can nap again.\n*sips the last of the coffee*");
             return;
         }
         pet.say("Brewing...");
@@ -1358,7 +1358,7 @@ public final class Clawdtop {
                     return;
                 }
                 pet.setCoffee(ok);
-                pet.say(ok ? "Got my coffee! I'll keep your computer awake (no sleeping, no dark screen)\nuntil you tell me to stop, or I go."
+                pet.say(ok ? "Got my coffee! I'll keep your computer awake:\nno sleeping, no dark screen, until you say stop."
                         : "Hmm, I couldn't keep it awake on this computer.");
             });
         }, "clawd-coffee");
@@ -1415,7 +1415,7 @@ public final class Clawdtop {
                 pet.say("Saved! It's on your desktop:\n" + to.getFileName());
                 return;
             }
-            pet.say("There's nothing copied right now! Copy a picture or some text first.");
+            pet.say("There's nothing copied right now!\nCopy a picture or some text first.");
         } catch (Exception cant) {
             pet.say("Hmm, I couldn't save that one.");
         }
@@ -1589,7 +1589,7 @@ public final class Clawdtop {
             SwingUtilities.invokeLater(() -> {
                 lookingAtDesktop = false;
                 if (layout == null) {
-                    pet.say(Platform.MAC ? "Hmm, I can't see your desktop. (Mac: System Settings > Privacy & Security >\nAutomation, and let Clawdtop use Finder.)"
+                    pet.say(Platform.MAC ? "Hmm, I can't see your desktop.\n(System Settings > Privacy & Security > Automation:\nlet Clawdtop use Finder.)"
                             : "Hmm, I can't see your desktop right now.");
                     return;
                 }
@@ -1607,7 +1607,7 @@ public final class Clawdtop {
                     todo.add(new Object[] {file, at[0], at[1]});
                 }
                 if (todo.isEmpty()) {
-                    pet.say("Your desktop's already neat! (Shortcuts and folders stay where they are.)");
+                    pet.say("Your desktop's already neat!\n(Shortcuts and folders stay where they are.)");
                     return;
                 }
                 pet.speak();

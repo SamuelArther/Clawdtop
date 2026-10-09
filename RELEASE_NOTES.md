@@ -1,8 +1,8 @@
-New: drop pictures and zips on him.
+Polish: his speech bubbles read nicely.
 
-- Drop a picture on him and he offers a smaller copy, for emailing or texting (like 4 MB down to 300 KB). It goes right next to the original, which stays as it is. If it's already small, he says so.
-- Drop a .zip file on him and he unzips it into a new folder next to it, safely (nothing inside can end up anywhere else), with a Show me button.
-- Plus all the fixes from 4.1 to 4.9.
+- A dozen of his longer lines (keep-awake, the to-do list, finding files, unzipping, "help" and more) used to wrap in odd places. They now break where you'd expect, in tidy lines.
+- "help" lists what you can ask, one idea per line.
+- The sticky note stands on the taskbar beside him like a little sign, at every size (it floated a bit when he was Small).
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 
