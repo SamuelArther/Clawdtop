@@ -505,11 +505,11 @@ public final class Clawdtop {
         if (video && !settings.on("seeing") && !settings.flag("askedSeeing")) {
             offerSense("Ooh, a video! Want me to watch this with you?", "seeing", "askedSeeing",
                     "Can Clawd see your screen?", "He takes a quick look at how bright your screen is, a couple of times a second, so he can watch along"
-                            + " and react (popcorn included). Nothing is recorded, saved or sent anywhere. You can turn it off in his options.");
+                            + " and react (popcorn included). Nothing is recorded, saved or sent anywhere. You can turn it off in Settings > All the options.");
         } else if (Hearing.possible() && !settings.on("hearing") && !settings.flag("askedHearing")) {
             offerSense(video ? "Want me to hear it too?" : "Ooh, music! Want me to hear this?", "hearing", "askedHearing",
                     "Can Clawd hear your computer's sound?", "He only hears how loud it is, so he can bop along and jump at the scary bits."
-                            + " Nothing is recorded, saved or sent anywhere. You can turn it off in his options.");
+                            + " Nothing is recorded, saved or sent anywhere. You can turn it off in Settings > All the options.");
         }
     }
 
@@ -530,7 +530,7 @@ public final class Clawdtop {
             settings.setFlag(asked, true); // (he only asks once: it's in his options after that)
             if (choice != 0) {
                 askingMedia = false;
-                pet.say("Okay! (You can turn it on in my options later.)");
+                pet.say("Okay! (You can turn it on later: Settings > All the options.)");
                 return;
             }
             consentOpen = true;
@@ -538,7 +538,7 @@ public final class Clawdtop {
                 consentOpen = false;
                 askingMedia = false;
                 settings.set(option, String.valueOf(allowed));
-                pet.say(allowed ? (option.equals("seeing") ? "Yay! Movie buddy!" : "Yay! Let's hear it!") : "Okay, I won't. (It's in my options if you change your mind.)");
+                pet.say(allowed ? (option.equals("seeing") ? "Yay! Movie buddy!" : "Yay! Let's hear it!") : "Okay, I won't. (It's in Settings > All the options,\nif you change your mind.)");
             });
         }, head(), popupBounds());
     }
@@ -689,7 +689,7 @@ public final class Clawdtop {
             pet.say("Things you can ask me:\nAny question (I'll think about it)\nMath, like \"what's 12 times 7\"\n"
                     + "\"remind me at 3pm to call Grandma\"\n\"set a timer for 5 minutes\"\n\"add homework to my list\"\n\"stick a note: dentist at 4\"\n"
                     + "\"find my essay\"\n\"what time is it in Tokyo\"\n\"clean my link\", \"make me a password\"\n\"keep my computer awake\"\n"
-                    + "\"quiz me on the 7 times table\", \"breathe with me\"\n\"define curious\", \"what color is this?\"\nMore fun stuff is in my menu!");
+                    + "\"quiz me on the 7 times table\", \"breathe with me\"\n\"define curious\", \"what color is this?\"\nMore fun stuff is in my menu: double-click me!");
             return;
         }
         java.util.regex.Matcher singIt = java.util.regex.Pattern.compile("(?i)^\\W*(?:please |can you |could you |will you )?sing(?: me| us)?(?: a song| something| anything)?(?: called| named)?\\s*(.*?)\\W*$").matcher(question);
@@ -705,7 +705,7 @@ public final class Clawdtop {
         }
         if (WebSearch.aboutWeather(question)) {
             if (!settings.on("webSearch")) {
-                pet.say("I can't see outside from in here!\n(Turn on \"look things up online\" in my options,\nand I'll check.)");
+                pet.say("I can't see outside from in here!\n(Turn on \"look things up online\" in Settings >\nAll the options > Brain, and I'll check.)");
                 return;
             }
             worker.execute(() -> {
@@ -871,6 +871,20 @@ public final class Clawdtop {
             if (Platform.WINDOWS) Useful.open("ms-screenclip:");
             else if (Platform.MAC) Useful.open("app:Screenshot");
             else Useful.open("cmd:gnome-screenshot");
+            return true;
+        }
+        // your birthday ("my birthday is October 8")
+        java.util.regex.Matcher bday = java.util.regex.Pattern.compile("^(?:my birthday is|my bday is|my birthday's|i was born on) (?:on )?(.+)$").matcher(q);
+        if (bday.matches()) {
+            String day = Helpers.birthday(bday.group(1).replaceAll(",? \\d{4}$", "")); // (no year needed, but it's fine if you say one)
+            if (day == null) pet.say("Hmm, I couldn't read that date. Try like this:\n\"my birthday is October 8\"");
+            else {
+                settings.setBirthday(day);
+                pet.setBirthdayToday(settings.birthdayToday());
+                java.time.MonthDay md = java.time.MonthDay.parse("--" + day);
+                pet.say("Got it! " + md.getMonth().getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.ENGLISH) + " " + md.getDayOfMonth()
+                        + ". I'll remember!" + (settings.birthdayToday() ? "\n...wait. That's TODAY?!" : ""));
+            }
             return true;
         }
         // the time somewhere else, choosing for you, opening an app

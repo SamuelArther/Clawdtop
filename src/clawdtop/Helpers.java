@@ -110,7 +110,7 @@ final class Helpers {
                 day = e.isBefore(today) ? Holidays.easter(today.getYear() + 1) : e;
             }
             case "birthday" -> {
-                if (birthday == null || birthday.isBlank()) return "I don't know your birthday yet! (Tell me in my control panel.)";
+                if (birthday == null || birthday.isBlank()) return "I don't know your birthday yet!\nTell me like this: \"my birthday is October 8\"";
                 name = "your birthday";
                 day = next(today, MonthDay.parse("--" + birthday));
             }

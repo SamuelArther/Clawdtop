@@ -36,7 +36,7 @@ final class Shop {
             new Item("hawaiian", "Hawaiian shirt", Kind.SHIRT, 50, "vacation mode"),
             new Item("tuxedo", "Tiny tuxedo", Kind.SHIRT, 80, "with a bow tie"),
             new Item("juggling", "Juggling", Kind.TRICK, 30, "he juggles when he's bored"),
-            new Item("dancing", "Dancing", Kind.TRICK, 50, "click him and pick Dance!"),
+            new Item("dancing", "Dancing", Kind.TRICK, 50, "double-click him, then Fun > Dance!"),
             new Item("waving", "Waving", Kind.TRICK, 10, "he waves at you now and then"));
 
     /** Points for things you do together. */

@@ -426,7 +426,7 @@ final class Welcome {
             return;
         }
         java.util.List<String> lines = new java.util.ArrayList<>(java.util.List.of("All set" + (who.isEmpty() ? "" : ",") + who + "!",
-                "I'm in a box down on your " + Platform.BAR + ".", "Click it to let me out!"));
+                "I'm in a box down on your " + Platform.BAR + ".", "Click it to let me out!", "(After that, double-click me any time for my menu.)"));
         if (settings.on("askMe") && settings.flag("brainOk") && !BrainInstall.installed()) {
             lines.add("(I'll get my brain ready in the background. You don't have to do anything.)");
         }

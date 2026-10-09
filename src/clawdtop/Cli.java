@@ -103,7 +103,7 @@ public final class Cli {
                 out.flush();
                 String yes = in.readLine();
                 if (yes == null || !yes.strip().toLowerCase(Locale.ROOT).startsWith("y")) {
-                    out.println("Okay! (I can still do reminders, notes, math and jokes in my menu.)");
+                    out.println("Okay! (I can still do reminders, notes, math and jokes without it.)");
                     return;
                 }
                 s.setFlag("brainOk", true);
@@ -491,7 +491,7 @@ public final class Cli {
             }
         }
         if (files.isEmpty()) {
-            out.println("  Nothing yet. (Left-click him and pick \"Make something!\", or wait. He gets ideas.)");
+            out.println("  Nothing yet. (Double-click him and pick Fun > \"Make something!\", or wait. He gets ideas.)");
         } else {
             for (Path f : files) out.println("  " + f.getFileName() + DIM + "  (" + Files.size(f) + " bytes)" + RESET);
             out.println();
