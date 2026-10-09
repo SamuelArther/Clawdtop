@@ -151,7 +151,7 @@ public final class Clawdtop {
         if (move) window.setLocation(x, bottom - h + settings.unit()); // his feet just touch the taskbar
         homeX = x + Sprite.feetX() * settings.unit();
         groundY = bottom;
-        if (hut != null) useItems();
+        useItems();
     }
 
     private void listen() {
@@ -901,13 +901,11 @@ public final class Clawdtop {
             javax.swing.JMenu section = new javax.swing.JMenu(switch (kind) {
                 case HAT -> "Hats";
                 case SHIRT -> "Shirts";
-                case HUT -> "Huts";
                 case TRICK -> "Tricks";
             });
             String slot = switch (kind) {
                 case HAT -> "hat";
                 case SHIRT -> "shirt";
-                case HUT -> "hut";
                 case TRICK -> null;
             };
             for (Shop.Item item : Shop.ITEMS) {
@@ -942,7 +940,6 @@ public final class Clawdtop {
         return shop;
     }
 
-    private final Hut hut = new Hut();
 
     /** Clawd Points for time together, rides, jobs done, and petting (rubbing the mouse back and forth over him). */
     private void earnPoints(Point mouse, boolean moved) {
@@ -1238,13 +1235,27 @@ public final class Clawdtop {
         pet.speak();
     }
 
-    /** Puts on his hat and hut, and lets him use the tricks he's learned. */
+    /** Puts on his hat and shirt, and lets him use the tricks he's learned. */
     private void useItems() {
+        if (pet == null || settings == null) return;
         pet.setItems(settings.owns("juggling") && !settings.serious(), settings.owns("waving") && !settings.serious(), settings.wearing("hat"));
         pet.setShirt(settings.wearing("shirt"));
-        int unit = settings.unit();
-        hut.show(settings.wearing("hut"), unit, (int) Math.round(homeX - Sprite.feetX() * unit + 2 * unit), (int) Math.round(groundY),
-                !boxed && !hidden && !farewell && !inCorner);
+    }
+
+    /** Huts are gone from the shop: if you'd bought one, its points come back. */
+    private void refundHuts() {
+        int back = 0;
+        for (String[] hut : new String[][] {{"cardboard-hut", "20"}, {"wooden-hut", "60"}, {"castle", "150"}}) {
+            if (settings.owns(hut[0])) {
+                settings.disown(hut[0]);
+                back += Integer.parseInt(hut[1]);
+            }
+        }
+        if (!settings.wearing("hut").isEmpty()) settings.setWearing("hut", "");
+        if (back > 0) {
+            settings.setPoints(settings.points() + back);
+            pet.say("Huts are gone from the shop, so here are your " + back + " Clawd Points back!");
+        }
     }
 
     private long remindedWater = System.currentTimeMillis(), remindedStretch = System.currentTimeMillis();
@@ -1658,13 +1669,11 @@ public final class Clawdtop {
                 } else {
                     place();
                 }
-                useItems(); // his hut stays at home while he's in the corner
             }
             if (hide != hidden) {
                 hidden = hide;
                 window.setVisible(!hidden);
                 if (hidden) bubble.hide();
-                useItems(); // his hut hides (and comes back) with him
             }
         }
         // Now and then (once a day, a while after he starts): something nice about your games
@@ -1974,6 +1983,7 @@ public final class Clawdtop {
             if (w != 0) WindowTricks.reveal(w, tackleStyle);
         }));
         Updater.tidy();
+        refundHuts();
         Settings.takeAsk(); // (anything the clawd command asked before he started: old news)
         javax.swing.Timer updates = new javax.swing.Timer(20_000, e -> checkForUpdate()); // once he's settled in (and once a day, if he's left running)
         updates.setDelay(3_600_000);

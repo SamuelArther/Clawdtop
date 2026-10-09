@@ -412,6 +412,15 @@ public final class Settings {
         return java.util.Arrays.asList(values.getProperty("owned", "").split(",")).contains(id);
     }
 
+    /** Gives something back (huts are gone from the shop: their points come back). */
+    public void disown(String id) {
+        if (!owns(id)) return;
+        java.util.List<String> owned = new java.util.ArrayList<>(java.util.Arrays.asList(values.getProperty("owned", "").split(",")));
+        owned.remove(id);
+        values.setProperty("owned", String.join(",", owned));
+        save();
+    }
+
     public void own(String id) {
         if (owns(id)) return;
         String owned = values.getProperty("owned", "");

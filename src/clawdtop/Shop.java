@@ -4,10 +4,10 @@ import java.util.List;
 
 /**
  * Clawd Points and what they buy. He earns points as you spend time together (rides, pets, jobs, tips, just being
- * around), and you spend them on hats, a hut to sit by, and new tricks.
+ * around), and you spend them on hats, t-shirts and new tricks.
  */
 final class Shop {
-    enum Kind { HAT, SHIRT, HUT, TRICK }
+    enum Kind { HAT, SHIRT, TRICK }
 
     /** Something to buy: its id (kept in settings), name, kind and price. */
     record Item(String id, String name, Kind kind, int price, String about) {
@@ -35,9 +35,6 @@ final class Shop {
             new Item("jersey", "Number 1 jersey", Kind.SHIRT, 45, "the best crab"),
             new Item("hawaiian", "Hawaiian shirt", Kind.SHIRT, 50, "vacation mode"),
             new Item("tuxedo", "Tiny tuxedo", Kind.SHIRT, 80, "with a bow tie"),
-            new Item("cardboard-hut", "Cardboard hut", Kind.HUT, 20, "like his box, but cozier"),
-            new Item("wooden-hut", "Wooden hut", Kind.HUT, 60, "with a little window"),
-            new Item("castle", "Tiny castle", Kind.HUT, 150, "with a flag on top"),
             new Item("juggling", "Juggling", Kind.TRICK, 30, "he juggles when he's bored"),
             new Item("dancing", "Dancing", Kind.TRICK, 50, "click him and pick Dance!"),
             new Item("waving", "Waving", Kind.TRICK, 10, "he waves at you now and then"));
@@ -62,7 +59,6 @@ final class Shop {
         settings.setPoints(settings.points() - item.price());
         settings.own(item.id());
         if (item.kind() == Kind.HAT) settings.setWearing("hat", item.id());
-        if (item.kind() == Kind.HUT) settings.setWearing("hut", item.id());
         if (item.kind() == Kind.SHIRT) settings.setWearing("shirt", item.id());
         return true;
     }

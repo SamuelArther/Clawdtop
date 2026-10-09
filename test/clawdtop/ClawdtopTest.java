@@ -204,15 +204,6 @@ public class ClawdtopTest {
         for (int i = 0; i < 8; i++) dresser.tick(33, 0, 0, false, false);
         save(dresser, shopFrames.resolve("dancing.png"));
         check("dancing is a mood", dresser.mood(), Pet.Mood.DANCE);
-        for (String h : new String[] {"cardboard-hut", "wooden-hut", "castle"}) {
-            BufferedImage hutPicture = new BufferedImage(Hut.WIDTH * 8, Hut.HEIGHT * 8, BufferedImage.TYPE_INT_ARGB);
-            Graphics2D hg = hutPicture.createGraphics();
-            hg.setColor(new java.awt.Color(32, 32, 36));
-            hg.fillRect(0, 0, hutPicture.getWidth(), hutPicture.getHeight());
-            Hut.draw(hg, 8, h);
-            hg.dispose();
-            ImageIO.write(hutPicture, "png", shopFrames.resolve("hut " + h + ".png").toFile());
-        }
 
         // ---- Being yelled at, and clicked too much ----
         Pet ears = new Pet(14);
