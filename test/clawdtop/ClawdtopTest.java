@@ -774,11 +774,16 @@ public class ClawdtopTest {
         // a smaller copy of a picture, and unzipping (safely)
         Path handy = Files.createTempDirectory("clawdtop-handy");
         java.awt.image.BufferedImage big = new java.awt.image.BufferedImage(3200, 2000, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        java.util.Random grain = new java.util.Random(3); // (noisy, like a photo: a photo squashes much smaller as a JPEG)
+        for (int y = 0; y < 2000; y += 2) for (int x = 0; x < 3200; x += 2) big.setRGB(x, y, grain.nextInt(0xFFFFFF));
         javax.imageio.ImageIO.write(big, "png", handy.resolve("beach.png").toFile());
         Path small = Handy.shrink(handy.resolve("beach.png"));
         java.awt.image.BufferedImage shrunk = javax.imageio.ImageIO.read(small.toFile());
         check("smaller picture", small.getFileName() + " " + shrunk.getWidth() + "x" + shrunk.getHeight() + " " + Files.exists(handy.resolve("beach.png")), "beach (small).jpg 1600x1000 true");
         check("not a picture", Handy.shrink(Files.writeString(handy.resolve("fake.png"), "nope")), null);
+        java.awt.image.BufferedImage plain = new java.awt.image.BufferedImage(800, 600, java.awt.image.BufferedImage.TYPE_INT_RGB); // (one flat color: tiny as a PNG already)
+        javax.imageio.ImageIO.write(plain, "png", handy.resolve("flat.png").toFile());
+        check("already small", Handy.shrink(handy.resolve("flat.png")) == Handy.ALREADY_SMALL && !Files.exists(handy.resolve("flat (small).jpg")), true);
         Path zipFile = handy.resolve("stuff.zip");
         try (var zout = new java.util.zip.ZipOutputStream(Files.newOutputStream(zipFile))) {
             for (String n : new String[] {"stuff/a.txt", "stuff/sub/b.txt", "stuff/../../evil.txt"}) {

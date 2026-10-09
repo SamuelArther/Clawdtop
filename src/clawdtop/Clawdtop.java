@@ -1101,6 +1101,10 @@ public final class Clawdtop {
                                 pet.say("Hmm, I couldn't open that picture.");
                                 return;
                             }
+                            if (made == Handy.ALREADY_SMALL) {
+                                pet.say("Good news: that picture's already about as small as I can make it! (" + Handy.size(picture) + ")");
+                                return;
+                            }
                             pet.speak();
                             bubble.ask("Done! " + made.getFileName() + "\n" + Handy.size(picture) + " became " + Handy.size(made) + ". It's right next to the original.",
                                     new String[] {"Show me", "OK"}, c -> {

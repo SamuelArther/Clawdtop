@@ -37,11 +37,29 @@ final class Handy {
         return Desktop.free(folder.resolve(name));
     }
 
-    /** A smaller copy of a picture: "name (small).jpg", at most SMALL_SIDE pixels across. Null if it isn't a picture he can read. */
+    /** What shrinking did: the smaller copy, or ALREADY_SMALL (no copy: it couldn't get any smaller), or null (not a picture). */
+    static final Path ALREADY_SMALL = Path.of("(already small)");
+
+    /**
+     * A smaller copy of a picture: "name (small).jpg", at most SMALL_SIDE pixels across. If that's not actually smaller
+     * (some drawings and screenshots squash better as they are), it tries harder, and if it still isn't, no copy is kept.
+     */
     static Path shrink(Path picture) throws IOException {
         BufferedImage image = javax.imageio.ImageIO.read(picture.toFile());
         if (image == null) return null;
-        double scale = Math.min(1.0, (double) SMALL_SIDE / Math.max(image.getWidth(), image.getHeight()));
+        long before = Files.size(picture);
+        Path made = null;
+        for (int[] tryThis : new int[][] {{SMALL_SIDE, 85}, {1280, 70}, {960, 60}}) {
+            if (made != null) Files.deleteIfExists(made);
+            made = shrink(picture, image, tryThis[0], tryThis[1] / 100f);
+            if (Files.size(made) < before * 0.9) return made;
+        }
+        Files.deleteIfExists(made);
+        return ALREADY_SMALL;
+    }
+
+    private static Path shrink(Path picture, BufferedImage image, int side, float quality) throws IOException {
+        double scale = Math.min(1.0, (double) side / Math.max(image.getWidth(), image.getHeight()));
         int w = Math.max(1, (int) Math.round(image.getWidth() * scale)), h = Math.max(1, (int) Math.round(image.getHeight() * scale));
         BufferedImage small = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB); // (JPEG: no see-through, so on white)
         Graphics2D g = small.createGraphics();
@@ -57,7 +75,7 @@ final class Handy {
         var writer = javax.imageio.ImageIO.getImageWritersByFormatName("jpg").next();
         var param = writer.getDefaultWriteParam();
         param.setCompressionMode(javax.imageio.ImageWriteParam.MODE_EXPLICIT);
-        param.setCompressionQuality(0.85f);
+        param.setCompressionQuality(quality);
         try (var out = javax.imageio.ImageIO.createImageOutputStream(to.toFile())) {
             writer.setOutput(out);
             writer.write(null, new javax.imageio.IIOImage(small, null, null), param);
