@@ -1,13 +1,10 @@
-The big polish update: dozens of fixes so Clawd feels smooth and reliable.
+Calmer and smoother.
 
-- Smoother: no jumping back after you drag him, no flickers, tall hats and instruments fit, bubbles wrap.
-- Music stays on time and stops when he does (or when you mute him).
-- Ask me a question: knows the date, finishes sentences, answers once his brain is ready.
-- Reminders understand more ("set a 5 minute timer", "in 1 hour 30 minutes").
-- Quiet during videos, never pops up over games, "No tomfoolery" turns off all the silly stuff.
-- Safer: settings never lost, clawd stop only stops Clawd, cleaning skips USB and network drives.
-- Menus in the Windows style.
-- Only ever one Clawd at a time, and clawd stop always finds him.
+- Calm by default: 20 of his sillier antics (sneezes, flies, hiccups, Caps Lock yelling, random tunes...) start off. Turn any back on in his options.
+- No big surprises on his own (rocket, carpet, ducks, pop-ups) unless you ask or allow them. The taskbar tackle starts off.
+- Smoother movement (60 frames a second), and no more jumping to the corner when you open Start or Alt+Tab.
+- He waits a second, and does a little ready-hop, before riding your cursor. He can't be shaken off by accident.
+- Plus everything from 1.0.3: dozens of polish fixes, safer settings, Windows-style menus.
 
 Get him: download the zip below, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 

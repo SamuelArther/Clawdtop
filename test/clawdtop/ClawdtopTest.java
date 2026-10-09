@@ -22,6 +22,7 @@ public class ClawdtopTest {
     public static void main(String[] args) throws Exception {
         Path home = Files.createTempDirectory("clawdtop-test");
         System.setProperty("clawdtop.home", home.toString());
+        System.setProperty("clawdtop.allAntics", "true"); // (his sillier antics start off: on here, to test them all)
 
         // ---- How he behaves ----
         Pet pet = new Pet(1);
@@ -361,7 +362,7 @@ public class ClawdtopTest {
                 + Clawdtop.appName(new Foreground.Front("notepad.exe", "", "")), "Google Chrome, Notepad");
         Settings knobs = Settings.load();
         check("there are a LOT of options", Options.ALL.size() >= 40, true);
-        check("options start at their defaults", knobs.on("sneezes") + " " + knobs.choice("voice") + " " + knobs.number("volume"), "true Normal 5");
+        check("options start at their defaults", knobs.on("sneezes") + " " + knobs.choice("voice") + " " + knobs.number("volume"), "false Normal 5"); // (sneezes start off: calmer)
         knobs.set("sneezes", "false");
         knobs.set("voice", "Robot");
         knobs.set("volume", "99");
@@ -739,7 +740,7 @@ public class ClawdtopTest {
         Settings calm = Settings.load();
         calm.set("serious", "true");
         check("no tomfoolery turns off the silly stuff", calm.on("creates") + " " + calm.on("sneezes") + " " + calm.on("rides") + " " + calm.jokes(), "false false false Off");
-        check("but he's still useful", calm.on("diskSpace") + " " + calm.on("missedYou"), "true true");
+        check("but he's still useful", calm.on("diskSpace") + " " + calm.on("restart"), "true true");
         check("and the control panel has the switch", cli("controlpanel", "13", "0").contains("No tomfoolery") + " " + Settings.load().serious(), "true false");
         calm = Settings.load();
         Pet calmPet = new Pet(3);

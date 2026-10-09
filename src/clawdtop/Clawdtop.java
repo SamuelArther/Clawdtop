@@ -34,7 +34,8 @@ import java.nio.file.Path;
  * move him; right-click for settings.
  */
 public final class Clawdtop {
-    private static final int FRAME_MS = 33;
+    private static final int FRAME_MS = 16;          // his window moves 60 times a second (smooth)...
+    private static final int MOOD_MS = FRAME_MS * 2; // ...and his moods and timing tick 30 times a second, as they always have
 
     private Settings settings = Settings.load();
     private long settingsChanged = Settings.changed();
@@ -53,6 +54,8 @@ public final class Clawdtop {
     private boolean wasPlaying; // on his piano (or guitar, or drums) last frame
     private boolean fxStill;    // the ducks and explosions overlay hasn't changed since it was last drawn
     private boolean rightWasDown; // the right mouse button, last frame
+    private boolean lastFull, steadyFull; // something full screen (last check, and for a second and a half or so)
+    private int fullChecks;
     private boolean readyShown;   // he's shown he's about to hop on your cursor
     private String heldLine;      // something he wanted to say while he was asking you something
     private final Tips tips = new Tips();
@@ -71,7 +74,10 @@ public final class Clawdtop {
     private int rubTurns;          // back-and-forth turns of the mouse over him (petting)
     private int rubDirection;
     private long rubStarted, lastPet;
-    private int ticks;
+    private int ticks;          // mood ticks (30 a second): what all the "every so often" checks count
+    private int frames;         // every frame (60 a second)
+    private boolean newTick;    // this frame is also a mood tick
+    private boolean movedSinceMood; // the mouse moved since his last mood tick
     private final Body body = new Body();
     private double homeX, groundY; // his perch: the point between his feet, on the taskbar's top edge
     private CleanJob job; // a folder he's cleaning, or null
@@ -650,7 +656,7 @@ public final class Clawdtop {
     private void creations() {
         if (pet.takeWantsToCreate() && job == null && body.state() == Body.State.HOME && !hidden && !inCorner) makeSomething(false);
         Creation typing = pet.coding();
-        if (typing != null && ticks % 20 == 0) writeCreation(typing, pet.codingProgress());
+        if (typing != null && newTick && ticks % 20 == 0) writeCreation(typing, pet.codingProgress());
         Creation made = pet.takeMade();
         if (made != null && settings.on("earnPoints")) settings.earn(Shop.MADE);
         if (made != null) Diary.write("Coded " + made.file() + ". " + made.done());
@@ -667,7 +673,7 @@ public final class Clawdtop {
                 default -> { }
             }
         }
-        if (pet.duckSpam() && ticks % 7 == 0) dropDuck();
+        if (pet.duckSpam() && newTick && ticks % 7 == 0) dropDuck();
         explosion.tick(FRAME_MS);
         if (ducks.active() || explosion.active()) {
             Rectangle screen = screenBounds();
@@ -1593,11 +1599,13 @@ public final class Clawdtop {
     }
 
     private void tick() {
-        ticks++;
+        newTick = ++frames % 2 == 0;
+        if (newTick) ticks++;
         PointerInfo pointer = MouseInfo.getPointerInfo();
         Point mouse = pointer != null ? pointer.getLocation() : lastMouse;
         boolean moved = !mouse.equals(lastMouse);
         lastMouse = mouse;
+        movedSinceMood |= moved;
         closeMenuOnClickAway(mouse);
         boolean right = Foreground.rightButtonDown();
         if (right && !rightWasDown && body.state() == Body.State.RIDE) body.dropOff(); // right-click: he hops down (no flick needed)
@@ -1605,7 +1613,7 @@ public final class Clawdtop {
         watchForLaunch();
 
         // Twice a second: what's in front (a coding app makes him happy; a full-screen game or video hides him)
-        if (ticks % 15 == 0) {
+        if (newTick && ticks % 15 == 0) {
             Foreground.Front front = Foreground.front();
             app = front.app();
             devApp = Foreground.isDevApp(app);
@@ -1613,7 +1621,11 @@ public final class Clawdtop {
             followAppSpot(front);
             if (Games.launcher(app) && !hidden) admireGames("launcher");
             DisplayMode mode = window.getGraphicsConfiguration().getDevice().getDisplayMode();
-            boolean fullScreen = job == null && !devApp && Foreground.fullScreen(mode.getWidth(), mode.getHeight());
+            boolean fullNow = job == null && !devApp && Foreground.fullScreen(mode.getWidth(), mode.getHeight());
+            fullChecks = fullNow == lastFull ? fullChecks + 1 : 1; // (it has to stay that way a moment: not just Start or Alt+Tab)
+            lastFull = fullNow;
+            if (fullChecks >= (fullNow ? 3 : 2)) steadyFull = fullNow;
+            boolean fullScreen = steadyFull;
             // A full-screen game: he sits down in the bottom corner (over your health bar) and watches. A video: he hides.
             boolean corner = fullScreen && !Games.videoApp(app) && settings.choice("gameMode").equals("Sit in a corner")
                     && (body.state() == Body.State.HOME || inCorner);
@@ -1645,9 +1657,9 @@ public final class Clawdtop {
             }
         }
         // Now and then (once a day, a while after he starts): something nice about your games
-        if (ticks % 1800 == 900 && ticks > 30 * 60 * 20 && new java.util.Random().nextInt(6) == 0) admireGames("idle");
+        if (newTick && ticks % 1800 == 900 && ticks > 30 * 60 * 20 && new java.util.Random().nextInt(6) == 0) admireGames("idle");
         // Every couple of seconds: settings changed from the clawd command (clawd controlpanel)?
-        long settingsNow = ticks % 60 == 0 ? Settings.changed() : settingsChanged;
+        long settingsNow = newTick && ticks % 60 == 0 ? Settings.changed() : settingsChanged;
         if (settingsNow != settingsChanged && settingsNow == Settings.lastSaved) settingsChanged = settingsNow; // (his own save)
         if (settingsNow != settingsChanged && !farewell) {
             settingsChanged = settingsNow;
@@ -1661,7 +1673,7 @@ public final class Clawdtop {
             useOptions();
         }
         // Every few seconds: did a coding app just close? He's sad for a moment.
-        if (ticks % 90 == 45 && !farewell) {
+        if (newTick && ticks % 90 == 45 && !farewell) {
             worker.execute(() -> { // looking through every program takes a moment: not on the drawing thread
                 java.util.Set<String> now = Foreground.openDevPrograms();
                 SwingUtilities.invokeLater(() -> {
@@ -1671,7 +1683,7 @@ public final class Clawdtop {
             });
         }
         // And anything it asked him to do: a mood, or goodbye
-        if (ticks % 30 == 0 && !farewell) {
+        if (newTick && ticks % 30 == 0 && !farewell) {
             String asked = Settings.takeAsk();
             if (asked != null && asked.equals("quit")) System.exit(0); // clawd stop (his shutdown hooks tidy up)
             if (asked != null && asked.equals("goodbye")) sayGoodbye();
@@ -1689,7 +1701,7 @@ public final class Clawdtop {
             return;
         }
         // Every few seconds, back on top (the taskbar likes to come up over everything when it's clicked)
-        if (ticks % 90 == 0 && !hidden && settings.on("onTop")) {
+        if (newTick && ticks % 90 == 0 && !hidden && settings.on("onTop")) {
             window.setAlwaysOnTop(false);
             window.setAlwaysOnTop(true);
         }
@@ -1755,35 +1767,35 @@ public final class Clawdtop {
             }
         }
         earnPoints(mouse, moved);
-        if (ticks % 30 == 0) maybeJoke();
-        if (ticks % 10 == 0) checkCapsLock();
+        if (newTick && ticks % 30 == 0) maybeJoke();
+        if (newTick && ticks % 10 == 0) checkCapsLock();
         // coming back after a long while counts as a new login
         long nowMs = System.currentTimeMillis();
         if (moved) {
             if (nowMs - lastMoved > 10 * 60_000 && !boxed) cameBack(nowMs - lastMoved);
             lastMoved = nowMs;
-            if (ticks % 1800 == 0) settings.setLastSeen(nowMs);
+            if (newTick && ticks % 1800 == 0) settings.setLastSeen(nowMs);
         }
         if (birthdayHiding && nowMs > birthdayHideUntil && !hidden) birthdaySurprise(); // (not over your video: after it)
         if (pendingBirthday && body.state() != Body.State.FALL) {
             pendingBirthday = false;
             pet.birthday(settings.name());
         }
-        if (ticks % 300 == 150) checkTimes();
-        if (ticks % 90 == 60) updateTag(); // (points change as you earn and spend them)
-        if (!greetings.isEmpty() && ticks % 15 == 3 && !pet.busyNow() && pet.takeLineIfAny() == null && !bubble.showing()
+        if (newTick && ticks % 300 == 150) checkTimes();
+        if (newTick && ticks % 90 == 60) updateTag(); // (points change as you earn and spend them)
+        if (!greetings.isEmpty() && newTick && ticks % 15 == 3 && !pet.busyNow() && pet.takeLineIfAny() == null && !bubble.showing()
                 && body.state() == Body.State.HOME && !hidden && !boxed && !birthdayHiding) greetings.poll().run(); // one at a time
-        if (ticks % 900 == 450 && focusUntil == 0) remindMe(nowMs);
-        if (ticks % 15 == 7) checkReminders();
-        if (ticks % 30 == 11) veteransSongs(nowMs);
+        if (newTick && ticks % 900 == 450 && focusUntil == 0) remindMe(nowMs);
+        if (newTick && ticks % 15 == 7) checkReminders();
+        if (newTick && ticks % 30 == 11) veteransSongs(nowMs);
         // The screen changed (another monitor, a new resolution, the taskbar moved)? Back to his spot on it
-        if (ticks % 90 == 30 && body.state() == Body.State.HOME && !inCorner) {
+        if (newTick && ticks % 90 == 30 && body.state() == Body.State.HOME && !inCorner) {
             Rectangle usable = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
             if (lastUsable != null && !usable.equals(lastUsable)) place();
             lastUsable = usable;
         }
         updateClock();
-        if (ticks % 150 == 75) worker.execute(() -> {
+        if (newTick && ticks % 150 == 75) worker.execute(() -> {
             Power.criticalLevel(); // asked once, here in the background
             Power.State b = Power.now();
             SwingUtilities.invokeLater(() -> checkBattery(b));
@@ -1799,8 +1811,11 @@ public final class Clawdtop {
         double eyesY = window.getY() + Sprite.eyesY() * unit;
         // the cursor resting on him (he gets shy), or swiping across his face (boop!)
         boolean overHim = Math.abs(mouse.x - eyesX) < 7 * unit && Math.abs(mouse.y - eyesY) < 4 * unit && body.state() == Body.State.HOME;
-        pet.hover(overHim && !moved, FRAME_MS);
-        pet.tick(FRAME_MS, mouse.x - eyesX, mouse.y - eyesY, moved, devApp);
+        if (newTick) { // (his moods at their own pace; his window moves every frame)
+            pet.hover(overHim && !movedSinceMood, MOOD_MS);
+            pet.tick(MOOD_MS, mouse.x - eyesX, mouse.y - eyesY, movedSinceMood, devApp);
+            movedSinceMood = false;
+        }
         boolean playingNow = pet.mood() == Pet.Mood.PIANO;
         if (wasPlaying && !playingNow) beeps.stopAll(); // he stopped: so does the music
         wasPlaying = playingNow;

@@ -173,6 +173,7 @@ public final class Pet {
 
     private Prefs prefs = new Prefs() {
         public boolean on(String key) {
+            if (ALL_ANTICS && Options.find(key).start().equals("false") && Options.find(key).choices().isEmpty()) return true; // (tests: everything on)
             return Boolean.parseBoolean(Options.find(key).start());
         }
 
@@ -184,6 +185,9 @@ public final class Pet {
             return Options.find(key).start();
         }
     };
+
+    /** For the tests: every antic on (most of the sillier ones start off now), so each can be checked. */
+    static final boolean ALL_ANTICS = Boolean.getBoolean("clawdtop.allAntics");
 
     public void setPrefs(Prefs p) {
         prefs = p;

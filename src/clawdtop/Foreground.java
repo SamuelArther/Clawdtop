@@ -121,6 +121,11 @@ public final class Foreground {
      * Whether the window in front covers a whole screen of this size (in real screen pixels), like a game or a video
      * in full screen, so Clawd should get out of the way. The desktop itself covers the screen too, but doesn't count.
      */
+    /** Windows' own full-screen bits (the desktop, Start, search, Alt+Tab, Task View, notifications): never a game. */
+    static final Set<String> SHELL_OVERLAYS = Set.of("Progman", "WorkerW", "Shell_TrayWnd", "Shell_SecondaryTrayWnd", "Windows.UI.Core.CoreWindow",
+            "XamlExplorerHostIslandWindow", "MultitaskingViewFrame", "ForegroundStaging", "TaskListThumbnailWnd", "NotifyIconOverflowWindow",
+            "TopLevelWindowForOverflowXamlIsland", "LockScreenControllerProxyWindow", "Windows.Internal.Shell.TabProxyWindow", "#32768");
+
     public static boolean fullScreen(int screenWidth, int screenHeight) {
         if (GET_WINDOW_RECT == null) return false;
         try (Arena arena = Arena.ofConfined()) {
@@ -129,7 +134,7 @@ public final class Foreground {
             MemorySegment name = arena.allocate(ValueLayout.JAVA_CHAR, 64);
             int length = (int) GET_CLASS_NAME.invokeExact(window, name, 64);
             String className = length > 0 ? new String(name.toArray(ValueLayout.JAVA_CHAR), 0, length) : "";
-            if (className.equals("Progman") || className.equals("WorkerW") || className.equals("Shell_TrayWnd")) return false;
+            if (SHELL_OVERLAYS.contains(className)) return false; // the desktop, Start, Alt+Tab, Task View...: not a game
             MemorySegment r = arena.allocate(ValueLayout.JAVA_INT, 4);
             if ((int) GET_WINDOW_RECT.invokeExact(window, r) == 0) return false;
             int width = r.getAtIndex(ValueLayout.JAVA_INT, 2) - r.getAtIndex(ValueLayout.JAVA_INT, 0);
