@@ -2,6 +2,8 @@ package clawdtop;
 
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenuItem;
+import javax.swing.MenuElement;
+import javax.swing.MenuSelectionManager;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JWindow;
@@ -1206,12 +1208,28 @@ public final class Clawdtop {
         return menu;
     }
 
+    /**
+     * His menus: a click anywhere else closes them. (He never takes the focus from what you're doing, so Swing can't
+     * tell you clicked away on its own: we watch the mouse buttons instead.)
+     */
+    private void closeMenuOnClickAway(Point mouse) {
+        MenuElement[] open = MenuSelectionManager.defaultManager().getSelectedPath();
+        if (open.length == 0 || !Foreground.mouseButtonDown()) return;
+        if (window.isShowing() && new Rectangle(window.getLocationOnScreen(), window.getSize()).contains(mouse)) return;
+        for (MenuElement e : open) {
+            if (e instanceof JPopupMenu popup && popup.isShowing()
+                    && new Rectangle(popup.getLocationOnScreen(), popup.getSize()).contains(mouse)) return; // a click in the menu
+        }
+        MenuSelectionManager.defaultManager().clearSelectedPath();
+    }
+
     private void tick() {
         ticks++;
         PointerInfo pointer = MouseInfo.getPointerInfo();
         Point mouse = pointer != null ? pointer.getLocation() : lastMouse;
         boolean moved = !mouse.equals(lastMouse);
         lastMouse = mouse;
+        closeMenuOnClickAway(mouse);
 
         // Twice a second: what's in front (a coding app makes him happy; a full-screen game or video hides him)
         if (ticks % 15 == 0) {

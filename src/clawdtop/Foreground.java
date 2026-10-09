@@ -184,4 +184,32 @@ public final class Foreground {
     public static boolean isDevApp(String app) {
         return app != null && DEV_APPS.contains(app.toLowerCase(Locale.ROOT));
     }
+    /** Whether a mouse button is held down right now, anywhere on the screen (Windows only; false elsewhere). */
+    public static boolean mouseButtonDown() {
+        if (Buttons.STATE == null) return false;
+        try {
+            for (int button : new int[] {0x01, 0x02, 0x04}) { // left, right, middle
+                if (((short) Buttons.STATE.invokeExact(button) & 0x8000) != 0) return true;
+            }
+        } catch (Throwable notAvailable) {
+            // then we can't tell
+        }
+        return false;
+    }
+
+    /** GetAsyncKeyState, looked up the first time it's needed. */
+    private static final class Buttons {
+        static final MethodHandle STATE = load();
+
+        private static MethodHandle load() {
+            try {
+                if (!System.getProperty("os.name", "").toLowerCase(Locale.ROOT).startsWith("windows")) return null;
+                SymbolLookup user32 = SymbolLookup.libraryLookup("user32", Arena.global());
+                return Linker.nativeLinker().downcallHandle(user32.find("GetAsyncKeyState").orElseThrow(),
+                        FunctionDescriptor.of(ValueLayout.JAVA_SHORT, ValueLayout.JAVA_INT));
+            } catch (Throwable notAvailable) {
+                return null;
+            }
+        }
+    }
 }
