@@ -106,6 +106,7 @@ final class TicTacToe {
                     window.dispose(); // (closed: let it go)
                     return;
                 }
+                if (e.getX() < PAD || e.getY() < TOP) return; // (the title or the edge: not a square)
                 int col = (e.getX() - PAD) / CELL, row = (e.getY() - TOP) / CELL;
                 if (col < 0 || col > 2 || row < 0 || row > 2 || winner(board) != ' ') return;
                 char r = play(row * 3 + col);

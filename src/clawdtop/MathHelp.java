@@ -98,7 +98,7 @@ final class MathHelp {
         q = q.replaceAll("^(hey |clawd,? )?(what'?s|what is|whats|how much is|how much's|calculate|work out|solve|compute|tell me)\\s+", "");
         q = q.replace("multiplied by", "*").replace("divided by", "/").replace("plus", "+").replace("minus", "-")
                 .replace("times", "*").replace("over", "/").replace("×", "*").replace("÷", "/").replace("−", "-");
-        q = q.replaceAll("(\\d)\\s*x\\s*(\\d)", "$1*$2"); // 12 x 7
+        q = q.replaceAll("(?<=\\d)\\s*x\\s*(?=\\d)", "*"); // 12 x 7 (and 2x3x4: each x, not every other one)
         q = q.replaceAll("\\s+", "").replaceAll("=$", "");
         Matcher m = SUM.matcher(q);
         if (!m.matches()) return null;

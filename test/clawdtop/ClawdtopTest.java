@@ -754,6 +754,8 @@ public class ClawdtopTest {
                 + " / " + Useful.onFor(86_400_000L), "25 minutes / just a minute / 3 hours / 2 days 4 hours / 1 day");
         check("Mac apps and libraries aren't folders to clean", Cleaner.bundle("Zoom.app") + " " + Cleaner.bundle("Photos Library.photoslibrary") + " "
                 + Cleaner.bundle("old stuff") + " " + Cleaner.bundle("v1.2"), "true true false false");
+        check("x for times, again and again", MathHelp.parse("2x3x4") == null ? "null" : MathHelp.parse("2x3x4").properly() + "", "24.0");
+        check("dividing by zero isn't possible", MathHelp.possible(MathHelp.parse("5/0")), false);
         // the desktop: reading icon spots (Windows' script and Finder say the same shape), sorting files for Neat
         Desktop.Layout desk = Desktop.read("DESKTOP|/home/me/Desktop\nskin|177,2\nmy song.mid|2427,1032\nnot an icon\n");
         check("desktop read", desk.folder().getFileName() + " " + desk.icons(), "Desktop [Icon[name=skin, x=177, y=2], Icon[name=my song.mid, x=2427, y=1032]]");

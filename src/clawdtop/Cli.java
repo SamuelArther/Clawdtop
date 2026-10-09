@@ -84,6 +84,10 @@ public final class Cli {
             return;
         }
         MathHelp.Problem sum = MathHelp.parse(q);
+        if (sum != null && !MathHelp.possible(sum)) {
+            out.println(ORANGE + "Clawd: " + RESET + "Ooh, dividing by zero! Even the computer can't do that one. (Nobody can. It's a math rule.)");
+            return;
+        }
         if (sum != null) {
             double v = sum.properly();
             String shown = v == Math.rint(v) && Math.abs(v) < 1e15 ? String.valueOf((long) v) : String.valueOf(v);
