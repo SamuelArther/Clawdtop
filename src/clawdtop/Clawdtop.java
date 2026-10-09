@@ -384,11 +384,18 @@ public final class Clawdtop {
 
     /** Reminders that are due, and the focus timer running out. */
     private void checkReminders() {
-        if (hidden) return; // (watching a video: they wait till you're back, nothing gets lost)
         long now = System.currentTimeMillis();
         for (java.util.Iterator<Object[]> it = reminders.iterator(); it.hasNext(); ) {
             Object[] r = it.next();
-            if (now >= (Long) r[0] && pet.remind((String) r[1])) {
+            if (now < (Long) r[0]) continue;
+            if (hidden) { // (he's tucked away for your full-screen game or video: a little notice instead, so a timer still goes off on time)
+                if (notice("Clawdtop", "time's up!".equals(r[1]) || "time's up".equals(r[1]) ? "Time's up!" : "Reminder: " + r[1])) {
+                    it.remove();
+                    Diary.write("Reminded you: " + r[1]);
+                }
+                continue;
+            }
+            if (pet.remind((String) r[1])) {
                 it.remove(); // (busy? he tells you in a moment)
                 Diary.write("Reminded you: " + r[1]);
             }
@@ -398,6 +405,30 @@ public final class Clawdtop {
             pet.focus(false, true);
             if (settings.on("earnPoints")) settings.earn(Shop.FOCUS);
             Diary.write("Kept quiet for a whole focus timer. You did great.");
+        }
+    }
+
+    private java.awt.TrayIcon noticeIcon;
+
+    /** A little notice from the corner of the screen (where the computer can show one). Whether it could. */
+    private boolean notice(String title, String text) {
+        try {
+            if (!java.awt.SystemTray.isSupported()) return false;
+            if (noticeIcon == null) {
+                noticeIcon = new java.awt.TrayIcon(OptionsWindow.icon(settings.awtColor()), "Clawdtop");
+                noticeIcon.setImageAutoSize(true);
+                java.awt.SystemTray.getSystemTray().add(noticeIcon);
+            }
+            noticeIcon.displayMessage(title, text, java.awt.TrayIcon.MessageType.INFO);
+            Timer gone = new Timer(30_000, e -> { // (and its little icon goes again, after)
+                if (noticeIcon != null) java.awt.SystemTray.getSystemTray().remove(noticeIcon);
+                noticeIcon = null;
+            });
+            gone.setRepeats(false);
+            gone.start();
+            return true;
+        } catch (Exception cant) {
+            return false;
         }
     }
 
@@ -789,7 +820,7 @@ public final class Clawdtop {
                     + "\"quiz me on the 7 times table\", \"breathe with me\"\n\"define curious\", \"what color is this?\"\nDrop a song, a zip or a picture on me!\nMore fun stuff is in my menu: double-click me!");
             return;
         }
-        java.util.regex.Matcher singIt = java.util.regex.Pattern.compile("(?i)^\\W*(?:please |can you |could you |will you )?sing(?: me| us)?(?: a song| something| anything)?(?: called| named)?\\s*(.*?)\\W*$").matcher(question);
+        java.util.regex.Matcher singIt = java.util.regex.Pattern.compile("(?i)^\\W*(?:please |can you |could you |will you )?sing\\b(?: me| us)?(?: a song| something| anything)?(?: called| named)?\\s*(.*?)\\W*$").matcher(question);
         if (singIt.matches()) {
             sing(singIt.group(1));
             return;
@@ -904,7 +935,7 @@ public final class Clawdtop {
     private boolean helped(String question) {
         String q = question.toLowerCase(java.util.Locale.ROOT).strip().replaceAll("[?!.]+$", "");
         // notes
-        java.util.regex.Matcher note = java.util.regex.Pattern.compile("^(?:please )?(?:remember (?:that )?|make a note (?:that )?|note:?\\s*|write down (?:that )?)(.+)$")
+        java.util.regex.Matcher note = java.util.regex.Pattern.compile("(?i)^(?:please )?(?:remember (?:that )?|make a note (?:that )?|note:\\s*|note\\s+(?:that\\s+|down\\s+)?|write down (?:that )?)(.+)$") // (not "notebook or laptop?")
                 .matcher(question.strip());
         if (note.matches() && !q.startsWith("remember me") && !q.matches("remember (what|when|who|where|how)\\b.*")) {
             settings.addNote(Brain.noBadWords(note.group(1).strip()));
@@ -1031,12 +1062,20 @@ public final class Clawdtop {
             pet.say("Your list is wiped clean!");
             return true;
         }
-        java.util.regex.Matcher crossed = java.util.regex.Pattern.compile("^(?:i'?m |i'?ve |i have |i just |i |just )*(?:finally )?(?:finished|did|done with|done|completed|cross off|check off|tick off|crossed off|cross|check|tick)"
+        java.util.regex.Matcher crossed = java.util.regex.Pattern.compile("^(?:i'?m |i'?ve |i have |i just |i |just )*(?:finally )?(?:finished|did|done with|done|completed|cross off|check off|tick off|crossed off|cross)" // (not a bare "check": "check my email" isn't a done)
                 + " (.+?)(?: off)?(?: (?:of |from )?(?:my |the )?(?:to-?do |to do )?list)?$").matcher(q);
         if (crossed.matches() && !question.strip().endsWith("?")) { // ("did grandma call?" is a question, not a done)
             java.util.List<String> items = Extras.todosMatching(crossed.group(1), settings.todos());
-            if (items.size() == 1) {
+            String said = crossed.group(1).replaceAll("^(?:the|my|a|an) ", "").strip();
+            if (items.size() == 1 && items.get(0).equalsIgnoreCase(said)) { // (exactly that one: off it comes)
                 doneTodo(items.get(0));
+                return true;
+            }
+            if (items.size() == 1) { // (close: he checks first)
+                String item = items.get(0);
+                pet.speak();
+                bubble.ask("Cross off \"" + item + "\"?", new String[] {"Yes!", "No"}, choice -> { if (choice == 0) doneTodo(item); }, head(), popupBounds());
+                bubble.expireIn(30_000);
                 return true;
             }
             if (items.size() > 1) { // which one?
@@ -1060,7 +1099,7 @@ public final class Clawdtop {
             return true;
         }
         // the sticky note
-        java.util.regex.Matcher note2 = java.util.regex.Pattern.compile("^(?:please )?(?:stick (?:up )?a note|sticky note|post-?it|put up a (?:note|sign))(?: (?:saying|that says|for me))?:? (.+)$")
+        java.util.regex.Matcher note2 = java.util.regex.Pattern.compile("(?i)^(?:please )?(?:stick (?:up )?a note|sticky note|post-?it|put up a (?:note|sign))(?: (?:saying|that says|for me))?:? (.+)$")
                 .matcher(question.strip().replaceAll("[.!]+$", ""));
         if (note2.matches()) {
             stickNote(Brain.noBadWords(note2.group(1).strip()));
@@ -1209,11 +1248,14 @@ public final class Clawdtop {
         quizRight = 0;
         quizTable = table;
         pet.say(table > 0 ? "The " + table + " times table! 10 questions. Ready... go!" : "Times tables! 10 questions. Ready... go!");
-        later(1500, this::nextQuizQuestion);
+        int run = ++quizRun; // (a new quiz: any old one's steps stop)
+        later(1500, () -> nextQuizQuestion(run));
     }
 
-    private void nextQuizQuestion() {
-        if (!quizOn) return;
+    private int quizRun, breathRun, colorRun; // which quiz, breathing minute and color pick is the current one
+
+    private void nextQuizQuestion(int run) {
+        if (!quizOn || run != quizRun) return;
         if (quizAsked == 10) {
             quizOn = false;
             String score = quizRight + " out of 10";
@@ -1242,7 +1284,7 @@ public final class Clawdtop {
                     } else {
                         pet.say("Not quite: " + x + " x " + y + " = " + (x * y) + ".");
                     }
-                    later(1300, this::nextQuizQuestion);
+                    later(1300, () -> nextQuizQuestion(run));
                 });
     }
 
@@ -1261,21 +1303,26 @@ public final class Clawdtop {
     private void breathe() {
         breathRound = 0;
         pet.say("Let's breathe together. Get comfy...");
-        later(3500, this::breathIn);
+        int run = ++breathRun; // (starting again: the old one stops, so they don't talk over each other)
+        later(3500, () -> breathIn(run));
     }
 
-    private void breathIn() {
+    private void breathIn(int run) {
+        if (run != breathRun) return;
         breathRound++;
         pet.say("Breathe in... 2... 3... 4...");
         breathUntil = System.currentTimeMillis() + 4000;
         later(4200, () -> {
+            if (run != breathRun) return;
             pet.say("Hold it... 2... 3... 4...");
             breathUntil = System.currentTimeMillis() + 4000;
             later(4200, () -> {
+                if (run != breathRun) return;
                 pet.say("And slowly out... 2... 3... 4... 5... 6...");
                 breathUntil = System.currentTimeMillis() + 6000;
                 later(6400, () -> {
-                    if (breathRound < 4) breathIn();
+                    if (run != breathRun) return;
+                    if (breathRound < 4) breathIn(run);
                     else {
                         pet.say("There. How do you feel? A bit better, I hope.\n(I'm always here if you need another one.)");
                         Diary.write("Did some breathing together.");
@@ -1288,9 +1335,11 @@ public final class Clawdtop {
     /** "What color is this?": you point at it, he counts to three, and tells you (and copies the code). */
     private void pickColor() {
         pet.say("Point your mouse at the color... 3...");
-        later(1000, () -> pet.say("Point your mouse at the color... 2..."));
-        later(2000, () -> pet.say("Point your mouse at the color... 1..."));
+        int run = ++colorRun; // (asked again: the countdown starts over, just the once)
+        later(1000, () -> { if (run == colorRun) pet.say("Point your mouse at the color... 2..."); });
+        later(2000, () -> { if (run == colorRun) pet.say("Point your mouse at the color... 1..."); });
         later(3000, () -> {
+            if (run != colorRun) return;
             try {
                 java.awt.Point at = MouseInfo.getPointerInfo().getLocation();
                 java.awt.Color c = new java.awt.Robot().getPixelColor(at.x, at.y);
@@ -2970,6 +3019,8 @@ public final class Clawdtop {
             lastDay = today;
         }
         if (focusUntil > 0) return; // shh: focus mode
+        // (only when you're here to see it, and he's up: not in his sleep, or to an empty room. Then it waits for you)
+        if (pet.busyNow() || pet.sleepy() || hidden || System.currentTimeMillis() - lastMoved > 120_000) return;
         if ((hour >= 23 || hour < 4) && settings.on("lateNight") && settings.once("late:" + (hour < 4 ? today.minusDays(1) : today))) {
             pet.say("It's late... maybe bed soon?");
         } else if (now.getDayOfWeek() == java.time.DayOfWeek.MONDAY && hour >= 6 && hour < 12 && settings.on("monday") && settings.once("monday:" + today)) {
@@ -3518,9 +3569,23 @@ public final class Clawdtop {
      * His menus: a click anywhere else closes them. (He never takes the focus from what you're doing, so Swing can't
      * tell you clicked away on its own: we watch the mouse buttons instead.)
      */
+    private String menuOpenedOver; // (a Mac or Linux) the app in front when his menu opened
+
     private void closeMenuOnClickAway(Point mouse) {
         MenuElement[] open = MenuSelectionManager.defaultManager().getSelectedPath();
-        if (open.length == 0 || !Foreground.mouseButtonDown()) return;
+        if (open.length == 0) {
+            menuOpenedOver = null;
+            return;
+        }
+        if (!Platform.WINDOWS) { // (a Mac or Linux can't tell him about clicks elsewhere: clicking another app, the menu closes)
+            String front = Platform.frontApp();
+            if (menuOpenedOver == null) menuOpenedOver = front;
+            else if (!front.isEmpty() && !front.equals(menuOpenedOver) && !front.toLowerCase(java.util.Locale.ROOT).matches(".*(java|clawd).*")) { // (not him: clicking his menu is fine)
+                MenuSelectionManager.defaultManager().clearSelectedPath();
+            }
+            return;
+        }
+        if (!Foreground.mouseButtonDown()) return;
         if (window.isShowing() && new Rectangle(window.getLocationOnScreen(), window.getSize()).contains(mouse)) return;
         for (MenuElement e : open) {
             if (e instanceof JPopupMenu popup && popup.isShowing()
@@ -3614,7 +3679,7 @@ public final class Clawdtop {
         // Every couple of seconds: settings changed from the clawd command (clawd controlpanel)?
         long settingsNow = newTick && ticks % 60 == 0 ? Settings.changed() : settingsChanged;
         if (settingsNow != settingsChanged && settingsNow == Settings.lastSaved) settingsChanged = settingsNow; // (his own save)
-        if (settingsNow != settingsChanged && !farewell) {
+        if ((settingsNow != settingsChanged || (newTick && Settings.takeChangedOutside())) && !farewell) { // (or his own save took in changes from the clawd command)
             settingsChanged = settingsNow;
             String oldSize = settings.size(), oldSpot = settings.spot() + "/" + settings.x() + "/" + settings.number("nudge");
             settings = Settings.load();

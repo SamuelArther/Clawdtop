@@ -38,6 +38,16 @@ public final class Settings {
         return appData != null ? Path.of(appData, "Clawdtop") : Path.of(System.getProperty("user.home"), ".clawdtop");
     }
 
+    /** Set when a save found changes made from outside (the clawd command, say): the app takes them in. */
+    static volatile boolean changedOutside;
+
+    /** Whether there were outside changes since last asked (once). */
+    static boolean takeChangedOutside() {
+        boolean was = changedOutside;
+        changedOutside = false;
+        return was;
+    }
+
     /** When this program last saved the file itself (so that isn't mistaken for a change from the clawd command). */
     static volatile long lastSaved;
 
@@ -90,6 +100,9 @@ public final class Settings {
                 if (now == null) { // couldn't read it (busy?): write ours whole rather than lose anything
                     now = new Properties();
                     now.putAll(values);
+                }
+                for (String key : now.stringPropertyNames()) { // (something else, like the clawd command, changed it since: the app should take it in)
+                    if (!changed.contains(key) && !now.getProperty(key).equals(values.getProperty(key))) changedOutside = true;
                 }
                 for (String key : changed) { // what this copy changed goes on top of what's there
                     String v = values.getProperty(key);

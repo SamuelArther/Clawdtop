@@ -186,6 +186,16 @@ final class Bubble {
             }
             StringBuilder line = new StringBuilder();
             for (String word : raw[i].split(" ", -1)) {
+                while (plain.stringWidth(word) > MAX_WIDTH && word.length() > 1) { // (one huge word, like a long file name: broken up)
+                    int cut = word.length() - 1;
+                    while (cut > 1 && plain.stringWidth(word.substring(0, cut)) > MAX_WIDTH) cut--;
+                    if (line.length() > 0) {
+                        out.add(line.toString());
+                        line.setLength(0);
+                    }
+                    out.add(word.substring(0, cut));
+                    word = word.substring(cut);
+                }
                 String tryLine = line.length() == 0 ? word : line + " " + word;
                 if (line.length() > 0 && plain.stringWidth(tryLine) > MAX_WIDTH) {
                     out.add(line.toString());

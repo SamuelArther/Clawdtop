@@ -81,7 +81,8 @@ final class Reminders {
         String s = said.toLowerCase(Locale.ROOT).strip().replaceAll("[.!?]+$", "").replaceAll("\\s+", " ");
         Matcher m;
         // "tonight", "this evening", "in the afternoon" (no am/pm said): the afternoon or evening one; "this morning": the morning one
-        String part = s.matches(".*\\b(tonight|this afternoon|this evening|in the afternoon|in the evening|at night)\\b.*") ? "pm"
+        String part = s.matches(".*\\b(tonight|at night)\\b.*") ? "night" // ("12 tonight" is midnight, "1 at night" is 1 am)
+                : s.matches(".*\\b(this afternoon|this evening|in the afternoon|in the evening)\\b.*") ? "pm"
                 : s.matches(".*\\b(this morning|in the morning)\\b.*") ? "am" : null;
         if ((m = AT_TO.matcher(s)).matches()) return at(m.group(1), now, m.group(5), part);
         if ((m = TO_AT.matcher(s)).matches()) return at(m.group(2), now, m.group(1), part);
@@ -105,7 +106,7 @@ final class Reminders {
             hour = Integer.parseInt(c.group(1));
             if (c.group(2) != null) minute = Integer.parseInt(c.group(2));
             half = c.group(3);
-            if (half == null && part != null && hour >= 1 && hour <= 12) half = part; // ("9 tonight": 9 pm)
+            if (half == null && part != null && hour >= 1 && hour <= 12) half = !part.equals("night") ? part : hour == 12 || hour <= 4 ? "am" : "pm"; // ("9 tonight": 9 pm; "12 tonight": midnight)
             if (hour > 23 || minute > 59 || (half != null && (hour == 0 || hour > 12))) return null;
             if (half != null) hour = hour % 12 + (half.startsWith("p") ? 12 : 0);
         }

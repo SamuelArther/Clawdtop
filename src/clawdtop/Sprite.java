@@ -155,7 +155,8 @@ public final class Sprite {
                 double r = 1 + f * (4 + i % 3 * 1.5);
                 Color c = fire[Math.min(3, (int) (f * 3 + i % 2))];
                 double size = 2.2 * (1 - f) + 0.6;
-                box(g, unit, feetX() + Math.cos(a) * r * 1.3 - size / 2, GROUND - 5 + Math.sin(a) * r - size / 2, size, size,
+                double down = Math.sin(a) * r * (Math.sin(a) > 0 ? 0.35 : 1); // (the bits going down stop at the floor: inside his square)
+                box(g, unit, feetX() + Math.cos(a) * r * 1.3 - size / 2, GROUND - 5 + down - size / 2, size, size,
                         new Color(c.getRed(), c.getGreen(), c.getBlue(), (int) (255 * (1 - f * 0.8))));
             }
         }
@@ -210,8 +211,9 @@ public final class Sprite {
         double top = bottom - 13;
         if (lit) {
             boolean flick = (pet.time() / 60) % 2 == 0;
-            box(g, unit, x - 1.2, bottom - 0.6, 2.4, flick ? 2.2 : 1.7, new Color(255, 170, 60));
-            box(g, unit, x - 0.6, bottom - 0.6, 1.2, flick ? 1.3 : 1, new Color(255, 240, 150));
+            double room = Math.max(0.6, HEIGHT - (bottom - 0.6)); // (the flame, as long as there's room below in his square)
+            box(g, unit, x - 1.2, bottom - 0.6, 2.4, Math.min(room, flick ? 2.2 : 1.7), new Color(255, 170, 60));
+            box(g, unit, x - 0.6, bottom - 0.6, 1.2, Math.min(room, flick ? 1.3 : 1), new Color(255, 240, 150));
         }
         box(g, unit, x - 1.5, bottom - 1.5, 3, 1, metal);                 // nozzle
         box(g, unit, x - 3, top + 2, 6, 9.5, hull);                       // hull

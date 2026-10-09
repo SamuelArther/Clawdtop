@@ -328,6 +328,17 @@ public class ClawdtopTest {
         javax.sound.midi.MidiSystem.write(drums, 0, drumFile.toFile());
         check("a drums-only jam track still jams", Piano.fromMidi(drumFile.toFile()) != null, true);
 
+        // "12 tonight" is midnight (not noon tomorrow), "1 at night" is 1 am, "9 tonight" is 9 pm
+        java.time.LocalTime evening = java.time.LocalTime.of(20, 0);
+        check("12 tonight is midnight", Reminders.parse("remind me at 12 tonight to sleep", evening).inMs() / 3_600_000, 4L);
+        check("1 at night is 1 am", Reminders.parse("remind me at 1 at night to check the oven", evening).inMs() / 3_600_000, 5L);
+        check("9 tonight is 9 pm", Reminders.parse("remind me at 9 tonight to call", evening).inMs() / 3_600_000, 1L);
+        // a long file name in a bubble is broken up, not stretching it off the screen
+        String[] lines = Bubble.layout("Found it!\nsuper_long_file_name_with_no_spaces_at_all_that_goes_on_and_on_and_on.docx");
+        boolean fits = true;
+        for (String l : lines) fits &= l.length() < 60; // (the name is 70 letters: it's in pieces)
+        check("a long file name wraps", fits && lines.length > 2, true);
+
         // no tips in his sleep
         check("tips skip him while he sleeps", Files.readString(Path.of("src/clawdtop/Clawdtop.java")).contains("bubble.asking() || pet.sleepy()) return; // (no tips in his sleep)"), true);
     }
