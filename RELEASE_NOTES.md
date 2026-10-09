@@ -1,9 +1,7 @@
-Fix: new phrases from 6.0 and 6.1.
+Polish: the README covers everything.
 
-- "my birthday is coming up" (or tomorrow, next week...) is just chatting again. Only an actual date sets your birthday, and "my birthday is today" and "the 8th of October" work too.
-- "what does that mean?" and "what's the meaning of life?" go to his brain instead of the dictionary.
-- Definitions skip ones that just repeat the word (like "run: to run"), and the example always matches the meaning shown.
-- On a Mac, one of his jokes says Dock instead of clock.
+- The README now explains his music side (singing, jam sessions and where jam files go), watching and listening along (and that he always asks first, with your computer's own permission box), and his rare moves.
+- Option names point to Settings > All the options, the Trash on a Mac, and which features are Windows only.
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 
