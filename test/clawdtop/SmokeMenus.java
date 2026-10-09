@@ -55,6 +55,13 @@ public final class SmokeMenus {
                 Thread.sleep(700);
                 SwingUtilities.invokeAndWait(() -> open[0] = opened(sub));
                 System.out.println(sub + " opened by clicking: " + open[0]);
+                SwingUtilities.invokeAndWait(() -> {
+                    StringBuilder path = new StringBuilder();
+                    for (MenuElement e : MenuSelectionManager.defaultManager().getSelectedPath()) {
+                        path.append(e.getComponent() instanceof JMenu m ? m.getText() : e.getClass().getSimpleName()).append(" > ");
+                    }
+                    System.out.println("  open now: " + path);
+                });
                 ImageIO.write(robot.createScreenCapture(all), "png", new File(out, sub + ".png"));
             } else {
                 System.out.println("no " + sub + " menu found");

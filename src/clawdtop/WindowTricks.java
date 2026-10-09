@@ -203,12 +203,34 @@ final class WindowTricks {
             if ((int) rect.invokeExact(hwnd(window), r) == 0) return -1;
             int x = r.get(ValueLayout.JAVA_INT, 0), y = r.get(ValueLayout.JAVA_INT, 4);
             if (x <= -30000) return -1; // (minimized: nothing to hide)
-            if (!move(window, -32000, -32000)) return -1;
+            if (!move(window, -32000, -32000)) return STUCK;
             PARKED.put(window, new int[] {x, y});
             return 0;
         } catch (Throwable e) {
             return -1;
         }
+    }
+
+    /** What vanish says when the window won't move (a full-screen popup, or one running as admin): it stays put. */
+    static final long STUCK = -2;
+
+    /** Whether a window's still parked off the screen (some apps put themselves back right after they open). */
+    static boolean parked(long window) {
+        if (!Platform.WINDOWS || window == 0) return false;
+        try (Arena arena = Arena.ofConfined()) {
+            MethodHandle rect = Linker.nativeLinker().downcallHandle(SymbolLookup.libraryLookup("user32", Arena.global()).find("GetWindowRect").orElseThrow(),
+                    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS));
+            MemorySegment r = arena.allocate(16);
+            if ((int) rect.invokeExact(hwnd(window), r) == 0) return true; // (gone: nothing showing)
+            return r.get(ValueLayout.JAVA_INT, 0) <= -30000;
+        } catch (Throwable e) {
+            return true;
+        }
+    }
+
+    /** Parks a window off the screen again (it put itself back), keeping where it was to begin with. Whether it moved. */
+    static boolean repark(long window) {
+        return PARKED.containsKey(window) && move(window, -32000, -32000);
     }
 
     /** Puts a parked window back exactly where it was. */

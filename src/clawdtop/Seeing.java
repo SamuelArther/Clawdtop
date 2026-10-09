@@ -17,7 +17,11 @@ final class Seeing {
     void lookAt(Rectangle r) {
         if (r != null && r.width > 40 && r.height > 40) region = r;
     }
-    private volatile double brightness = -1, change;
+    private volatile double brightness = -1, change, spread;
+    /** The picture in a grid of this many squares a side: a real flash changes nearly all of them, a menu opening only a few. */
+    static final int GRID = 4;
+    /** How much one square has to change to count, and how many of them (of all of them) for a flash. */
+    static final double SQUARE_CHANGE = 0.2, FLASH_SPREAD = 0.7;
     private Thread looker;
 
     synchronized void start(Rectangle screen) {
@@ -28,22 +32,17 @@ final class Seeing {
             try {
                 Robot robot = new Robot();
                 double last = -1;
+                double[] lastSquares = null;
                 while (on) {
                     BufferedImage shot = robot.createScreenCapture(region != null ? region : screen);
-                    long sum = 0;
-                    int count = 0;
-                    int step = Math.max(4, Math.min(shot.getWidth(), shot.getHeight()) / 40);
-                    for (int y = 0; y < shot.getHeight(); y += step) {
-                        for (int x = 0; x < shot.getWidth(); x += step) {
-                            int rgb = shot.getRGB(x, y);
-                            sum += ((rgb >> 16) & 0xFF) * 3 + ((rgb >> 8) & 0xFF) * 6 + (rgb & 0xFF); // (how bright it looks to us)
-                            count++;
-                        }
-                    }
-                    double now = count == 0 ? 0 : sum / (count * 10.0 * 255);
+                    double[] squares = squares(shot);
+                    double now = 0;
+                    for (double s : squares) now += s / squares.length;
                     change = last < 0 ? 0 : Math.abs(now - last);
+                    spread = lastSquares == null ? 0 : spread(lastSquares, squares);
                     brightness = now;
                     last = now;
+                    lastSquares = squares;
                     Thread.sleep(500);
                 }
             } catch (Exception cantSee) {
@@ -59,6 +58,36 @@ final class Seeing {
         region = null;
         brightness = -1;
         change = 0;
+        spread = 0;
+    }
+
+    /** How bright each square of the picture is (0 dark to 1 bright), GRID by GRID. */
+    static double[] squares(BufferedImage shot) {
+        double[] sum = new double[GRID * GRID];
+        int[] count = new int[GRID * GRID];
+        int step = Math.max(4, Math.min(shot.getWidth(), shot.getHeight()) / 40);
+        for (int y = 0; y < shot.getHeight(); y += step) {
+            for (int x = 0; x < shot.getWidth(); x += step) {
+                int rgb = shot.getRGB(x, y);
+                int square = Math.min(GRID - 1, y * GRID / shot.getHeight()) * GRID + Math.min(GRID - 1, x * GRID / shot.getWidth());
+                sum[square] += (((rgb >> 16) & 0xFF) * 3 + ((rgb >> 8) & 0xFF) * 6 + (rgb & 0xFF)) / (10.0 * 255); // (how bright it looks to us)
+                count[square]++;
+            }
+        }
+        for (int i = 0; i < sum.length; i++) sum[i] = count[i] == 0 ? 0 : sum[i] / count[i];
+        return sum;
+    }
+
+    /** How much of the picture changed a lot (0 none of it, 1 all of it). */
+    static double spread(double[] before, double[] after) {
+        int changed = 0;
+        for (int i = 0; i < before.length; i++) if (Math.abs(after[i] - before[i]) > SQUARE_CHANGE) changed++;
+        return changed / (double) before.length;
+    }
+
+    /** A big flash just now: the whole picture suddenly much brighter or darker (not just a menu or a pop-up opening on it). */
+    boolean flash() {
+        return on && change > 0.3 && spread >= FLASH_SPREAD;
     }
 
     boolean looking() {

@@ -751,6 +751,14 @@ public final class Pet {
         job = mood;
     }
 
+    /** Let down (he tackled a window that was open anyway): a sad "aww", and what he says about it. */
+    public void disappointed(String says) {
+        if (busy() && mood != Mood.SHAKE && mood != Mood.WALK) return;
+        line = says;
+        wants = Beep.AWW;
+        set(Mood.SAD, 2400);
+    }
+
     /** A coding app was closed: he's sad for a moment (unless he's busy, asleep, or off somewhere). */
     public void sad() {
         if ((mood != Mood.IDLE && mood != Mood.SIT && mood != Mood.HAPPY) || !prefs.on("codingSad")) return;

@@ -625,7 +625,7 @@ public final class Clawdtop {
         double level = ears.level();
         boolean suddenLoud = level > 0.55 && calmLevel < 0.18;
         calmLevel = calmLevel * 0.97 + level * 0.03;
-        boolean bigFlash = eyes.looking() && eyes.change() > 0.3;
+        boolean bigFlash = eyes.flash(); // (the whole picture: a menu opening over it doesn't count)
         if (pet.watching() && (suddenLoud || bigFlash) && now - lastScare > 15_000) {
             lastScare = now;
             pet.scare();
@@ -2623,7 +2623,7 @@ public final class Clawdtop {
             sub.addMouseListener(new MouseAdapter() {
                 @Override
                 public void mouseReleased(MouseEvent click) {
-                    if (sub.isEnabled()) openSubmenu(sub);
+                    if (sub.isEnabled()) SwingUtilities.invokeLater(() -> { if (sub.isShowing()) openSubmenu(sub); }); // (after Swing's own handling of the click)
                 }
             });
             openOnClick(sub.getPopupMenu());
@@ -3290,6 +3290,11 @@ public final class Clawdtop {
     private static final String[] TACKLE_SPOTS = {"Ooh! Something's opening! I'll get it!", "Wait wait wait, let me open that!",
             "I got this one!", "Hold on! That's my job!"};
     private volatile long tackleWindow;      // the app window he's hiding till he gets to its icon (0: none)
+    private volatile boolean tackleStubborn; // it wouldn't stay hidden (a full-screen popup, say): tackling it won't open anything
+    private int tackleReparks;               // times it's put itself back and he's hidden it again
+    private boolean letdown;                 // he tackled one that was open anyway: once he's home, he's disappointed
+    private static final String[] TACKLE_LETDOWNS = {"...it was already open. All that for NOTHING.", "Aww. It didn't even pop.",
+            "I tackled it and it just... sat there. Rude.", "That one doesn't play fair."};
     private volatile long tackleStyle = -1;  // its style, to put back
     private boolean tackleLooking;           // still finding its icon on the taskbar
     private long tackleUntil;                // never hidden longer than this, whatever happens
@@ -3305,9 +3310,15 @@ public final class Clawdtop {
         tackleReady = tackleWindow == 0 && settings.on("tackle") && !settings.serious() && !hidden && !boxed && body.state() == Body.State.HOME
                 && job == null && !pet.busyNow() && !inCorner && dragFrom == Integer.MIN_VALUE;
         if (tackleWindow != 0) {
+            // some apps put their window right back where it was: hidden again (a few times, then he lets it be)
+            if (!tackleStubborn && !WindowTricks.parked(tackleWindow) && (++tackleReparks > 3 || !WindowTricks.repark(tackleWindow))) tackleStubborn = true;
             // something went wrong (he got picked up, say): just open it
             if (now > tackleUntil || (!tackleLooking && tackleStarted && body.state() != Body.State.TACKLE)) endTackle();
             return;
+        }
+        if (letdown && body.state() == Body.State.HOME) { // back on his feet after tackling something that was open anyway
+            letdown = false;
+            pet.disappointed(TACKLE_LETDOWNS[new java.util.Random().nextInt(TACKLE_LETDOWNS.length)]);
         }
         long front = WindowTricks.front();
         if (front == lastFrontWindow) return;
@@ -3331,7 +3342,9 @@ public final class Clawdtop {
         if (program.parent().map(p -> p.pid() == me).orElse(false) || System.currentTimeMillis() - Useful.lastOpened < 10_000) return; // his own
         if (!seenPrograms.add(pid)) return;
         long style = WindowTricks.vanish(hwnd);
-        if (style < 0) return;
+        if (style < 0 && style != WindowTricks.STUCK) return;
+        tackleStubborn = style == WindowTricks.STUCK; // (it won't hide: he goes for it anyway, and it's a letdown)
+        tackleReparks = 0;
         tackleWindow = hwnd;
         tackleStyle = style;
         tackleStarted = false;
@@ -3630,6 +3643,7 @@ public final class Clawdtop {
             if (body.takeMissed()) pet.say("Missed! ...I meant to do that.");
             if (body.takeTackled()) {
                 long popped = tackleWindow;
+                letdown = tackleStubborn; // (it never went away, so there's nothing to pop open)
                 endTackle(); // POP: there it is
                 WindowTricks.toFront(popped);
                 explosion.start(body.x(), groundY - 2 * unit);
@@ -3637,7 +3651,7 @@ public final class Clawdtop {
                 Rectangle s = window.getGraphicsConfiguration().getBounds();
                 body.launchFrom(body.x(), body.y(), body.x() > s.x + s.width / 2.0 ? -550 : 550);
                 pet.say(TACKLE_YELLS[new java.util.Random().nextInt(TACKLE_YELLS.length)]);
-                Diary.write("Tackled a taskbar icon. It exploded. Worth it.");
+                Diary.write(letdown ? "Tackled a taskbar icon. The window was there the whole time. Not worth it." : "Tackled a taskbar icon. It exploded. Worth it.");
             }
             if (body.takeBoom()) {
                 pet.boom();

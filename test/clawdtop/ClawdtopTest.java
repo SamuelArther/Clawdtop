@@ -169,6 +169,27 @@ public class ClawdtopTest {
         check("and a click opens the right one", java.util.Arrays.asList(Clawdtop.pathTo(inner)),
                 java.util.List.of(menu, useful, useful.getPopupMenu(), inner, inner.getPopupMenu()));
 
+        // watching: a real flash scares him, a menu opening over the video doesn't
+        java.awt.image.BufferedImage dark = new java.awt.image.BufferedImage(400, 300, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        java.awt.image.BufferedImage bright = new java.awt.image.BufferedImage(400, 300, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        java.awt.image.BufferedImage menuOpen = new java.awt.image.BufferedImage(400, 300, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        Graphics2D bg2 = bright.createGraphics();
+        bg2.setColor(java.awt.Color.WHITE);
+        bg2.fillRect(0, 0, 400, 300);
+        bg2.dispose();
+        Graphics2D mg = menuOpen.createGraphics();
+        mg.setColor(java.awt.Color.WHITE);
+        mg.fillRect(20, 20, 160, 220); // (a menu, over part of a dark video)
+        mg.dispose();
+        check("a flash changes the whole picture", Seeing.spread(Seeing.squares(dark), Seeing.squares(bright)) >= Seeing.FLASH_SPREAD, true);
+        check("a menu opening only changes part of it", Seeing.spread(Seeing.squares(dark), Seeing.squares(menuOpen)) < Seeing.FLASH_SPREAD, true);
+
+        // tackling a window that was open anyway: a letdown
+        Pet tackler = new Pet(6);
+        tackler.takeBeep();
+        tackler.disappointed("Aww. It didn't even pop.");
+        check("he's let down", tackler.mood() + " " + tackler.takeBeep() + " " + tackler.takeLine(), "SAD AWW Aww. It didn't even pop.");
+
         // breathing: his body rises a little, his feet stay on the ground
         Pet breather = new Pet(4);
         breather.takeBeep();
