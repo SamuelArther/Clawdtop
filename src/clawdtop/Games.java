@@ -113,9 +113,8 @@ final class Games {
         command.addAll(List.of(args));
         try {
             Process p = new ProcessBuilder(command).redirectErrorStream(true).start();
-            String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            p.waitFor();
-            return p.exitValue() == 0 ? out.lines().toList() : List.of();
+            String out = Desktop.output(p, 10);
+            return out != null && p.exitValue() == 0 ? out.lines().toList() : List.of();
         } catch (IOException | InterruptedException e) {
             return List.of();
         }

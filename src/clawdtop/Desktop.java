@@ -161,8 +161,8 @@ final class Desktop {
         return new double[] {screen.x + icon.x() / scale + 37, screen.y + icon.y() / scale + 8};
     }
 
-    /** What a program says, if it finishes in time (else it's stopped, and null). */
-    private static String output(Process p, int seconds) throws InterruptedException {
+    /** What a program says, if it finishes in time (else it's stopped, and null). Reads and waits at once: a hung program can't hang him. */
+    static String output(Process p, int seconds) throws InterruptedException {
         var said = java.util.concurrent.CompletableFuture.supplyAsync(() -> {
             try {
                 return new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);

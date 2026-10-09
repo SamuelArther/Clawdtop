@@ -45,8 +45,8 @@ final class Power {
         int level = 5;
         try {
             Process p = new ProcessBuilder("powercfg", "/query", "SCHEME_CURRENT", "SUB_BATTERY", "BATLEVELCRIT").redirectErrorStream(true).start();
-            String out = new String(p.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
-            p.waitFor();
+            String out = Desktop.output(p, 10);
+            if (out == null) out = "";
             java.util.regex.Matcher m = java.util.regex.Pattern.compile("DC Power Setting Index: 0x([0-9a-fA-F]+)").matcher(out);
             if (m.find()) level = Integer.parseInt(m.group(1), 16);
         } catch (Exception e) {

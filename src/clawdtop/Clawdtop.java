@@ -97,6 +97,12 @@ public final class Clawdtop {
         t.setDaemon(true);
         return t;
     });
+    /** Songs load here: their own thread, so a song starts right away (not after a file search or a download on worker). */
+    private final java.util.concurrent.ExecutorService songLoader = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "Clawdtop songs");
+        t.setDaemon(true);
+        return t;
+    });
     private int dragFrom = Integer.MIN_VALUE;
     private int windowXAtDrag;
 
@@ -335,7 +341,7 @@ public final class Clawdtop {
         sequencerFile = file;
         int round = ++midiRound;
         if (file == null) return;
-        worker.execute(() -> {
+        songLoader.execute(() -> {
             javax.sound.midi.Sequencer opened = null;
             try {
                 javax.sound.midi.Sequencer s = javax.sound.midi.MidiSystem.getSequencer();
@@ -489,7 +495,7 @@ public final class Clawdtop {
 
     /** A jam session to a song file: recording the parts (the first time), or just playing it again. */
     private void jamTo(java.io.File f, boolean again) {
-        worker.execute(() -> {
+        songLoader.execute(() -> {
             Piano.Song song = Piano.fromMidi(f);
             java.util.List<Piano.Part> parts = again ? java.util.List.of() : Piano.jamParts(f); // (its own tracks: drums, bass, guitar...)
             SwingUtilities.invokeLater(() -> {
@@ -518,7 +524,7 @@ public final class Clawdtop {
 
     /** He sings a song file: just his little voice, following the tune. */
     private void singFile(java.io.File f) {
-        worker.execute(() -> {
+        songLoader.execute(() -> {
             Piano.Song song = Piano.fromMidi(f);
             SwingUtilities.invokeLater(() -> {
                 if (song == null) pet.say("I tried, but I can't read that music.");
@@ -565,7 +571,7 @@ public final class Clawdtop {
         nextVeteransSong = now + (60 + new java.util.Random().nextInt(60)) * 60_000L; // then again in an hour or two
         if (marches.isEmpty()) return;
         java.io.File march = marches.get(new java.util.Random().nextInt(marches.size()));
-        worker.execute(() -> {
+        songLoader.execute(() -> {
             Piano.Song song = Piano.fromMidi(march);
             if (song != null) SwingUtilities.invokeLater(() -> pet.playPiano(song));
         });
@@ -583,7 +589,7 @@ public final class Clawdtop {
             jamTo(midi, settings.jamRecorded(midi.getName()));
             return;
         }
-        worker.execute(() -> {
+        songLoader.execute(() -> {
             Piano.Song song = Piano.fromMidi(midi);
             SwingUtilities.invokeLater(() -> {
                 if (song == null) pet.say("I tried, but I can't read that music.");
@@ -945,7 +951,7 @@ public final class Clawdtop {
     private final Sticky sticky = new Sticky();
     private final java.util.Map<String, Long> downloadsSeen = new java.util.HashMap<>(); // name -> size, when last looked
     private final java.util.Map<String, long[]> downloadsGrowing = new java.util.HashMap<>(); // new ones, not done yet: name -> {size, time, looks the same}
-    private boolean downloadsLooked;
+    private boolean downloadsLooked, downloadsLooking;
     private final java.util.ArrayDeque<Path> downloadsDone = new java.util.ArrayDeque<>(); // to tell you about
     private long screenMsToday, screenSavedAt, lastScreenTick;
     private java.time.LocalDate screenDay;
@@ -1111,7 +1117,8 @@ public final class Clawdtop {
 
     /** Every few seconds: a download that's just finished? He tells you (once it's stopped growing). */
     private void watchDownloads() {
-        if (!settings.on("downloads")) return;
+        if (!settings.on("downloads") || downloadsLooking) return; // (the last look hasn't finished: not another one on top)
+        downloadsLooking = true;
         Path folder = Path.of(System.getProperty("user.home"), "Downloads");
         worker.execute(() -> {
             java.util.Map<String, Long> now = new java.util.HashMap<>();
@@ -1125,9 +1132,11 @@ public final class Clawdtop {
                     changed.put(name, java.nio.file.Files.getLastModifiedTime(f).toMillis());
                 }
             } catch (IOException | RuntimeException noFolder) {
+                SwingUtilities.invokeLater(() -> downloadsLooking = false);
                 return;
             }
             SwingUtilities.invokeLater(() -> {
+                downloadsLooking = false;
                 if (!downloadsLooked) { // (the first look only learns what's there already)
                     downloadsLooked = true;
                     downloadsSeen.putAll(now);

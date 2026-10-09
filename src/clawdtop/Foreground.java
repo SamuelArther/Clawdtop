@@ -161,8 +161,9 @@ public final class Foreground {
                             + "(New-Object -ComObject Shell.Application).Windows() | Where-Object { $_.HWND -eq " + handle
                             + " } | ForEach-Object { $_.Document.Folder.Self.Path } | Select-Object -First 1")
                     .redirectErrorStream(true).start();
-            String out = new String(p.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).strip();
-            if (!p.waitFor(10, java.util.concurrent.TimeUnit.SECONDS)) p.destroyForcibly();
+            String said = Desktop.output(p, 10); // (Explorer hung? it gives up after 10 seconds, not never)
+            if (said == null) return null;
+            String out = said.strip();
             if (out.isEmpty() || out.startsWith("::") || out.contains("\n")) return null; // "This PC" and other non-folders
             Path folder = Path.of(out);
             return java.nio.file.Files.isDirectory(folder) ? folder : null;

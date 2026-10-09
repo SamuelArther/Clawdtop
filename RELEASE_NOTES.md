@@ -1,8 +1,7 @@
-New: your morning rundown, and eye breaks.
+Fix: he can't get stuck waiting on Windows.
 
-- The first time you log in each morning, he gives you a quick rundown: the date, what's on your to-do list, your sticky note, and if your birthday's coming up. (Turn it off in Options > Useful.)
-- Eye breaks (off at first: Options > Useful): every 20 minutes on the computer, he reminds you to look at something far away, and counts 20 seconds on his clock. Good for your eyes.
-- Plus all the fixes from 3.1 to 3.9.
+- If File Explorer (or another Windows helper) hung, he could wait on it forever, and then songs, weather, download alerts and more stopped working until you restarted him. Now he gives up after 10 seconds and carries on.
+- Songs load on their own, so a dropped song or a jam starts right away instead of waiting behind a file search.
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 
