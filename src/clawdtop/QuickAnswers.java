@@ -15,7 +15,7 @@ final class QuickAnswers {
     }
 
     private static final Pattern BETWEEN = Pattern.compile("(?:pick|choose|give me) a (?:random )?number (?:between|from) (-?\\d+) (?:and|to) (-?\\d+)");
-    private static final Pattern DICE = Pattern.compile("roll (?:a |an |the )?(\\d+)?[- ]?(?:sided )?(?:die|dice|d(\\d+))");
+    private static final Pattern DICE = Pattern.compile("(?:please )?(?:can you )?roll (?:a |an |the |one |me a )?(?:(\\d+)[- ]sided |d(\\d+))?(?:die|dice)?(?: for me)?(?: please)?");
     private static final Pattern RPS = Pattern.compile("(?:let's play |play )?(rock|paper|scissors)!?$");
 
     /** His answer, or null if it isn't one of these. */
@@ -33,7 +33,7 @@ final class QuickAnswers {
             return random.nextBoolean() ? "*flip* ...Heads!" : "*flip* ...Tails!";
         }
         Matcher m = DICE.matcher(q);
-        if (m.find()) {
+        if (m.matches() && (q.contains("die") || q.contains("dice") || m.group(2) != null)) { // the whole question ("roll a die"), not Monopoly rules
             int sides = m.group(1) != null ? Integer.parseInt(m.group(1)) : m.group(2) != null ? Integer.parseInt(m.group(2)) : 6;
             if (sides < 2 || sides > 1000) return "That's not a real die. I checked.";
             return "*rattle rattle* ...a " + (1 + random.nextInt(sides)) + "!";

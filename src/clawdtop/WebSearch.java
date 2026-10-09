@@ -51,7 +51,11 @@ final class WebSearch {
 
     /** Whether a question is about the weather. */
     static boolean aboutWeather(String question) {
-        return question.toLowerCase(java.util.Locale.ROOT).matches(".*\\b(weather|temperature|is it (raining|cold|hot|sunny|snowing))\\b.*");
+        // (only the weather where you are now: "what temperature does water boil at" is a real question)
+        String q = question.toLowerCase(java.util.Locale.ROOT).strip().replaceAll("[?!.]+$", "");
+        return q.matches(".*\\b(what's|whats|what is|how's|hows|how is) the weather\\b.*|weather( (today|now|outside|right now))?"
+                + "|.*\\bis it (raining|cold|hot|warm|sunny|snowing|windy|cloudy)( outside| today| right now)?|.*\\b(temperature|temp) (outside|today|right now|now)\\b.*"
+                + "|.*\\bhow (hot|cold|warm) is it( outside| today)?|.*\\bdo i need (an umbrella|a jacket|a coat)\\b.*");
     }
 
     /** The weather where you are (from wttr.in, which goes by your internet address), like "Overcast, 76 F", or null. */

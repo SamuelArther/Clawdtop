@@ -22,13 +22,27 @@ final class BrainInstall {
     static final String WINDOWS_SETUP = "https://ollama.com/download/OllamaSetup.exe";
     static final String MAC_ZIP = "https://ollama.com/download/Ollama-darwin.zip";
 
-    /** Where Ollama lives once it's installed (just for you), or null. */
+    /** Where Ollama is (wherever it was installed), or where it goes if it isn't yet (just for you); null on Linux. */
     static Path ollama() {
         if (Platform.WINDOWS) {
-            String local = System.getenv("LOCALAPPDATA");
-            return local == null ? null : Path.of(local, "Programs", "Ollama", "ollama.exe");
+            java.util.List<Path> places = new java.util.ArrayList<>();
+            String local = System.getenv("LOCALAPPDATA"), programs = System.getenv("ProgramFiles");
+            if (local != null) places.add(Path.of(local, "Programs", "Ollama", "ollama.exe"));
+            if (programs != null) places.add(Path.of(programs, "Ollama", "ollama.exe"));
+            for (String dir : System.getenv().getOrDefault("PATH", "").split(java.io.File.pathSeparator)) {
+                try {
+                    if (!dir.isBlank()) places.add(Path.of(dir.strip(), "ollama.exe"));
+                } catch (RuntimeException badPath) {
+                    // skip it
+                }
+            }
+            for (Path p : places) if (Files.isRegularFile(p)) return p;
+            return places.isEmpty() ? null : places.get(0);
         }
-        if (Platform.MAC) return Path.of(System.getProperty("user.home"), "Applications", "Ollama.app");
+        if (Platform.MAC) {
+            Path mine = Path.of(System.getProperty("user.home"), "Applications", "Ollama.app"), everyone = Path.of("/Applications", "Ollama.app");
+            return Files.exists(everyone) && !Files.exists(mine) ? everyone : mine;
+        }
         return null;
     }
 
@@ -58,8 +72,14 @@ final class BrainInstall {
             }
         }
         if (!brain.has(model)) {
-            progress.accept("Downloading what I know (about 1 GB, just once)...");
-            if (!brain.download(model)) {
+            progress.accept("Downloading what I know (" + Brain.downloadSizeOf(model) + ", just once)...");
+            int[] said = {0};
+            if (!brain.download(model, percent -> { // a word every 25%, so you know it's going
+                if (percent >= said[0] + 25 && percent < 100) {
+                    said[0] = percent / 25 * 25;
+                    progress.accept("Downloading my brain... " + said[0] + "% done.");
+                }
+            })) {
                 progress.accept("The download didn't finish. Is the internet on?");
                 return false;
             }
@@ -75,7 +95,7 @@ final class BrainInstall {
                 Path setup = temp.resolve("OllamaSetup.exe");
                 if (!download(WINDOWS_SETUP, setup)) return false;
                 Process p = new ProcessBuilder(setup.toString(), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-").start();
-                p.waitFor();
+                if (!p.waitFor(10, java.util.concurrent.TimeUnit.MINUTES)) return false; // stuck: give up (he says so)
                 return Files.exists(ollama());
             }
             if (Platform.MAC) {
@@ -83,7 +103,7 @@ final class BrainInstall {
                 if (!download(MAC_ZIP, zip)) return false;
                 Path apps = Path.of(System.getProperty("user.home"), "Applications");
                 Files.createDirectories(apps);
-                new ProcessBuilder("ditto", "-x", "-k", zip.toString(), apps.toString()).start().waitFor();
+                new ProcessBuilder("ditto", "-x", "-k", zip.toString(), apps.toString()).start().waitFor(5, java.util.concurrent.TimeUnit.MINUTES);
                 return Files.exists(ollama());
             }
         } catch (IOException | InterruptedException e) {
@@ -97,7 +117,7 @@ final class BrainInstall {
         try {
             if (Platform.WINDOWS) {
                 new ProcessBuilder("powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command",
-                        "Start-Process -WindowStyle Hidden -FilePath '" + ollama + "' -ArgumentList 'serve'").start();
+                        "Start-Process -WindowStyle Hidden -FilePath '" + ollama.toString().replace("'", "''") + "' -ArgumentList 'serve'").start();
             } else if (Platform.MAC) {
                 new ProcessBuilder("open", "-g", ollama.toString()).start();
             }

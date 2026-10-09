@@ -249,8 +249,7 @@ final class Welcome {
             settings.movedFrom(oldHome);
             settings.setHome(home.getText().isBlank() ? settings.suggestedHome() : home.getText());
             settings.setMet();
-            if (window != null) window.dispose();
-            finished.run();
+            askStartup(); // (then he walks in with his boxes)
         };
         home.addActionListener(e -> next.run());
         show(new String[] {"Got everything from " + oldHome + "!", "What should I call this new place?"}, home,
@@ -312,10 +311,18 @@ final class Welcome {
     void done() {
         String who = settings.name().isEmpty() ? "" : " " + settings.name();
         settings.setMet();
-        show(new String[] {"All set" + (who.isEmpty() ? "" : ",") + who + "!",
-                "I'm in a box down on your taskbar.", "Click it to let me out!",
-                "(I'm also installing my brain in the background, so I can answer your questions:",
-                "Ollama, free, about 2 GB. You don't have to do anything.)"}, null,
+        if (movedIn) { // he walks in with his boxes: no box to open
+            if (window != null) window.dispose();
+            finished.run();
+            return;
+        }
+        java.util.List<String> lines = new java.util.ArrayList<>(java.util.List.of("All set" + (who.isEmpty() ? "" : ",") + who + "!",
+                "I'm in a box down on your taskbar.", "Click it to let me out!"));
+        if (settings.on("askMe")) {
+            lines.add("(I'm also getting my brain ready in the background, so I can answer your questions:");
+            lines.add("Ollama, free, " + Brain.downloadSize(settings.choice("brain")) + " to download. You don't have to do anything.)");
+        }
+        show(lines.toArray(new String[0]), null,
                 button("OK!", () -> {
                     if (window != null) window.dispose();
                     finished.run();

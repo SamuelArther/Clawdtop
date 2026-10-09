@@ -152,7 +152,8 @@ public final class Settings {
     }
 
     public void setName(String name) {
-        values.setProperty("name", name.strip());
+        name = Brain.noBadWords(name.strip());
+        values.setProperty("name", name.length() > 24 ? name.substring(0, 24).strip() : name);
         save();
     }
 
@@ -168,7 +169,7 @@ public final class Settings {
     }
 
     public void setHome(String home) {
-        home = home.strip().replace("|", "");
+        home = Brain.noBadWords(home.strip().replace("|", ""));
         values.setProperty("home", home.length() > 30 ? home.substring(0, 30) : home);
         save();
     }

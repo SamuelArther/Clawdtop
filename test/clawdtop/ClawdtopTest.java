@@ -660,6 +660,16 @@ public class ClawdtopTest {
 
         // ---- Weather (only with looking things up on) ----
         check("weather questions are spotted", WebSearch.aboutWeather("what's the weather like?") + " " + WebSearch.aboutWeather("is it raining") + " " + WebSearch.aboutWeather("whether to code"), "true true false");
+        check("but not science about it", WebSearch.aboutWeather("what temperature does water boil at") + " " + WebSearch.aboutWeather("how does weather work"), "false false");
+        check("reminders understand more", Reminders.parse("set a 5 minute timer").when() + " / " + Reminders.parse("remind me in 1 hour 30 minutes to eat").when()
+                + " / " + Reminders.parse("remind me in an hour and a half").when() + " / " + Reminders.parse("set a timer for twelve minutes").when(),
+                "5 minutes / 1 hour 30 minutes / 1 hour 30 minutes / 12 minutes");
+        check("and he's honest about the ones he can't do", Reminders.soundsLikeOne("remind me at 5pm to call grandma") + " " + Reminders.soundsLikeOne("remind me in 5 minutes"), "true false");
+        check("he never says bad words back", Reminders.parse("remind me in 5 minutes to say shit").what() + " | " + Brain.noBadWords("Moby-Dick in Scunthorpe, bullshit"),
+                "say beep | Moby-Dick in Scunthorpe, beep");
+        check("answers cut off mid-sentence end on a full one", Brain.toLastSentence("Crabs walk sideways. They have ten le"), "Crabs walk sideways.");
+        check("accents stay, emoji go", Brain.clean("Beyoncé is 100°C 😀 cool"), "Beyoncé is 100°C  cool");
+        check("dice only when you want dice", QuickAnswers.answer("how do I roll the dice in Monopoly", new java.util.Random(1)), null);
         check("and he has something to say about it", Clawdtop.weatherQuip("Light rain, 60 F").contains("umbrella") + " " + Clawdtop.weatherQuip("Overcast, 76 F").contains("coding weather"), "true true");
 
         // ---- Tic-tac-toe ----

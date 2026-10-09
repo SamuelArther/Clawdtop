@@ -38,6 +38,11 @@ final class Brain {
         };
     }
 
+    /** The same, by model name. */
+    static String downloadSizeOf(String model) {
+        return model.equals(model("Tiny")) ? downloadSize("Tiny") : model.equals(model("Chatty")) ? downloadSize("Chatty") : downloadSize("Normal");
+    }
+
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
 
     /** Whether Ollama is installed and running. */
@@ -59,14 +64,26 @@ final class Brain {
         }
     }
 
-    /** Downloads a model (this takes a few minutes). Whether it worked. */
-    boolean download(String model) {
+    /** Downloads a model (this takes a few minutes), telling percent how far along it is. Whether it worked. */
+    boolean download(String model, java.util.function.IntConsumer percent) {
         try {
             HttpRequest r = HttpRequest.newBuilder(URI.create(OLLAMA + "/api/pull")).timeout(Duration.ofMinutes(60))
-                    .POST(HttpRequest.BodyPublishers.ofString("{\"model\":" + json(model) + ",\"stream\":false}")).build();
-            HttpResponse<String> answer = http.send(r, HttpResponse.BodyHandlers.ofString());
-            return answer.statusCode() == 200 && answer.body().contains("success");
-        } catch (IOException | InterruptedException e) {
+                    .POST(HttpRequest.BodyPublishers.ofString("{\"model\":" + json(model) + ",\"stream\":true}")).build();
+            HttpResponse<java.util.stream.Stream<String>> answer = http.send(r, HttpResponse.BodyHandlers.ofLines());
+            if (answer.statusCode() != 200) return false;
+            java.util.regex.Pattern done = java.util.regex.Pattern.compile("\"completed\"\\s*:\\s*(\\d+)"),
+                    total = java.util.regex.Pattern.compile("\"total\"\\s*:\\s*(\\d+)");
+            boolean[] success = {false};
+            answer.body().forEach(line -> { // one line of news at a time: {"status":"pulling ...","total":N,"completed":M}
+                if (line.contains("\"success\"")) success[0] = true;
+                java.util.regex.Matcher d = done.matcher(line), t = total.matcher(line);
+                if (d.find() && t.find()) {
+                    long of = Long.parseLong(t.group(1));
+                    if (of > 50_000_000) percent.accept((int) (Long.parseLong(d.group(1)) * 100 / of)); // (the big part: the model itself)
+                }
+            });
+            return success[0];
+        } catch (IOException | InterruptedException | RuntimeException e) {
             return false;
         }
     }
@@ -133,7 +150,7 @@ final class Brain {
     // Scunthorpe are safe). Anything that matches becomes "beep".
     private static final Pattern BAD = Pattern.compile(
             "(?i)(\\w*(fuck|shit|bitch|whore|slut|asshole|bastard|motherf|nigg|fagg)\\w*"
-                    + "|\\b(cunt\\w*|retard(ed|s)?|dick(head)?s?|damn\\w*|goddamn\\w*|crap(py|s)?|piss\\w*|cock(s|sucker)?|twat|wank\\w*|douche\\w*|prick|jackass|dumbass)\\b)");
+                    + "|(?<![\\w-])(cunt\\w*|retard(ed|s)?|dick(head)?s?|damn\\w*|goddamn\\w*|crap(py|s)?|piss\\w*|cock(s|sucker)?|twat|wank\\w*|douche\\w*|prick|jackass|dumbass)\\b)");
 
     /** Text with any bad words beeped out (for anything he says back to you: reminders, names, answers). */
     static String noBadWords(String text) {
@@ -144,7 +161,7 @@ final class Brain {
     static String toLastSentence(String text) {
         String t = text.strip();
         int stop = Math.max(t.lastIndexOf('.'), Math.max(t.lastIndexOf('!'), t.lastIndexOf('?')));
-        return stop > 20 ? t.substring(0, stop + 1) : t + "...";
+        return stop >= 8 ? t.substring(0, stop + 1) : t + "...";
     }
 
     /** His answer, tidied: no markdown or emoji, no bad words (just in case), not too long. */
@@ -152,7 +169,7 @@ final class Brain {
         String t = text.replace("**", "").replace("__", "").replace("`", "").replaceAll("(?m)^#+\\s*", "").replaceAll("(?m)^\\s*[-*]\\s+", "- ");
         t = t.replace('’', '\'').replace('‘', '\'').replace('“', '"').replace('”', '"')
                 .replace('—', '-').replace('–', '-'); // curly quotes and dashes, made plain
-        t = t.replaceAll("[\\p{So}\\p{Sk}\\p{Cs}\\p{Co}\\p{Cn}\\x{FE0F}\\x{200D}]", ""); // no emoji (letters like é and ° stay)
+        t = t.replaceAll("[[\\p{So}\\p{Sk}\\p{Cs}\\p{Co}\\p{Cn}\\x{FE0F}\\x{200D}]&&[^°©®™]]", ""); // no emoji (letters like é and ° stay)
         t = BAD.matcher(t).replaceAll("beep");
         t = t.strip();
         if (t.length() > 420) {
