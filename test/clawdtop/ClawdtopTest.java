@@ -771,6 +771,25 @@ public class ClawdtopTest {
         optionsPanel.setSize(560, 600);
         snapshot(optionsPanel, frames0.resolve("all the options.png"));
         check("all the options, in tabs", ((javax.swing.JTabbedPane) ((java.awt.BorderLayout) optionsPanel.getLayout()).getLayoutComponent(java.awt.BorderLayout.CENTER)).getTabCount() > 3, true);
+        // a smaller copy of a picture, and unzipping (safely)
+        Path handy = Files.createTempDirectory("clawdtop-handy");
+        java.awt.image.BufferedImage big = new java.awt.image.BufferedImage(3200, 2000, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        javax.imageio.ImageIO.write(big, "png", handy.resolve("beach.png").toFile());
+        Path small = Handy.shrink(handy.resolve("beach.png"));
+        java.awt.image.BufferedImage shrunk = javax.imageio.ImageIO.read(small.toFile());
+        check("smaller picture", small.getFileName() + " " + shrunk.getWidth() + "x" + shrunk.getHeight() + " " + Files.exists(handy.resolve("beach.png")), "beach (small).jpg 1600x1000 true");
+        check("not a picture", Handy.shrink(Files.writeString(handy.resolve("fake.png"), "nope")), null);
+        Path zipFile = handy.resolve("stuff.zip");
+        try (var zout = new java.util.zip.ZipOutputStream(Files.newOutputStream(zipFile))) {
+            for (String n : new String[] {"stuff/a.txt", "stuff/sub/b.txt", "stuff/../../evil.txt"}) {
+                zout.putNextEntry(new java.util.zip.ZipEntry(n));
+                zout.write("hi".getBytes());
+                zout.closeEntry();
+            }
+        }
+        Handy.Unzipped unzipped = Handy.unzip(zipFile);
+        check("unzip", unzipped.folder().getFileName() + " " + Files.exists(unzipped.folder().resolve("a.txt")) + " " + Files.exists(unzipped.folder().resolve("sub/b.txt"))
+                + " " + Files.exists(handy.getParent().resolve("evil.txt")) + " " + Files.exists(handy.resolve("evil.txt")), "stuff true true false false");
         // the desktop: reading icon spots (Windows' script and Finder say the same shape), sorting files for Neat
         Desktop.Layout desk = Desktop.read("DESKTOP|/home/me/Desktop\nskin|177,2\nmy song.mid|2427,1032\nnot an icon\n");
         check("desktop read", desk.folder().getFileName() + " " + desk.icons(), "Desktop [Icon[name=skin, x=177, y=2], Icon[name=my song.mid, x=2427, y=1032]]");

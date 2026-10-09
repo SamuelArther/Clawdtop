@@ -248,11 +248,14 @@ public final class Clawdtop {
                     java.util.List<java.io.File> files = (java.util.List<java.io.File>) e.getTransferable().getTransferData(java.awt.datatransfer.DataFlavor.javaFileListFlavor);
                     java.io.File midi = files.stream().filter(Piano::isMidi).findFirst().orElse(null);
                     e.dropComplete(true);
-                    if (midi == null) {
-                        pet.say("Hmm, that's not music. I can only play MIDI files (.mid).");
+                    if (midi != null) {
+                        playDropped(midi);
                         return;
                     }
-                    playDropped(midi);
+                    java.io.File first = files.isEmpty() ? null : files.get(0);
+                    if (first != null && first.isFile() && Handy.picture(first.toPath())) offerShrink(first.toPath());
+                    else if (first != null && first.isFile() && Handy.zip(first.toPath())) offerUnzip(first.toPath());
+                    else pet.say("Hmm, not sure what to do with that one!\nI can play songs (.mid), make pictures smaller, and unzip .zip files.");
                 } catch (Exception ex) {
                     e.dropComplete(false);
                 }
@@ -1074,6 +1077,76 @@ public final class Clawdtop {
                 });
             });
         });
+    }
+
+    // ---- Files you drop on him: a smaller copy of a picture, or a zip unzipped ----
+
+    private void offerShrink(Path picture) {
+        pet.sniff();
+        pet.speak();
+        bubble.ask("A picture! Want a smaller copy, for emailing or texting?\n(" + picture.getFileName() + ", " + Handy.size(picture) + ". The original stays as it is.)",
+                new String[] {"Make it smaller", "No thanks"}, choice -> {
+                    if (choice != 0) return;
+                    pet.say("Squishing it...");
+                    worker.execute(() -> {
+                        Path small;
+                        try {
+                            small = Handy.shrink(picture);
+                        } catch (IOException | RuntimeException cant) {
+                            small = null;
+                        }
+                        Path made = small;
+                        SwingUtilities.invokeLater(() -> {
+                            if (made == null) {
+                                pet.say("Hmm, I couldn't open that picture.");
+                                return;
+                            }
+                            pet.speak();
+                            bubble.ask("Done! " + made.getFileName() + "\n" + Handy.size(picture) + " became " + Handy.size(made) + ". It's right next to the original.",
+                                    new String[] {"Show me", "OK"}, c -> {
+                                        if (c == 0) FindFile.showInFolder(made);
+                                    }, head(), screenBounds());
+                            bubble.expireIn(30_000);
+                        });
+                    });
+                }, head(), screenBounds());
+        bubble.expireIn(30_000);
+    }
+
+    private void offerUnzip(Path zip) {
+        pet.sniff();
+        pet.speak();
+        bubble.ask("A zip file! Want me to unzip it?\n(" + zip.getFileName() + ". It goes in a new folder right next to it.)",
+                new String[] {"Unzip it", "No thanks"}, choice -> {
+                    if (choice != 0) return;
+                    pet.say("Unzipping...");
+                    worker.execute(() -> {
+                        Handy.Unzipped out;
+                        String why = null;
+                        try {
+                            out = Handy.unzip(zip);
+                        } catch (IOException | RuntimeException cant) {
+                            out = null;
+                            why = cant.getMessage();
+                        }
+                        Handy.Unzipped done = out;
+                        String reason = why;
+                        SwingUtilities.invokeLater(() -> {
+                            if (done == null) {
+                                pet.say("too big".equals(reason) || "too many files".equals(reason) ? "Whoa, that zip is HUGE inside. I stopped, to be safe."
+                                        : "Hmm, I couldn't unzip that one. (It might be damaged, or need a password.)");
+                                return;
+                            }
+                            pet.speak();
+                            bubble.ask("Unzipped! " + done.files() + (done.files() == 1 ? " file" : " files") + " in the folder \"" + done.folder().getFileName() + "\".",
+                                    new String[] {"Show me", "OK"}, c -> {
+                                        if (c == 0) FindFile.open(done.folder());
+                                    }, head(), screenBounds());
+                            bubble.expireIn(30_000);
+                        });
+                    });
+                }, head(), screenBounds());
+        bubble.expireIn(30_000);
     }
 
     /** Puts up his sticky note (or takes it down, for ""). */
@@ -3433,6 +3506,8 @@ public final class Clawdtop {
             case "yes" -> bubble.press(0);
             case "tidy" -> tidyDesktop();
             case "options" -> OptionsWindow.show(() -> settings, this::optionsChanged);
+            case "drop picture" -> offerShrink(Path.of(System.getProperty("smoke.file", "missing")));
+            case "drop zip" -> offerUnzip(Path.of(System.getProperty("smoke.file", "missing")));
             case "eye break" -> startEyeBreak();
             case "rundown" -> {
                 String r = Helpers.rundown(java.time.LocalDate.now(), settings.todos(), settings.text("sticky"), Helpers.daysToBirthday(settings.birthday(), java.time.LocalDate.now()), settings.name());
