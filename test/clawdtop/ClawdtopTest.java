@@ -427,7 +427,7 @@ public class ClawdtopTest {
 
         // ---- Settings and starting with Windows ----
         Settings s = Settings.load();
-        check("settings start as beeps on, normal size, above the clock", s.sounds() + " " + s.size() + " " + s.x() + " " + s.unit(), "true Normal -1 4");
+        check("settings start as beeps on, normal size, above the clock", s.sounds() + " " + s.size() + " " + (s.x() == Settings.NO_X) + " " + s.unit(), "true Normal true 4");
         s.setSounds(false);
         s.setSize("Big");
         s.setX(1200);
@@ -435,7 +435,11 @@ public class ClawdtopTest {
         check("and are kept for next time", again.sounds() + " " + again.size() + " " + again.x() + " " + again.unit(), "false Big 1200 6");
         Files.writeString(home.resolve("settings.properties"), "size=Huge\nx=nope\n");
         Settings odd = Settings.load();
-        check("odd settings fall back to normal", odd.size() + " " + odd.x(), "Normal -1");
+        check("odd settings fall back to normal", odd.size() + " " + (odd.x() == Settings.NO_X), "Normal true");
+        odd.setX(-900); // (a monitor to the left of the main one)
+        check("a spot on a monitor to the left counts", Settings.load().x(), -900);
+        odd.setSpot("On the left");
+        check("picking a spot forgets the dragged one", Settings.load().x() == Settings.NO_X, true);
         String startScript = Startup.script("C:\\Java\\bin\\javaw.exe", "C:\\Clawdtop\\Clawdtop.jar");
         check("the Windows startup script runs Java with no window, only if he's still there", startScript.contains("If fso.FileExists(jar) Then")
                 + " " + startScript.contains("If Not fso.FileExists(java) Then java = \"javaw\"") + " " + startScript.contains("On Error Resume Next")

@@ -152,22 +152,50 @@ public final class Clawdtop {
     /** Works out his spot (and puts him there, unless he's about to walk over). */
     private void place(boolean move) {
         if (inCorner) return; // watching your game from the corner: back to his spot when it's over
-        Rectangle usable = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
-        Rectangle screen = window.getGraphicsConfiguration().getBounds();
         int w = window.getWidth();
         int h = window.getHeight();
-        int bottom = usable.y + usable.height; // the taskbar's top when it's at the bottom of the screen
-        int x = appSpotX != null ? appSpotX : settings.x() >= 0 ? settings.x() : switch (settings.spot()) {
+        int saved = appSpotX != null ? appSpotX : settings.x();
+        GraphicsConfiguration gc = monitorFor(saved == Settings.NO_X ? Settings.NO_X : saved + w / 2); // (the monitor his spot is on)
+        Rectangle screen = gc.getBounds(), usable = usable(gc);
+        int bottom = usable.y + usable.height; // the taskbar's (or the Dock's) top on his monitor
+        int x = saved != Settings.NO_X ? saved : switch (settings.spot()) {
             case "In the middle" -> screen.x + screen.width / 2 - w / 2;
-            case "On the left" -> screen.x + 70;
-            default -> screen.x + screen.width - 64 - w / 2; // above the clock, in the corner
+            case "On the left" -> usable.x + 70;
+            default -> usable.x + usable.width - 64 - w / 2; // above the clock, in the corner
         };
-        x = Math.max(screen.x, Math.min(screen.x + screen.width - w, x));
+        x = Math.max(usable.x, Math.min(usable.x + usable.width - w, x)); // (not under a taskbar or Dock on the side)
         bottom -= settings.number("nudge"); // nudged up (or down) if you like
         if (move) window.setLocation(x, bottom - h + settings.unit()); // his feet just touch the taskbar
         homeX = x + Sprite.feetX() * settings.unit();
         groundY = bottom;
         useItems();
+    }
+
+    /** The monitor a spot (x) is on: the one that has it, or (none, or no spot) the one he's on now. */
+    private GraphicsConfiguration monitorFor(int x) {
+        if (x != Settings.NO_X) {
+            for (java.awt.GraphicsDevice d : GraphicsEnvironment.getLocalGraphicsEnvironment().getScreenDevices()) {
+                Rectangle b = d.getDefaultConfiguration().getBounds();
+                if (x >= b.x && x < b.x + b.width) return d.getDefaultConfiguration();
+            }
+        }
+        return window.getGraphicsConfiguration();
+    }
+
+    /** A monitor's area without its taskbar (or a Mac's Dock and menu bar): where he can stand and things can go. */
+    static Rectangle usable(GraphicsConfiguration gc) {
+        Rectangle b = gc.getBounds();
+        java.awt.Insets in = java.awt.Toolkit.getDefaultToolkit().getScreenInsets(gc);
+        return new Rectangle(b.x + in.left, b.y + in.top, Math.max(1, b.width - in.left - in.right), Math.max(1, b.height - in.top - in.bottom));
+    }
+
+    /** All the monitors' areas, as one line (to notice one being plugged in, unplugged or changed). */
+    private static String monitors() {
+        StringBuilder all = new StringBuilder();
+        for (java.awt.GraphicsDevice d : GraphicsEnvironment.getLocalGraphicsEnvironment().getScreenDevices()) {
+            all.append(usable(d.getDefaultConfiguration())).append(';');
+        }
+        return all.toString();
     }
 
     private void listen() {
@@ -265,7 +293,7 @@ public final class Clawdtop {
     }
 
     private boolean inCorner; // sitting in the corner, watching your full-screen game
-    private Rectangle lastUsable; // the screen (above the taskbar) last time he looked
+    private String lastMonitors; // all the monitors (above their taskbars) last time he looked
     private final java.util.List<Object[]> reminders = new java.util.ArrayList<>(); // {due ms, what}
     private long focusUntil;    // the focus timer runs out then (0: off)
     private long stopwatchFrom; // the stopwatch started then (0: off)
@@ -3169,9 +3197,9 @@ public final class Clawdtop {
         if (newTick && ticks % 30 == 11) veteransSongs(nowMs);
         // The screen changed (another monitor, a new resolution, the taskbar moved)? Back to his spot on it
         if (newTick && ticks % 90 == 30 && body.state() == Body.State.HOME && !inCorner) {
-            Rectangle usable = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
-            if (lastUsable != null && !usable.equals(lastUsable)) place();
-            lastUsable = usable;
+            String now = monitors(); // (any monitor: plugged in, unplugged, a new resolution, the taskbar moved)
+            if (lastMonitors != null && !now.equals(lastMonitors)) place();
+            lastMonitors = now;
         }
         updateClock();
         if (newTick && ticks % 150 == 75) worker.execute(() -> {

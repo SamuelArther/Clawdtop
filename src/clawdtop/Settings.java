@@ -645,9 +645,12 @@ public final class Settings {
     /** Picks one of Welcome.SPOTS (and forgets where he was dragged). */
     public void setSpot(String spot) {
         values.setProperty("spot", spot);
-        values.setProperty("x", "-1");
+        values.remove("x");
         save();
     }
+
+    /** "He hasn't been dragged anywhere": x() then says so. */
+    static final int NO_X = Integer.MIN_VALUE;
 
     /** Spots you gave him for an app ("app:chrome.exe") or just one window or tab ("window:" and its title). */
     static String appKey(String app) {
@@ -684,11 +687,14 @@ public final class Settings {
     }
 
     /** Where he was dragged to along the taskbar, or -1 for his spot. */
+    /** Where you dragged him (his window's left edge), or NO_X if you haven't (a monitor to the left has negative x's). */
     public int x() {
+        String v = values.getProperty("x", "").strip();
+        if (v.isEmpty() || v.equals("-1")) return NO_X; // ("-1" meant "not set" before monitors to the left counted)
         try {
-            return Integer.parseInt(values.getProperty("x", "-1"));
+            return Integer.parseInt(v);
         } catch (NumberFormatException e) {
-            return -1;
+            return NO_X;
         }
     }
 
