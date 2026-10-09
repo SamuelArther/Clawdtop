@@ -598,6 +598,7 @@ public final class Clawdtop {
             sing(singIt.group(1));
             return;
         }
+        if (helped(question)) return; // (notes, countdowns, conversions, the internet, screenshots, locking up)
         String quick = QuickAnswers.answer(question, new java.util.Random());
         if (quick != null) {
             pet.say(quick);
@@ -684,6 +685,94 @@ public final class Clawdtop {
         }, "clawd-brain");
         t.setDaemon(true);
         t.start();
+    }
+
+    /** The handy things he does himself (no brain needed). True if he did one. */
+    private boolean helped(String question) {
+        String q = question.toLowerCase(java.util.Locale.ROOT).strip().replaceAll("[?!.]+$", "");
+        // notes
+        java.util.regex.Matcher note = java.util.regex.Pattern.compile("^(?:please )?(?:remember (?:that )?|make a note (?:that )?|note:?\\s*|write down (?:that )?)(.+)$")
+                .matcher(question.strip());
+        if (note.matches() && !q.startsWith("remember me") && !q.matches("remember (what|when|who|where|how)\\b.*")) {
+            settings.addNote(Brain.noBadWords(note.group(1).strip()));
+            pet.say("Got it! I'll remember that.\n(Ask me \"what did I tell you to remember?\" anytime.)");
+            return true;
+        }
+        if (q.matches("(what did i (ask|tell) you to remember|what are my notes|my notes|show (me )?my notes|what do you remember|read (me )?my notes)")) {
+            java.util.List<String> notes = settings.notes();
+            if (notes.isEmpty()) pet.say("You haven't told me to remember anything yet!\n(Try: \"remember that the game is at 6\")");
+            else {
+                StringBuilder b = new StringBuilder("You told me to remember:");
+                int from = Math.max(0, notes.size() - 6);
+                for (int i = from; i < notes.size(); i++) b.append("\n- ").append(notes.get(i));
+                if (from > 0) b.append("\n(and ").append(from).append(" older ones)");
+                pet.say(b.toString());
+            }
+            return true;
+        }
+        if (q.matches("(forget|clear|delete|erase) (all )?(my |the )?notes|forget everything i told you")) {
+            settings.clearNotes();
+            pet.say("Done. My mind is a beautiful blank slate.");
+            return true;
+        }
+        // countdowns and conversions
+        String countdown = Helpers.countdown(question, settings.birthday(), java.time.LocalDate.now());
+        if (countdown != null) {
+            pet.say(countdown);
+            return true;
+        }
+        String converted = Helpers.convert(question);
+        if (converted != null) {
+            pet.say(converted);
+            return true;
+        }
+        // is the internet working?
+        if (q.matches("(is (my |the )?(internet|wifi|wi-fi|connection) (working|on|down|ok|okay|up)|am i (online|connected)|(check|test) (my |the )?(internet|wifi|connection))")) {
+            pet.say("Checking...");
+            worker.execute(() -> {
+                long start = System.currentTimeMillis();
+                boolean ok;
+                try {
+                    var http = java.net.http.HttpClient.newBuilder().connectTimeout(java.time.Duration.ofSeconds(4)).build();
+                    var reply = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create("https://www.google.com/generate_204"))
+                            .timeout(java.time.Duration.ofSeconds(5)).method("HEAD", java.net.http.HttpRequest.BodyPublishers.noBody()).build(),
+                            java.net.http.HttpResponse.BodyHandlers.discarding());
+                    ok = reply.statusCode() < 500;
+                } catch (Exception e) {
+                    ok = false;
+                }
+                long ms = System.currentTimeMillis() - start;
+                boolean online = ok;
+                SwingUtilities.invokeLater(() -> pet.say(online ? "Yep, the internet's working! (Answered in " + ms + " ms" + (ms < 150 ? ". Zoom!)" : ms < 600 ? ".)" : ". A bit slow.)")
+                        : "Hmm, I can't reach the internet right now.\nCheck your wifi? (Or try turning the router off and on.)"));
+            });
+            return true;
+        }
+        // screenshots
+        if (q.matches("(take a |make a |grab a )?(screenshot|screen shot|screen grab|snip)( of my screen)?|how do i (take a )?screenshot")) {
+            pet.say(Platform.WINDOWS ? "Opening the screenshot tool! Drag over what you want.\n(Shortcut: Win + Shift + S)"
+                    : Platform.MAC ? "Opening Screenshot! (Shortcut: Cmd + Shift + 5)" : "Opening the screenshot tool!");
+            if (Platform.WINDOWS) Useful.open("ms-screenclip:");
+            else if (Platform.MAC) Useful.open("app:Screenshot");
+            else Useful.open("cmd:gnome-screenshot");
+            return true;
+        }
+        // locking up
+        if (q.matches("(please )?lock (my |the )?(computer|pc|screen|laptop|mac)( now)?")) {
+            pet.speak();
+            bubble.ask("Lock your computer now?", new String[] {"Lock it", "Never mind"}, choice -> {
+                if (choice != 0) return;
+                try {
+                    if (Platform.WINDOWS) new ProcessBuilder("rundll32.exe", "user32.dll,LockWorkStation").start();
+                    else if (Platform.MAC) new ProcessBuilder("pmset", "displaysleepnow").start();
+                    else new ProcessBuilder("loginctl", "lock-session").start();
+                } catch (Exception cant) {
+                    pet.say("Hmm, I couldn't lock it from here.");
+                }
+            }, head(), screenBounds());
+            return true;
+        }
+        return false;
     }
 
     /** A game of tic-tac-toe against him. */

@@ -429,6 +429,25 @@ public final class Settings {
         save();
     }
 
+    /** Things you asked him to remember ("remember that..."), oldest first. */
+    public java.util.List<String> notes() {
+        String all = values.getProperty("notes", "");
+        return all.isEmpty() ? java.util.List.of() : java.util.List.of(all.split("\u001f"));
+    }
+
+    public void addNote(String note) {
+        java.util.List<String> list = new java.util.ArrayList<>(notes());
+        list.add(note.replace("\u001f", " ").strip());
+        while (list.size() > 30) list.remove(0);
+        values.setProperty("notes", String.join("\u001f", list));
+        save();
+    }
+
+    public void clearNotes() {
+        values.remove("notes");
+        save();
+    }
+
     /** A remembered yes-or-no that isn't one of his options (like "already asked to watch videos with you"). */
     public boolean flag(String name) {
         return "true".equals(values.getProperty("flag." + name));

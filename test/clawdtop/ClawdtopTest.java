@@ -617,6 +617,20 @@ public class ClawdtopTest {
         check("then back to watching", viewer.mood(), Pet.Mood.WATCH);
         viewer.watch(false);
         check("until the show's over", viewer.mood(), Pet.Mood.IDLE);
+        java.time.LocalDate oct9 = java.time.LocalDate.of(2026, 10, 9);
+        check("countdowns", Helpers.countdown("how many days until christmas?", "", oct9) + " | " + Helpers.countdown("how many days until halloween", "", oct9)
+                + " | " + Helpers.countdown("how many days until my birthday", "10-10", oct9) + " | " + Helpers.countdown("days until march 3", "", oct9)
+                + " | " + Helpers.countdown("what's for dinner", "", oct9),
+                "77 days until Christmas! | 22 days until Halloween! | Just 1 more day until your birthday! (Tomorrow!) | 145 days until March 3! | null");
+        check("conversions", Helpers.convert("how many cm in 5 inches?") + " | " + Helpers.convert("70 f in c") + " | " + Helpers.convert("convert 2 miles to km")
+                + " | " + Helpers.convert("how many feet in a mile") + " | " + Helpers.convert("5 kg to inches"),
+                "5 inches is 12.7 cm. | 70 f is 21.11 c. | 2 miles is 3.22 km. | 1 mile is 5280 feet. | Hmm, you can't turn kg into inches. (Different kinds of things!)");
+        Settings noter = Settings.load();
+        noter.clearNotes();
+        noter.addNote("the game is at 6");
+        noter.addNote("buy milk");
+        check("he remembers notes", String.join(" / ", Settings.load().notes()), "the game is at 6 / buy milk");
+        noter.clearNotes();
         boolean calmPicks = true;
         java.util.Random picks = new java.util.Random(5);
         for (int i = 0; i < 500; i++) calmPicks &= !Creation.pick(picks, java.util.Set.of(), "", false).big();
