@@ -129,7 +129,7 @@ public final class Cli {
                 s.addOne("jokesTold");
                 out.println(Jokes.nth(s.metDate().toString().hashCode(), told));
             }
-            case "version", "-v", "--version" -> out.println("Clawd " + Updater.VERSION);
+            case "version", "-v", "--version" -> out.println("Clawdtop " + Updater.VERSION);
             case "update" -> {
                 out.println("Looking for a newer me...");
                 Updater.Release release = Updater.check();

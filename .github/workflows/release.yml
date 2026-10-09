@@ -1,5 +1,5 @@
 name: release
-# Push a tag like v1.0.0 and this builds Clawd (for Java 22 and up), tests him, and publishes the release:
+# Push a tag like v1.1 (versions go 1.0, 1.1, 1.2...) and this builds Clawd (for Java 22 and up), tests him, and publishes the release:
 # Clawdtop.jar on its own (what his update check downloads) and a zip with the starters and the README.
 on:
   push:
@@ -36,4 +36,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" "dist/Clawdtop-${GITHUB_REF_NAME}.zip" dist/Clawdtop.jar \
-            --title "Clawd ${GITHUB_REF_NAME#v}" --notes-file RELEASE_NOTES.md
+            --title "Clawdtop ${GITHUB_REF_NAME#v}" --notes-file RELEASE_NOTES.md
