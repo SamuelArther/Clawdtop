@@ -29,6 +29,8 @@ public final class Foreground {
     private static final MethodHandle GET_WINDOW_RECT;
     private static final MethodHandle GET_CLASS_NAME;
     private static final MethodHandle GET_WINDOW_TEXT;
+    private static final MethodHandle IS_ZOOMED;        // a maximized window
+    private static final MethodHandle GET_WINDOW_LONG;  // its style (does it have a title bar?)
 
     static {
         MethodHandle window = null;
@@ -36,6 +38,7 @@ public final class Foreground {
         MethodHandle rect = null;
         MethodHandle className = null;
         MethodHandle text = null;
+        MethodHandle zoomed = null, style = null;
         try {
             if (System.getProperty("os.name", "").toLowerCase(Locale.ROOT).startsWith("windows")) {
                 Linker linker = Linker.nativeLinker();
@@ -50,6 +53,9 @@ public final class Foreground {
                         FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
                 text = linker.downcallHandle(user32.find("GetWindowTextW").orElseThrow(),
                         FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
+                zoomed = linker.downcallHandle(user32.find("IsZoomed").orElseThrow(), FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS));
+                style = linker.downcallHandle(user32.find("GetWindowLongW").orElseThrow(),
+                        FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
             }
         } catch (Throwable notAvailable) {
             window = null;
@@ -60,6 +66,8 @@ public final class Foreground {
         GET_WINDOW_RECT = window == null ? null : rect;
         GET_CLASS_NAME = window == null ? null : className;
         GET_WINDOW_TEXT = window == null ? null : text;
+        IS_ZOOMED = window == null ? null : zoomed;
+        GET_WINDOW_LONG = window == null ? null : style;
     }
 
     private Foreground() {
@@ -142,7 +150,14 @@ public final class Foreground {
             if ((int) GET_WINDOW_RECT.invokeExact(window, r) == 0) return false;
             int width = r.getAtIndex(ValueLayout.JAVA_INT, 2) - r.getAtIndex(ValueLayout.JAVA_INT, 0);
             int height = r.getAtIndex(ValueLayout.JAVA_INT, 3) - r.getAtIndex(ValueLayout.JAVA_INT, 1);
-            return width >= screenWidth && height >= screenHeight;
+            if (width < screenWidth || height < screenHeight) return false;
+            // a maximized window with a title bar (Chrome, Word...) can measure a bit bigger than the screen (its invisible
+            // borders), with the taskbar hidden: that's not a full-screen game or video
+            if (IS_ZOOMED != null && GET_WINDOW_LONG != null && (int) IS_ZOOMED.invokeExact(window) != 0) {
+                int windowStyle = (int) GET_WINDOW_LONG.invokeExact(window, -16); // GWL_STYLE
+                if ((windowStyle & 0x00C00000) == 0x00C00000) return false;      // WS_CAPTION
+            }
+            return true;
         } catch (Throwable e) {
             return false;
         }
