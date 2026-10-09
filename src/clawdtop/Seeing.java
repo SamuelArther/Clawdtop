@@ -75,9 +75,15 @@ final class Seeing {
         return change;
     }
 
+    /** Web browsers (Windows' program names, and a Mac's or Linux's app names): only their window titles say what's playing. */
+    private static final java.util.Set<String> BROWSERS = java.util.Set.of("chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe", "vivaldi.exe",
+            "arc.exe", "chromium.exe", "google chrome", "safari", "firefox", "microsoft edge", "brave browser", "arc", "opera", "vivaldi", "chromium", "chrome");
+
     /** What's playing in the window in front: "video", "music", or null (nothing he can tell). */
     static String mediaIn(String app, String title) {
-        String a = app == null ? "" : app.toLowerCase(java.util.Locale.ROOT), t = title == null ? "" : title.toLowerCase(java.util.Locale.ROOT);
+        String a = app == null ? "" : app.toLowerCase(java.util.Locale.ROOT);
+        // (a title only counts in a browser: a Word file called "Netflix essay" or a folder called "YouTube" isn't a show)
+        String t = title == null || !BROWSERS.contains(a) ? "" : title.toLowerCase(java.util.Locale.ROOT);
         if (a.equals("spotify.exe") || a.equals("itunes.exe") || a.equals("applemusic.exe") || a.equals("music.ui.exe") || a.equals("foobar2000.exe")
                 || a.equals("winamp.exe") || a.equals("musicbee.exe") || a.equals("spotify") || a.equals("music")
                 || t.contains("youtube music") || t.contains("soundcloud") || t.contains("deezer") || t.contains("pandora") || t.contains("apple music")) {

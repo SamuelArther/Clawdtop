@@ -383,19 +383,31 @@ public final class Clawdtop {
     // ---- Watching and listening along (only once you've said he may, through the computer's own permission box) ----
     private final Hearing ears = new Hearing();
     private final Seeing eyes = new Seeing();
-    private long mediaSeenAt, lastScare, lastBop, loudSince;
+    private long mediaSeenAt, videoSeenAt, lastScare, lastBop, loudSince;
+    private boolean consentOpen; // the computer's own permission box is up
+    private boolean smokeShow;   // (the screen test's pretend show)
     private double calmLevel; // how loud it usually is, lately (so a sudden jump stands out)
     private boolean askingMedia;
     private long lastOffer = -10 * 60_000L;
 
     /** Something playing in front (a video or music)? He offers to watch or listen; once allowed, he does. */
     private void watchAndListen(Foreground.Front front) {
+        if (smokeShow) return;
+        // turned off in his options: he stops right away
+        if (!settings.on("seeing")) {
+            if (eyes.looking()) eyes.stop();
+            if (pet.watching()) pet.watch(false);
+        }
+        if (!settings.on("hearing") && ears.listening()) ears.stop();
         String media = farewell || boxed ? null : Seeing.mediaIn(front.app(), front.title());
         long now = System.currentTimeMillis();
         if (media != null) mediaSeenAt = now;
+        if ("video".equals(media)) videoSeenAt = now;
+        if (now - videoSeenAt > 20_000) { // no video for a while (nothing, or music now): the show's over
+            if (pet.watching()) pet.watch(false);
+            if (eyes.looking()) eyes.stop();
+        }
         if (media == null) {
-            if (now - mediaSeenAt > 20_000 && pet.watching()) pet.watch(false); // the show's over
-            if (now - mediaSeenAt > 20_000 && eyes.looking()) eyes.stop();
             if (now - mediaSeenAt > 60_000 && ears.listening()) ears.stop();
             return;
         }
@@ -428,8 +440,8 @@ public final class Clawdtop {
         lastOffer = System.currentTimeMillis();
         pet.speak();
         javax.swing.Timer giveUp = new javax.swing.Timer(25_000, e -> { // no answer: never mind (he'll ask another time)
-            if (askingMedia && question.equals(bubble.question())) {
-                bubble.hide();
+            if (askingMedia && !consentOpen) { // (even if the question was hidden or replaced meanwhile: else he'd never ask again)
+                if (question.equals(bubble.question())) bubble.hide();
                 askingMedia = false;
             }
         });
@@ -442,7 +454,9 @@ public final class Clawdtop {
                 pet.say("Okay! (You can turn it on in my options later.)");
                 return;
             }
+            consentOpen = true;
             Consent.ask(permission, detail, allowed -> {
+                consentOpen = false;
                 askingMedia = false;
                 settings.set(option, String.valueOf(allowed));
                 pet.say(allowed ? (option.equals("seeing") ? "Yay! Movie buddy!" : "Yay! Let's hear it!") : "Okay, I won't. (It's in my options if you change your mind.)");
@@ -3333,9 +3347,15 @@ public final class Clawdtop {
             case "sing" -> pet.play(Piano.Instrument.VOICE, Piano.SONGS[0]);
             case "sing army" -> answer("sing the army song");
             case "cpdance" -> pet.smokeMood(Pet.Mood.CPDANCE, 5200);
-            case "watch" -> pet.watch(true);
+            case "watch" -> {
+                smokeShow = true; // (a pretend show: the real watcher leaves it alone)
+                pet.watch(true);
+            }
             case "scare" -> pet.scare();
-            case "stop watching" -> pet.watch(false);
+            case "stop watching" -> {
+                smokeShow = false;
+                pet.watch(false);
+            }
             case "offer seeing" -> offerSense("Ooh, a video! Want me to watch this with you?", "seeing", "askedSeeing",
                     "Can Clawd see your screen?", "(test) He takes a quick look at how bright your screen is.");
             case "yes" -> bubble.press(0);

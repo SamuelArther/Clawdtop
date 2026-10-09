@@ -726,6 +726,10 @@ public class ClawdtopTest {
                 + " " + Helpers.birthday("25/12") + " " + Helpers.birthday("October 8th") + " " + Helpers.birthday("2/31") + " " + Helpers.birthday("8/") + " "
                 + Helpers.birthday("2/29") + " " + Helpers.birthday("blah") + " " + Helpers.birthday("3/4/2012"),
                 "10-08 10-08 10-08 10-08 12-25 10-08 null null 02-29 null 03-04");
+        // what counts as a show: titles only in a browser
+        check("media", Seeing.mediaIn("chrome.exe", "Funny cats - YouTube") + " " + Seeing.mediaIn("WINWORD.EXE", "Netflix essay.docx") + " "
+                + Seeing.mediaIn("explorer.exe", "YouTube") + " " + Seeing.mediaIn("spotify.exe", "Song") + " " + Seeing.mediaIn("Safari", "Netflix") + " "
+                + Seeing.mediaIn("discord.exe", "#twitch-clips"), "video null null music video null");
         // the desktop: reading icon spots (Windows' script and Finder say the same shape), sorting files for Neat
         Desktop.Layout desk = Desktop.read("DESKTOP|/home/me/Desktop\nskin|177,2\nmy song.mid|2427,1032\nnot an icon\n");
         check("desktop read", desk.folder().getFileName() + " " + desk.icons(), "Desktop [Icon[name=skin, x=177, y=2], Icon[name=my song.mid, x=2427, y=1032]]");
