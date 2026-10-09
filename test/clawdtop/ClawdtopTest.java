@@ -764,7 +764,7 @@ public class ClawdtopTest {
         check("reminders understand more", Reminders.parse("set a 5 minute timer").when() + " / " + Reminders.parse("remind me in 1 hour 30 minutes to eat").when()
                 + " / " + Reminders.parse("remind me in an hour and a half").when() + " / " + Reminders.parse("set a timer for twelve minutes").when(),
                 "5 minutes / 1 hour 30 minutes / 1 hour 30 minutes / 12 minutes");
-        check("and he's honest about the ones he can't do", Reminders.soundsLikeOne("remind me at 5pm to call grandma") + " " + Reminders.soundsLikeOne("remind me in 5 minutes"), "true false");
+        check("and he's honest about the ones he can't do", Reminders.soundsLikeOne("remind me tomorrow to call grandma") + " " + Reminders.soundsLikeOne("remind me in 5 minutes"), "true false");
         check("but \"remind me how...\" is a question for him", Reminders.soundsLikeOne("remind me how photosynthesis works"), false);
         check("powers survive the tidy-up, and sniggering is fine", Brain.clean("2^3 is 8") + " / " + Brain.noBadWords("sniggering"), "2^3 is 8 / sniggering");
         check("he never says bad words back", Reminders.parse("remind me in 5 minutes to say shit").what() + " | " + Brain.noBadWords("Moby-Dick in Scunthorpe, bullshit"),
@@ -805,6 +805,11 @@ public class ClawdtopTest {
         check("but real questions go to his brain", QuickAnswers.answer("should I learn Python?", dice) + " " + QuickAnswers.answer("why is the sky blue", dice), "null null");
 
         // ---- Reminders and the focus timer ----
+        java.time.LocalTime twoPm = java.time.LocalTime.of(14, 0);
+        check("remind at a time", Reminders.parse("remind me at 3pm to call grandma", twoPm).when() + " / " + Reminders.parse("remind me to feed my cat at 7:30", twoPm).when()
+                + " / " + Reminders.parse("remind me at noon to eat", twoPm).when() + " / " + Reminders.parse("remind me at 9am to wake up", twoPm).when()
+                + " / " + Reminders.parse("remind me to feed my cat at 7:30", twoPm).what() + " / " + Reminders.parse("remind me at 13pm to x", twoPm),
+                "1 hour / 5 hours 30 minutes / 22 hours / 19 hours / feed your cat / null");
         Reminders.Reminder oven = Reminders.parse("Remind me in 10 minutes to check the oven.");
         check("remind me in 10 minutes to...", oven.inMs() + " " + oven.when() + " / " + oven.what(), "600000 10 minutes / check the oven");
         Reminders.Reminder cat = Reminders.parse("remind me to feed my cat in half an hour");

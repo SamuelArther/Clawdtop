@@ -627,11 +627,15 @@ public final class Clawdtop {
         Reminders.Reminder reminder = Reminders.parse(question);
         if (reminder != null) {
             reminders.add(new Object[] {System.currentTimeMillis() + reminder.inMs(), reminder.what()});
-            pet.say(reminder.what().equals("time's up!") ? "Timer set for " + reminder.when() + "! Tick tock." : "Okay! I'll remind you in " + reminder.when() + ".");
+            boolean atATime = question.toLowerCase(java.util.Locale.ROOT).matches(".*\\b(at|around) (\\d|noon|midnight).*");
+            String clock = java.time.LocalTime.now().plusSeconds(reminder.inMs() / 1000).format(java.time.format.DateTimeFormatter.ofPattern("h:mm a", java.util.Locale.ENGLISH));
+            pet.say(reminder.what().equals("time's up!") ? "Timer set for " + reminder.when() + "! Tick tock."
+                    : atATime ? "Okay! I'll remind you at " + clock + ".\n(That's in " + reminder.when() + ". Keep me running till then!)"
+                    : "Okay! I'll remind you in " + reminder.when() + ".");
             return;
         }
         if (Reminders.soundsLikeOne(question)) {
-            pet.say("I can only do reminders like these:\n\"remind me in 10 minutes to stretch\"\n\"set a timer for 5 minutes\"\n(Times like \"at 5pm\" or \"tomorrow\" are too tricky for me.)");
+            pet.say("I can do reminders like these:\n\"remind me in 10 minutes to stretch\"\n\"remind me at 5pm to call Grandma\"\n\"set a timer for 5 minutes\"\n(\"Tomorrow\" is too tricky for me.)");
             return;
         }
         MathHelp.Problem sum = MathHelp.parse(question);

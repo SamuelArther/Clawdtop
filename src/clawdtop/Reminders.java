@@ -69,13 +69,50 @@ final class Reminders {
 
     /** The reminder in what you typed, or null if it isn't one. */
     static Reminder parse(String said) {
+        return parse(said, java.time.LocalTime.now());
+    }
+
+    private static final String CLOCK = "(\\d{1,2})(?::(\\d{2}))? ?(am|pm|a\\.m|p\\.m)?|noon|midnight";
+    private static final Pattern AT_TO = Pattern.compile("^(?:please )?remind me (?:at|around) (" + CLOCK + ")(?: today| tonight)? (?:to|about|that) (.+)$");
+    private static final Pattern TO_AT = Pattern.compile("^(?:please )?remind me (?:to|about) (.+?) (?:at|around) (" + CLOCK + ")(?: today| tonight)?$");
+
+    static Reminder parse(String said, java.time.LocalTime now) {
         String s = said.toLowerCase(Locale.ROOT).strip().replaceAll("[.!?]+$", "").replaceAll("\\s+", " ");
         Matcher m;
+        if ((m = AT_TO.matcher(s)).matches()) return at(m.group(1), now, m.group(5));
+        if ((m = TO_AT.matcher(s)).matches()) return at(m.group(2), now, m.group(1));
         if ((m = IN_TO.matcher(s)).matches()) return make(m.group(1), m.group(2) == null ? "this is your reminder" : m.group(2));
         if ((m = TO_IN.matcher(s)).matches()) return make(m.group(2), m.group(1));
         if ((m = IN_FIRST.matcher(s)).matches()) return make(m.group(1), m.group(2));
         if ((m = TIMER.matcher(s)).matches()) return make(m.group(1) != null ? m.group(1) : m.group(2), "time's up!");
         return null;
+    }
+
+    /** A reminder at a time of day ("3pm", "7:30", "noon"): the next time it's that time (a bare "3" is whichever 3 comes next). */
+    private static Reminder at(String clock, java.time.LocalTime now, String what) {
+        String t = clock.strip();
+        Matcher c = Pattern.compile(CLOCK).matcher(t);
+        if (!c.matches()) return null;
+        int hour, minute = 0;
+        String half = null;
+        if (t.equals("noon")) hour = 12;
+        else if (t.equals("midnight")) hour = 0;
+        else {
+            hour = Integer.parseInt(c.group(1));
+            if (c.group(2) != null) minute = Integer.parseInt(c.group(2));
+            half = c.group(3);
+            if (hour > 23 || minute > 59 || (half != null && (hour == 0 || hour > 12))) return null;
+            if (half != null) hour = hour % 12 + (half.startsWith("p") ? 12 : 0);
+        }
+        long nowS = now.toSecondOfDay(), day = 24 * 3600;
+        long wait = Math.floorMod(hour * 3600L + minute * 60L - nowS, day);
+        if (half == null && c.group(1) != null && hour >= 1 && hour <= 12) { // "at 3": whichever 3 o'clock comes next, morning or afternoon
+            long morning = Math.floorMod((hour % 12) * 3600L + minute * 60L - nowS, day);
+            long afternoon = Math.floorMod((hour % 12 + 12) * 3600L + minute * 60L - nowS, day);
+            wait = Math.min(morning, afternoon);
+        }
+        if (wait < 30) wait += day; // (it's that time right now: tomorrow, then)
+        return new Reminder(wait * 1000, Brain.noBadWords(you(what.strip())));
     }
 
     /** How long a phrase like "1 hour 30 minutes" is, in ms. */
