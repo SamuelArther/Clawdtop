@@ -36,6 +36,7 @@ final class Shop {
 
     /** Points for things you do together. */
     static final int RIDE = 3, PET = 1, HOLD_PET = 2, JOB = 10, TIP = 1, TIME = 1; // TIME: every 5 minutes you're both around
+    static final int FOCUS = 20, LAP = 3, SONG = 2, MIDI = 5, ASK = 1, REMINDER = 1, MADE = 2; // focus timer finished, a lap, a song...
     static final int PETS_A_DAY = 30;
 
     private Shop() {

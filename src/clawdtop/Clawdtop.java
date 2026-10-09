@@ -241,6 +241,7 @@ public final class Clawdtop {
         if (focusUntil > 0 && now >= focusUntil) {
             focusUntil = 0;
             pet.focus(false, true);
+            if (settings.on("earnPoints")) settings.earn(Shop.FOCUS);
         }
     }
 
@@ -257,6 +258,7 @@ public final class Clawdtop {
             SwingUtilities.invokeLater(() -> {
                 if (song == null) pet.say("I tried, but I can't read that music.");
                 else if (!pet.fetch(song)) pet.say("Ooh, music! Give me a sec, I'm busy.");
+                else if (settings.on("earnPoints")) settings.earn(Shop.MIDI);
             });
         });
     }
@@ -271,6 +273,7 @@ public final class Clawdtop {
             stopwatch(watch > 0);
             return;
         }
+        if (settings.on("earnPoints")) settings.earn(Shop.ASK);
         Reminders.Reminder reminder = Reminders.parse(question);
         if (reminder != null) {
             reminders.add(new Object[] {System.currentTimeMillis() + reminder.inMs(), reminder.what()});
@@ -425,6 +428,7 @@ public final class Clawdtop {
         Creation typing = pet.coding();
         if (typing != null && ticks % 20 == 0) writeCreation(typing, pet.codingProgress());
         Creation made = pet.takeMade();
+        if (made != null && settings.on("earnPoints")) settings.earn(Shop.MADE);
         if (made != null) {
             writeCreation(made, 1);
             switch (made.effect()) {
@@ -538,7 +542,9 @@ public final class Clawdtop {
             piano.add(any);
             for (Piano.Song song : Piano.SONGS) {
                 JMenuItem item = new JMenuItem(song.name());
-                item.addActionListener(e -> pet.playPiano(song));
+                item.addActionListener(e -> {
+                    if (pet.playPiano(song) && settings.on("earnPoints")) settings.earn(Shop.SONG);
+                });
                 piano.add(item);
             }
             JMenuItem mine = new JMenuItem("Let me play!");
@@ -551,7 +557,10 @@ public final class Clawdtop {
             fun.add(piano);
             JMenuItem lap = new JMenuItem("Run a lap!");
             lap.addActionListener(e -> {
-                if (pet.lap()) body.runLap();
+                if (pet.lap()) {
+                    body.runLap();
+                    if (settings.on("earnPoints")) settings.earn(Shop.LAP);
+                }
             });
             fun.add(lap);
             JMenuItem music = new JMenuItem("Music time!");
