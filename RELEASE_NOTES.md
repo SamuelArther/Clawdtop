@@ -1,8 +1,8 @@
-New: a times-table quiz and a breathing buddy.
+Fix: starting him on a Mac.
 
-- "quiz me" (or Fun > Times-table quiz): 10 times-table questions, he cheers when you get them right, and you earn points. Try "quiz me on the 7 times table".
-- "breathe with me" (or Useful > Breathe with me): a calm minute. In for 4, hold for 4, out for 6, with him counting on his little clock. Also when you tell him you're stressed.
-- Plus all the fixes from 2.1 to 2.9.
+- If Java is missing or too old on a Mac, Clawdtop.command now says so and opens the free download page (before, nothing happened at all).
+- It finds a new-enough Java even when an older one comes first, and works even if the file lost its "can run" setting.
+- The README explains the first-time "could not verify" message on a Mac (Privacy & Security > Open Anyway) and the "Windows protected your PC" box (More info > Run anyway).
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 

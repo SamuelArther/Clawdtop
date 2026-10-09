@@ -6,8 +6,10 @@
 A tiny desktop buddy: Clawd sits on top of your taskbar, right above the clock, and keeps you company.
 
 **[Download Clawd](https://github.com/SamuelArther/Clawdtop/releases/latest)** (Windows, Mac or Linux; needs
-Java 22 or newer). Unzip it anywhere and double-click `Clawdtop.bat` (Windows) or `Clawdtop.command` (Mac). He checks
-for a newer version of himself when he starts, and asks before he updates.
+Java 22 or newer). Unzip it anywhere (not inside Downloads' zip itself: right-click it > Extract All first) and
+double-click `Clawdtop.bat` (Windows) or `Clawdtop.command` (Mac). The very first time, your computer double-checks
+him: see [First time on a Mac or Windows](#first-time-on-a-mac-or-windows). He checks for a newer version of himself
+when he starts, and asks before he updates.
 
 - He stands around, breathes and blinks, and **his eyes follow your cursor**.
 - Leave him alone for a while and he **sits down**, then **lies down**, then **falls asleep** (with little z's).
@@ -89,10 +91,21 @@ Clawd"). **Right-click** to pet him. **Drag** him along the taskbar to move him.
 
 The easy way: **[download the latest release](https://github.com/SamuelArther/Clawdtop/releases/latest)**, unzip it,
 and double-click `Clawdtop.bat` (Windows), `Clawdtop.command` (Mac) or run `./Clawdtop.sh` (Linux). Everything works
-on Mac and Linux except cleaning folders, checking your math on Calculator and the taskbar tackle (Windows only).
+on Mac and Linux except cleaning folders, checking your math on Calculator, hearing your computer's sound and the
+taskbar tackle (Windows only).
 
-You need Java 22 or newer (free from [Adoptium](https://adoptium.net); `Clawdtop.bat` opens the page for you if it's
-missing). If you have [Kelp](https://github.com/KelpSquid/kelp) and have played Minecraft 26.3 with it, you already
+You need Java 22 or newer (free from [Adoptium](https://adoptium.net); `Clawdtop.bat` and `Clawdtop.command` open the
+page for you if it's missing or too old).
+
+### First time on a Mac or Windows
+
+Clawd isn't from an app store, so the first time you start him your computer asks if you're sure:
+
+- **Mac:** double-click `Clawdtop.command`. If macOS says it "could not verify" it, click **Done**, then open
+  **System Settings > Privacy & Security**, scroll down and click **Open Anyway** next to Clawdtop.command (then Open).
+  Or open **Terminal**, type `sh ` (with a space), drag `Clawdtop.sh` into the window and press Return. macOS may also
+  ask whether Terminal can use your Downloads folder: click OK. After the first time, a double-click is all it takes.
+- **Windows:** if a blue "Windows protected your PC" box appears, click **More info**, then **Run anyway**. If you have [Kelp](https://github.com/KelpSquid/kelp) and have played Minecraft 26.3 with it, you already
 have Java 25 and don't need anything else.
 
 From the code instead:
@@ -138,6 +151,6 @@ only run them on a computer you're not using.
 It's plain Java with no libraries: a see-through window that stays on top, drawn block by block like Clawd in
 Claude Code (`Sprite`). `Pet` decides what he's doing, `Beeps` makes his voice on the spot, and `Foreground` asks
 Windows which app is in front (through Java's own way of calling Windows, so nothing extra to install). Settings live in
-`%APPDATA%\Clawdtop`.
+`%APPDATA%\Clawdtop` on Windows and `~/.clawdtop` on a Mac or Linux.
 
 The coding apps he knows are in `Foreground.DEV_APPS`. Missing your favorite? Add its program name there.
