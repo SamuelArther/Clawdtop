@@ -93,7 +93,7 @@ when he starts, and asks before he updates.
   copied" (a screenshot or text, into a file on your desktop), "how long have I been on the computer today?", "keep
   my computer awake" (he sets down a steaming mug until you say "let my computer sleep", or untick it in Useful), "define curious" (if you let him look things up
   online) and "what color is this?" (point at any color on your screen: he names it and copies its code).
-- **Give him files:** drop a song (.mid), a .zip or a picture right on him, or drag one onto the desktop within about
+- **Give him files:** drop a song (.mid), a .zip or a picture (.png, .jpg or .bmp) right on him, or drag one onto the desktop within about
   three icons of him (Windows, or a Mac once you've let him use Finder). He dashes over and jumps as high as it takes to
   grab it, and it's off the desktop. A **song** goes in his songs, and he plays it. A **zip** he tears right open
   (RRRIP): the scraps fly out onto the desktop and its unzipped folder appears right in front of him (the zip goes in

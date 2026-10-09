@@ -118,6 +118,11 @@ final class Reminders {
             wait = Math.min(morning, afternoon);
         }
         if (wait < 30) wait += day; // (it's that time right now: tomorrow, then)
+        // (by the real clock: on the night the clocks change, "at 7" is still at 7, not an hour off)
+        java.time.ZoneId zone = java.time.ZoneId.systemDefault();
+        java.time.LocalDateTime from = java.time.LocalDateTime.of(java.time.LocalDate.now(zone), now);
+        long real = java.time.Duration.between(from.atZone(zone), from.plusSeconds(wait).atZone(zone)).getSeconds();
+        if (real > 0) wait = real;
         return new Reminder(wait * 1000, Brain.noBadWords(you(what.strip())));
     }
 
