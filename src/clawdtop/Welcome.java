@@ -88,6 +88,7 @@ final class Welcome {
 
     /** Escape or closing the window: the questions you haven't answered get their usual answers, and he's ready. */
     void skipRest() {
+        if (pendingMove != null) pendingMove.complete(false); // (skipping: not letting a move in)
         if (waiting != null) waiting.close();
         waiting = null;
         if (atEnd) { // (on the last page: same as OK)
@@ -149,26 +150,34 @@ final class Welcome {
     }
 
     private javax.swing.Timer giveUpWaiting;
+    private java.util.concurrent.CompletableFuture<Boolean> pendingMove; // "is that your other computer?" waiting for you
 
     void askMove() {
         String code = Transfer.newCode();
         try {
-            Transfer.Waiting[] w = {null};
-            w[0] = new Transfer.Waiting(code, token -> javax.swing.SwingUtilities.invokeLater(() -> {
-                String from = w[0].from();
+            // (he only moves in once you say that's your computer: nobody else on the wifi can slip their own save in; and the old
+            // computer only lets him go once you've said yes, so a "no" leaves him safely where he was)
+            waiting = new Transfer.Waiting(code, (token, from) -> {
+                java.util.concurrent.CompletableFuture<Boolean> answer = new java.util.concurrent.CompletableFuture<>();
+                javax.swing.SwingUtilities.invokeLater(() -> {
+                    pendingMove = answer;
+                    show(new String[] {"Clawd's arriving from " + (from.isEmpty() ? "another computer" : from) + "!", "Is that your other computer?"}, null,
+                            button("Yes, let him in", () -> answer.complete(true)),
+                            button("No!", () -> {
+                                answer.complete(false);
+                                stopWaiting();
+                                show(new String[] {"Okay, I didn't let that in.", "(He's still on the other computer.)"}, null, button("Back", this::askName));
+                            }));
+                });
+                return answer;
+            }, token -> javax.swing.SwingUtilities.invokeLater(() -> {
                 stopWaiting();
-                // (he only moves in once you say that's your computer: nobody else on the wifi can slip their own save in)
-                show(new String[] {"Clawd's arriving from " + (from.isEmpty() ? "another computer" : from) + "!", "Is that your other computer?"}, null,
-                        button("Yes, let him in", () -> {
-                            if (settings.useToken(token)) {
-                                movedIn = true;
-                                beep.accept(Pet.Beep.HAPPY);
-                                askNewHome(settings.homeNamed() ? settings.home() : "your old computer");
-                            }
-                        }),
-                        button("No!", () -> show(new String[] {"Okay, I didn't let that in."}, null, button("Back", this::askName))));
+                if (settings.useToken(token)) {
+                    movedIn = true;
+                    beep.accept(Pet.Beep.HAPPY);
+                    askNewHome(settings.homeNamed() ? settings.home() : "your old computer");
+                }
             }));
-            waiting = w[0];
         } catch (java.io.IOException e) {
             show(new String[] {"I couldn't open the door for the move.", "(Is another Clawd already waiting?)"}, null,
                     button("Back", this::askName));

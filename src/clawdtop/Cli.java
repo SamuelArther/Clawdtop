@@ -98,6 +98,16 @@ public final class Cli {
         Brain brain = new Brain();
         String model = Brain.model(s.choice("brain"));
         if (!brain.running() || !brain.has(model)) {
+            if (!s.flag("brainOk") && !BrainInstall.installed() && BrainInstall.ollama() != null) { // (a big download: he asks first)
+                out.print("I need my brain for that: Ollama, a free download (" + BrainInstall.totalSize(s.choice("brain")) + "), installed just for you. Get it? (y/N) ");
+                out.flush();
+                String yes = in.readLine();
+                if (yes == null || !yes.strip().toLowerCase(Locale.ROOT).startsWith("y")) {
+                    out.println("Okay! (I can still do reminders, notes, math and jokes in my menu.)");
+                    return;
+                }
+                s.setFlag("brainOk", true);
+            }
             out.println(DIM + "(getting my brain ready first...)" + RESET);
             if (!BrainInstall.ensure(brain, model, note -> out.println(DIM + note.replace("\n", " ") + RESET))) return;
         }
@@ -509,8 +519,9 @@ public final class Cli {
             out.println("I couldn't find it. Both computers need to be on the same wifi, with the new one showing that code.");
             return;
         }
+        out.println("Found it! Now say yes on the new computer...");
         if (!Transfer.send(there, Transfer.MOVE_PORT, code.strip(), Settings.load().saveToken())) {
-            out.println("It didn't take him. Check the code and try again.");
+            out.println("It didn't take him (a wrong code, or someone said no there). He's still here.");
             return;
         }
         out.println("Sent! He's moving to the new computer.");

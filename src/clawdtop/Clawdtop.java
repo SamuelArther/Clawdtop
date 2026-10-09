@@ -2645,7 +2645,7 @@ public final class Clawdtop {
             menu.addSeparator();
         }
         JMenuItem allOptions = new JMenuItem("All the options...");
-        allOptions.addActionListener(e -> OptionsWindow.show(settings, this::useOptions));
+        allOptions.addActionListener(e -> OptionsWindow.show(() -> settings, this::optionsChanged));
         menu.add(allOptions);
         menu.addSeparator();
         JMenuItem bye = new JMenuItem("Bye, Clawd");
@@ -3207,6 +3207,13 @@ public final class Clawdtop {
     private static final int FAREWELL_ROOM = 14; // units of room above and to the right for his dust
 
     /** Passes his options on to the parts that use them. */
+    /** An option changed in the options window: everything it touches catches up (where he sits, his items, the rest). */
+    private void optionsChanged() {
+        if (body.state() == Body.State.HOME) place(); // ("nudge" moves his spot)
+        useItems();                                    // ("no tomfoolery" changes what he's wearing and holding)
+        useOptions();
+    }
+
     private void useOptions() {
         Settings s = settings;
         pet.setPrefs(new Pet.Prefs() {
@@ -3425,7 +3432,7 @@ public final class Clawdtop {
                     "Can Clawd see your screen?", "(test) He takes a quick look at how bright your screen is.");
             case "yes" -> bubble.press(0);
             case "tidy" -> tidyDesktop();
-            case "options" -> OptionsWindow.show(settings, this::useOptions);
+            case "options" -> OptionsWindow.show(() -> settings, this::optionsChanged);
             case "eye break" -> startEyeBreak();
             case "rundown" -> {
                 String r = Helpers.rundown(java.time.LocalDate.now(), settings.todos(), settings.text("sticky"), Helpers.daysToBirthday(settings.birthday(), java.time.LocalDate.now()), settings.name());

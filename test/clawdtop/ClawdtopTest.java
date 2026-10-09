@@ -312,6 +312,13 @@ public class ClawdtopTest {
             check("and the new computer has him", SaveToken.read(arrived[0]).get("name"), "Sam");
             check("and knows which computer he came from (to ask you first)", newComputer.from().contains("127.0.0.1") || !newComputer.from().isEmpty(), true);
         }
+        String[] notLetIn = {null};
+        String noCode = Transfer.newCode();
+        try (Transfer.Waiting saysNo = new Transfer.Waiting(noCode, loop, 47930, 47931, (token, from) -> java.util.concurrent.CompletableFuture.completedFuture(false),
+                t -> notLetIn[0] = t)) {
+            check("you say no on the new computer: the old one keeps him", Transfer.send(loop, 47931, noCode, SaveToken.make(java.util.Map.of("name", "Sam"))) + " " + notLetIn[0],
+                    "false null");
+        }
 
         // ---- Moving house ----
         Pet mover = new Pet(18);
@@ -759,7 +766,8 @@ public class ClawdtopTest {
         check("uninstall takes back only his own .zprofile lines", Platform.withoutOurPath("export A=1\n# added by Clawdtop, so Terminal knows the clawd command\nexport PATH=\"$HOME/.local/bin:$PATH\"\nalias x=y\n"),
                 "export A=1\nalias x=y\n");
         check("the save token keeps his shirt", java.util.Arrays.asList(SaveToken.KEYS).contains("shirt"), true);
-        javax.swing.JComponent optionsPanel = OptionsWindow.panel(Settings.load(), () -> { });
+        Settings forOptions = Settings.load();
+        javax.swing.JComponent optionsPanel = OptionsWindow.panel(() -> forOptions, () -> { });
         optionsPanel.setSize(560, 600);
         snapshot(optionsPanel, frames0.resolve("all the options.png"));
         check("all the options, in tabs", ((javax.swing.JTabbedPane) ((java.awt.BorderLayout) optionsPanel.getLayout()).getLayoutComponent(java.awt.BorderLayout.CENTER)).getTabCount() > 3, true);

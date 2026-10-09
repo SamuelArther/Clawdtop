@@ -104,9 +104,9 @@ final class BrainInstall {
      * few words). The download goes in one temp folder that's always cleaned up after.
      */
     private static String install() {
-        Path temp = Path.of(System.getProperty("java.io.tmpdir"), "clawdtop-brain");
+        Path temp = null;
         try {
-            Files.createDirectories(temp);
+            temp = Files.createTempDirectory("clawdtop-brain"); // (its own folder: an install from the terminal at the same time can't trip over it)
             if (Platform.WINDOWS) {
                 Path setup = temp.resolve("OllamaSetup.exe");
                 String trouble = download(WINDOWS_SETUP, setup);
@@ -129,11 +129,11 @@ final class BrainInstall {
             }
             return "not on this kind of computer";
         } catch (IOException e) {
-            return lowOnSpace(temp) ? "the disk is nearly full" : "something went wrong";
+            return lowOnSpace(Path.of(System.getProperty("java.io.tmpdir"))) ? "the disk is nearly full" : "something went wrong";
         } catch (InterruptedException e) {
             return "it was stopped";
         } finally {
-            deleteAll(temp);
+            if (temp != null) deleteAll(temp);
         }
     }
 
@@ -197,7 +197,11 @@ final class BrainInstall {
         try {
             HttpResponse<java.io.InputStream> r = http.send(HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofMinutes(2)).GET().build(),
                     HttpResponse.BodyHandlers.ofInputStream());
-            if (r.statusCode() != 200) return "the download page said no";
+            if (r.statusCode() != 200) {
+                r.body().close();
+                return "the download page said no";
+            }
+            lastBytes[0] = System.currentTimeMillis(); // (the clock for "stalled" starts now, not while it was answering)
             body[0] = r.body();
             try (java.io.InputStream in = body[0]; var out = Files.newOutputStream(to)) {
                 byte[] buffer = new byte[64 * 1024];

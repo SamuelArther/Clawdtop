@@ -31,7 +31,7 @@ final class OptionsWindow {
     private static JFrame open; // (one at a time: asking again brings it to the front)
 
     /** Shows the options; changed runs after each change (so he can use it right away). */
-    static void show(Settings settings, Runnable changed) {
+    static void show(java.util.function.Supplier<Settings> settings, Runnable changed) {
         if (open != null && open.isDisplayable()) {
             open.toFront();
             return;
@@ -64,7 +64,7 @@ final class OptionsWindow {
     }
 
     /** The tabs (also drawn by the tests, without a screen). */
-    static JComponent panel(Settings settings, Runnable changed) {
+    static JComponent panel(java.util.function.Supplier<Settings> settings, Runnable changed) {
         Map<String, JPanel> groups = new LinkedHashMap<>();
         for (Options.Option o : Options.ALL) {
             JPanel list = groups.computeIfAbsent(o.group(), g -> {
@@ -92,14 +92,14 @@ final class OptionsWindow {
         return all;
     }
 
-    private static Component row(Options.Option o, Settings settings, Runnable changed) {
+    private static Component row(Options.Option o, java.util.function.Supplier<Settings> settings, Runnable changed) {
         JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 1));
         row.setAlignmentX(Component.LEFT_ALIGNMENT);
         switch (o.kind()) {
             case SWITCH -> {
-                JCheckBox box = new JCheckBox(o.label(), settings.on(o.key()));
+                JCheckBox box = new JCheckBox(o.label(), settings.get().on(o.key()));
                 box.addActionListener(e -> {
-                    settings.set(o.key(), String.valueOf(box.isSelected()));
+                    settings.get().set(o.key(), String.valueOf(box.isSelected()));
                     changed.run();
                 });
                 row.add(box);
@@ -107,18 +107,18 @@ final class OptionsWindow {
             case CHOICE -> {
                 row.add(new JLabel(o.label() + ":"));
                 JComboBox<String> pick = new JComboBox<>(o.choices().toArray(new String[0]));
-                pick.setSelectedItem(settings.choice(o.key()));
+                pick.setSelectedItem(settings.get().choice(o.key()));
                 pick.addActionListener(e -> {
-                    settings.set(o.key(), String.valueOf(pick.getSelectedItem()));
+                    settings.get().set(o.key(), String.valueOf(pick.getSelectedItem()));
                     changed.run();
                 });
                 row.add(pick);
             }
             case NUMBER -> {
                 row.add(new JLabel(o.label() + ":"));
-                JSpinner number = new JSpinner(new SpinnerNumberModel(settings.number(o.key()), o.min(), o.max(), 1));
+                JSpinner number = new JSpinner(new SpinnerNumberModel(settings.get().number(o.key()), o.min(), o.max(), 1));
                 number.addChangeListener(e -> {
-                    settings.set(o.key(), String.valueOf(number.getValue()));
+                    settings.get().set(o.key(), String.valueOf(number.getValue()));
                     changed.run();
                 });
                 row.add(number);

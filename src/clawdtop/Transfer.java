@@ -46,13 +46,22 @@ final class Transfer {
 
         /** Waits for a computer with this code; gotToken gets the save token (on a background thread). */
         Waiting(String code, InetAddress on, int findPort, int movePort, Consumer<String> gotToken) throws IOException {
+            this(code, on, findPort, movePort, (token, from) -> java.util.concurrent.CompletableFuture.completedFuture(true), gotToken);
+        }
+
+        /**
+         * The same, but first asks you (confirm gets the token and which computer it's from, and answers yes or no): the
+         * old computer only hears "OK" (and lets him go) once you've said yes here.
+         */
+        Waiting(String code, InetAddress on, int findPort, int movePort,
+                java.util.function.BiFunction<String, String, java.util.concurrent.CompletableFuture<Boolean>> confirm, Consumer<String> gotToken) throws IOException {
             finder = new DatagramSocket(null);
             finder.setReuseAddress(true);
             finder.bind(on == null ? new InetSocketAddress(findPort) : new InetSocketAddress(on, findPort));
             mover = new ServerSocket(movePort, 4, on);
             Thread answer = new Thread(() -> {
                 byte[] buffer = new byte[256];
-                int wrongFinds = 0;
+                java.util.Set<String> wrongTries = new java.util.HashSet<>(); // (each search re-sends its question: count searches, not packets)
                 long quietUntil = 0;
                 while (open) {
                     try {
@@ -63,7 +72,7 @@ final class Transfer {
                         if (asked.length == 3 && asked[0].equals("CLAWDTOP-FIND")) {
                             if (System.currentTimeMillis() < quietUntil) continue; // (lots of wrong guesses lately: not answering for a bit)
                             if (!asked[2].equals(proof(code, "find:" + asked[1]))) { // (a mistyped code: just no answer)
-                                if (++wrongFinds % 20 == 0) quietUntil = System.currentTimeMillis() + 60_000; // (someone guessing codes: a minute's quiet)
+                                if (wrongTries.add(asked[1]) && wrongTries.size() % 20 == 0) quietUntil = System.currentTimeMillis() + 60_000; // (someone guessing codes: a minute's quiet)
                                 continue;
                             }
                             byte[] here = ("CLAWDTOP-HERE " + proof(code, "here:" + asked[1])).getBytes(StandardCharsets.UTF_8);
@@ -91,11 +100,17 @@ final class Transfer {
                             Thread.sleep(Math.min(5000, 500L * wrong)); // slower after each wrong try: no guessing all 10,000 codes
                             continue;
                         }
-                        out.println("OK");
                         InetAddress them = s.getInetAddress();
                         String name = them.getHostName();
                         from = name.equals(them.getHostAddress()) ? name : name + " (" + them.getHostAddress() + ")";
-                        gotToken.accept(token);
+                        boolean yes;
+                        try {
+                            yes = confirm.apply(token, from).get(5, java.util.concurrent.TimeUnit.MINUTES);
+                        } catch (java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException noAnswer) {
+                            yes = false;
+                        }
+                        out.println(yes ? "OK" : "NO"); // (the old computer only lets him go on a yes)
+                        if (yes) gotToken.accept(token);
                         return;
                     } catch (IOException e) {
                         if (!open) return;
@@ -111,6 +126,12 @@ final class Transfer {
         /** Waits on every network the computer is on (the first time, Windows asks whether Java may). */
         Waiting(String code, Consumer<String> gotToken) throws IOException {
             this(code, null, FIND_PORT, MOVE_PORT, gotToken);
+        }
+
+        /** Waits on every network, asking you first (see above). */
+        Waiting(String code, java.util.function.BiFunction<String, String, java.util.concurrent.CompletableFuture<Boolean>> confirm, Consumer<String> gotToken)
+                throws IOException {
+            this(code, null, FIND_PORT, MOVE_PORT, confirm, gotToken);
         }
 
         @Override
@@ -174,7 +195,7 @@ final class Transfer {
     static boolean send(InetAddress to, int movePort, String code, String token) {
         try (Socket s = new Socket()) {
             s.connect(new InetSocketAddress(to, movePort), 5000);
-            s.setSoTimeout(10_000);
+            s.setSoTimeout(6 * 60_000); // (the new computer asks "is that your other computer?" first: time to answer)
             PrintWriter out = new PrintWriter(s.getOutputStream(), true, StandardCharsets.UTF_8);
             BufferedReader in = new BufferedReader(new InputStreamReader(s.getInputStream(), StandardCharsets.UTF_8));
             out.println("CLAWDTOP-MOVE " + code);
