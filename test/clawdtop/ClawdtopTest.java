@@ -589,6 +589,13 @@ public class ClawdtopTest {
         check("weather questions are spotted", WebSearch.aboutWeather("what's the weather like?") + " " + WebSearch.aboutWeather("is it raining") + " " + WebSearch.aboutWeather("whether to code"), "true true false");
         check("and he has something to say about it", Clawdtop.weatherQuip("Light rain, 60 F").contains("umbrella") + " " + Clawdtop.weatherQuip("Overcast, 76 F").contains("coding weather"), "true true");
 
+        // ---- Tic-tac-toe ----
+        TicTacToe ttt = new TicTacToe(new java.util.Random(4));
+        check("tic-tac-toe: he blocks a line", TicTacToe.winner("XX OO    ".toCharArray()) + "|" + TicTacToe.winner("XXXOO    ".toCharArray()) + "|" + TicTacToe.winner("XOXXOOOXX".toCharArray()), " |X|T");
+        char result = ' ';
+        for (int i = 0; i < 9 && result == ' '; i++) if (ttt.board[i] == ' ') result = ttt.play(i);
+        check("a game always ends", result != ' ', true);
+
         // ---- His diary ----
         Diary.write("Coded carpet.py. I made a flying carpet!!");
         Diary.write("Landed on my head. Saw stars. I'm fine.");

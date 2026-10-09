@@ -379,6 +379,26 @@ public final class Clawdtop {
         t.start();
     }
 
+    /** A game of tic-tac-toe against him. */
+    private void ticTacToe() {
+        pet.say("You're X. I'm O. Good luck. (You'll need it.)");
+        new TicTacToe(new java.util.Random()).show(head(), screenBounds(), result -> {
+            String[] lines = switch (result) {
+                case "you" -> new String[] {"Nooo! Best of three?", "You won?! I demand a rematch.", "Okay, you're good at this."};
+                case "clawd" -> new String[] {"Crab victory!", "I win! Crabs are great at corners.", "Ha! Good game though."};
+                default -> new String[] {"A tie! Great minds think alike.", "Nobody wins. Everybody's happy?"};
+            };
+            pet.say(lines[new java.util.Random().nextInt(lines.length)]);
+            if (result.equals("you")) pet.ask("happy");
+            if (settings.on("earnPoints")) settings.earn(Shop.GAME);
+            Diary.write(switch (result) {
+                case "you" -> "Lost at tic-tac-toe. Rematch pending.";
+                case "clawd" -> "Won at tic-tac-toe. Undefeated crab.";
+                default -> "Tied at tic-tac-toe.";
+            });
+        });
+    }
+
     /** Something to say about the weather. */
     static String weatherQuip(String w) {
         String s = w.toLowerCase(java.util.Locale.ROOT);
@@ -659,6 +679,9 @@ public final class Clawdtop {
                 }
             });
             fun.add(lap);
+            JMenuItem ttt = new JMenuItem("Tic-tac-toe!");
+            ttt.addActionListener(e -> ticTacToe());
+            fun.add(ttt);
             JMenuItem music = new JMenuItem("Music time!");
             music.addActionListener(e -> pet.vibe());
             fun.add(music);
@@ -1534,6 +1557,7 @@ public final class Clawdtop {
                 pet.salute();
                 nextVeteransSong = System.currentTimeMillis() + 7000;
             }
+            case "ttt" -> ticTacToe();
             case "christmas" -> pet.celebrate("Merry Christmas!", Holidays.on(java.time.LocalDate.of(2026, 12, 25)).show());
             case "focus" -> focus(true);
             case "lap" -> {
