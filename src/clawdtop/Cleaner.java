@@ -140,7 +140,7 @@ public final class Cleaner {
             }
             if (attrs.isDirectory()) {
                 String name = p.getFileName().toString();
-                if (name.startsWith(".") || name.equals("node_modules")) { // .git and friends, and code packages: hands off
+                if (name.startsWith(".") || name.equals("node_modules") || bundle(name)) { // .git and friends, code packages, and Mac apps and libraries: hands off
                     kept++;
                     continue;
                 }
@@ -255,5 +255,15 @@ public final class Cleaner {
         if (bytes < 1024 * 1024) return bytes / 1024 + " KB";
         if (bytes < 1024L * 1024 * 1024) return String.format(Locale.ROOT, "%.1f MB", bytes / 1048576.0);
         return String.format(Locale.ROOT, "%.1f GB", bytes / 1073741824.0);
+    }
+
+    /**
+     * A Mac "package": looks like a folder, but it's really one thing (an app, a photo library, a project). Anything
+     * inside belongs to it, so he never cleans inside one (an app missing a file can stop opening).
+     */
+    static boolean bundle(String folderName) {
+        String n = folderName.toLowerCase(java.util.Locale.ROOT);
+        return n.matches(".+\\.(app|bundle|framework|plugin|kext|appex|photoslibrary|photolibrary|imovielibrary|fcpbundle|logicx|band|xcodeproj|xcworkspace"
+                + "|playground|pkg|mpkg|rtfd|pages|numbers|key|aplibrary|musiclibrary|tvlibrary|theater|component|vst|vst3|aaxplugin|saver|prefpane|qlgenerator|mdimporter)");
     }
 }

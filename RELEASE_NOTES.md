@@ -1,8 +1,7 @@
-Fix: moving him to another computer is safer.
+Fix: two Mac things.
 
-- When Clawd arrives on the new computer, it now shows which computer he came from and asks "Is that your other computer?" before letting him in. Nobody else on the wifi can slip their own save in.
-- Lots of wrong code guesses make the new computer go quiet for a minute.
-- The new computer stops waiting after 10 minutes (instead of listening forever), and tells you to click Allow if your computer asks about the network.
+- Cleaning a folder on a Mac never goes inside apps (like Zoom.app) or photo, music and iMovie libraries. Those look like folders but are really one thing, and removing a file from inside could break them.
+- Starting at login on a Mac works with any Java 22+ (including Homebrew's), not just the usual install.
 
 Get him: download the zip, unzip, double-click Clawdtop.bat (Windows) or Clawdtop.command (Mac). Needs Java 22+.
 

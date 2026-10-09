@@ -302,8 +302,10 @@ final class Platform {
     private static String loginText() {
         Path jar = Install.jar();
         if (jar == null || !jar.toString().endsWith(".jar")) return null;
-        // (a Mac's /usr/bin/java always runs the newest Java installed, so a Java update doesn't break it)
-        String java = MAC && Files.isExecutable(Path.of("/usr/bin/java")) ? "/usr/bin/java" : Install.java().toString();
+        // (a Mac's /usr/bin/java runs the newest Java installed the usual way, so a Java update doesn't break it; but it's
+        // there even with no Java, so only when that finds a Java 22+: otherwise the one he's running on now, like Homebrew's)
+        String newEnough = MAC ? run("/usr/libexec/java_home", "-v", "22+") : "";
+        String java = MAC && Files.isExecutable(Path.of("/usr/bin/java")) && newEnough.startsWith("/") ? "/usr/bin/java" : Install.java().toString();
         return MAC ? macLogin(java, jar.toString()) : "[Desktop Entry]\nType=Application\nName=Clawdtop\nComment=Clawd, on your taskbar\nExec=\"" + java
                 + "\" --enable-native-access=ALL-UNNAMED -jar \"" + jar + "\"\nX-GNOME-Autostart-enabled=true\n";
     }

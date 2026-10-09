@@ -752,6 +752,8 @@ public class ClawdtopTest {
         check("eye breaks start off", Settings.load().on("eyeBreaks") + " " + Settings.load().on("eyes"), "false true");
         check("on for", Useful.onFor(25 * 60_000L) + " / " + Useful.onFor(30_000) + " / " + Useful.onFor(3 * 3_600_000L) + " / " + Useful.onFor(2 * 86_400_000L + 4 * 3_600_000L)
                 + " / " + Useful.onFor(86_400_000L), "25 minutes / just a minute / 3 hours / 2 days 4 hours / 1 day");
+        check("Mac apps and libraries aren't folders to clean", Cleaner.bundle("Zoom.app") + " " + Cleaner.bundle("Photos Library.photoslibrary") + " "
+                + Cleaner.bundle("old stuff") + " " + Cleaner.bundle("v1.2"), "true true false false");
         // the desktop: reading icon spots (Windows' script and Finder say the same shape), sorting files for Neat
         Desktop.Layout desk = Desktop.read("DESKTOP|/home/me/Desktop\nskin|177,2\nmy song.mid|2427,1032\nnot an icon\n");
         check("desktop read", desk.folder().getFileName() + " " + desk.icons(), "Desktop [Icon[name=skin, x=177, y=2], Icon[name=my song.mid, x=2427, y=1032]]");
