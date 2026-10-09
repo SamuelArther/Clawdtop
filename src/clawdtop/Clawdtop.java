@@ -802,8 +802,7 @@ public final class Clawdtop {
         }
         if (q.matches("(count (my |the |these |those )?words|how many words( (did i copy|is (this|that)|are (in )?(this|that|these)|i copied))?|word count)")) {
             String counted = Extras.wordCount(clipboardText());
-            pet.say(counted == null ? "Copy some text first (select it, then " + COPY_KEYS + "),
-and ask me again!" : "What you copied: " + counted);
+            pet.say(counted == null ? "Copy some text first (select it, then " + COPY_KEYS + "),\nand ask me again!" : "What you copied: " + counted);
             return true;
         }
         if (q.matches("(please )?save (what i copied|my clipboard|the clipboard|what's (on )?my clipboard|this picture i copied)( to (a file|my desktop))?")) {
