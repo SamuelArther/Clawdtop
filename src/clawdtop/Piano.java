@@ -109,8 +109,16 @@ final class Piano {
 
     /** How many notes can sound at once in a song file (more than that gets thinned out: busy songs get simpler). */
     static final int MAX_AT_ONCE = 6;
+    /** The electric piano, and how long a song's notes are held (typically) for it to get that instead of the grand. */
+    static final int ELECTRIC_PIANO = 4, LONG_NOTES_MS = 600;
+    /** In a crowded song: notes shorter than this are left out (ms), and notes starting this close together are one chord. */
+    static final int QUICK_MS = 100, TOGETHER_MS = 40;
+    /** Notes a second that make a song crowded (thinned down to three at once: the tune, the bass and one more). */
+    static final double CROWDED = 12;
     /** The instrument his singing voice uses in a song file: a soft square wave, like his beeps. */
     static final int VOICE_PROGRAM = 80;
+    /** How hard (on average) the notes of a song file are played, at least: a softly written song is played up to this. */
+    static final int LOUDNESS = 80;
 
     /**
      * A song file made his: every instrument becomes his piano, singing parts become his little beep voice (following
@@ -147,17 +155,93 @@ final class Piano {
             }
             if (namedVocal) for (int c : channels) if (c != 9) vocal[c] = true;
         }
+        // a song of long held notes gets his electric piano, which rings on (the grand fades too fast for them)
+        java.util.List<Long> held = new java.util.ArrayList<>();
+        for (javax.sound.midi.Track track : tracks) {
+            java.util.Map<Integer, Long> down = new java.util.HashMap<>();
+            for (int i = 0; i < track.size(); i++) {
+                if (!(track.get(i).getMessage() instanceof javax.sound.midi.ShortMessage m) || m.getChannel() == 9 || vocal[m.getChannel()]) continue;
+                int key = m.getChannel() * 128 + m.getData1();
+                boolean on = m.getCommand() == javax.sound.midi.ShortMessage.NOTE_ON && m.getData2() > 0;
+                boolean off = m.getCommand() == javax.sound.midi.ShortMessage.NOTE_OFF || (m.getCommand() == javax.sound.midi.ShortMessage.NOTE_ON && m.getData2() == 0);
+                if (on) down.put(key, track.get(i).getTick());
+                else if (off && down.containsKey(key)) held.add(track.get(i).getTick() - down.remove(key));
+            }
+        }
+        java.util.Collections.sort(held);
+        double msPerTick = seq.getMicrosecondLength() / 1000.0 / Math.max(1, seq.getTickLength());
+        int pianoSound = !held.isEmpty() && held.get(held.size() / 2) * msPerTick >= LONG_NOTES_MS ? ELECTRIC_PIANO : 0;
+        // a part that only ever hits one or two low notes is really a drum (an 808 boom, say): on his piano it'd be a thud
+        java.util.Map<Integer, java.util.Set<Integer>> pitches = new java.util.HashMap<>();
+        int[] hits = new int[16];
+        for (javax.sound.midi.Track track : tracks) {
+            for (int i = 0; i < track.size(); i++) {
+                if (track.get(i).getMessage() instanceof javax.sound.midi.ShortMessage m && m.getCommand() == javax.sound.midi.ShortMessage.NOTE_ON && m.getData2() > 0) {
+                    pitches.computeIfAbsent(m.getChannel(), c -> new java.util.HashSet<>()).add(m.getData1());
+                    hits[m.getChannel()]++;
+                }
+            }
+        }
+        boolean[] thud = new boolean[16];
+        for (var entry : pitches.entrySet()) {
+            int c = entry.getKey();
+            thud[c] = allPiano && c != 9 && !vocal[c] && hits[c] >= 8 && entry.getValue().size() <= 2 && java.util.Collections.max(entry.getValue()) < 40;
+        }
         // out go the drums, the instrument changes and the effects (volume, expression and the sustain pedal stay)
         for (javax.sound.midi.Track track : tracks) {
             for (int i = track.size() - 1; i >= 0; i--) {
                 javax.sound.midi.MidiEvent e = track.get(i);
                 if (!(e.getMessage() instanceof javax.sound.midi.ShortMessage m)) continue;
                 int cmd = m.getCommand();
-                boolean drums = allPiano && m.getChannel() == 9;
+                boolean drums = allPiano && (m.getChannel() == 9 || thud[m.getChannel()]);
                 boolean effect = (allPiano && cmd == javax.sound.midi.ShortMessage.PROGRAM_CHANGE) || cmd == javax.sound.midi.ShortMessage.PITCH_BEND
                         || cmd == javax.sound.midi.ShortMessage.CHANNEL_PRESSURE || cmd == javax.sound.midi.ShortMessage.POLY_PRESSURE
                         || (cmd == javax.sound.midi.ShortMessage.CONTROL_CHANGE && m.getData1() != 7 && m.getData1() != 11 && m.getData1() != 64);
                 if (drums || effect) track.remove(e);
+                else if (allPiano && m.getChannel() != 9 && (cmd == javax.sound.midi.ShortMessage.NOTE_ON || cmd == javax.sound.midi.ShortMessage.NOTE_OFF) && m.getData1() < 28) {
+                    m.setMessage(cmd, m.getChannel(), m.getData1() + 12, m.getData2()); // (the very bottom of the piano is just rumble: up an octave)
+                }
+            }
+        }
+        // a crowded song is boiled down: no quick little notes (trills, rolls, flourishes), just the tune on top and a bassline
+        if (allPiano) {
+            record Held(javax.sound.midi.Track track, javax.sound.midi.MidiEvent on, javax.sound.midi.MidiEvent off, int pitch, double startMs, double ms) {
+            }
+            java.util.List<Held> heldNotes = new java.util.ArrayList<>();
+            for (javax.sound.midi.Track track : tracks) {
+                java.util.Map<Integer, java.util.ArrayDeque<javax.sound.midi.MidiEvent>> down = new java.util.HashMap<>();
+                for (int i = 0; i < track.size(); i++) {
+                    javax.sound.midi.MidiEvent e = track.get(i);
+                    if (!(e.getMessage() instanceof javax.sound.midi.ShortMessage m) || m.getChannel() == 9 || vocal[m.getChannel()]) continue;
+                    int key = m.getChannel() * 128 + m.getData1();
+                    if (m.getCommand() == javax.sound.midi.ShortMessage.NOTE_ON && m.getData2() > 0) {
+                        down.computeIfAbsent(key, k -> new java.util.ArrayDeque<>()).add(e);
+                    } else if (m.getCommand() == javax.sound.midi.ShortMessage.NOTE_OFF || m.getCommand() == javax.sound.midi.ShortMessage.NOTE_ON) {
+                        javax.sound.midi.MidiEvent on = down.getOrDefault(key, new java.util.ArrayDeque<>()).poll();
+                        if (on != null) heldNotes.add(new Held(track, on, e, m.getData1(), on.getTick() * msPerTick, (e.getTick() - on.getTick()) * msPerTick));
+                    }
+                }
+            }
+            if (heldNotes.size() / Math.max(1.0, seq.getMicrosecondLength() / 1e6) > CROWDED) {
+                heldNotes.sort(java.util.Comparator.comparingDouble(Held::startMs));
+                for (int i = 0; i < heldNotes.size(); ) {
+                    int j = i;
+                    while (j < heldNotes.size() && heldNotes.get(j).startMs() - heldNotes.get(i).startMs() < TOGETHER_MS) j++; // (played together)
+                    int top = -1, bottom = 128;
+                    for (Held h : heldNotes.subList(i, j)) {
+                        if (h.ms() < QUICK_MS) continue;
+                        top = Math.max(top, h.pitch());
+                        bottom = Math.min(bottom, h.pitch());
+                    }
+                    for (Held h : heldNotes.subList(i, j)) {
+                        boolean keep = h.ms() >= QUICK_MS && (h.pitch() == top || (h.pitch() == bottom && bottom <= top - 12));
+                        if (!keep) {
+                            h.track().remove(h.on());
+                            h.track().remove(h.off());
+                        }
+                    }
+                    i = j;
+                }
             }
         }
         // thinning: the same note doubled by another instrument plays once, and no more than MAX_AT_ONCE at a time
@@ -174,8 +258,23 @@ final class Piano {
                 notes.add(new Note(e.getTick(), track, e, m.getChannel(), m.getData1(), on));
             }
         }
-        notes.sort((a, b) -> a.tick() != b.tick() ? Long.compare(a.tick(), b.tick()) : Boolean.compare(a.on(), b.on())); // offs first
+        // (at the same moment: notes ending first, then the highest note and the lowest, so the tune and the bass are kept)
+        notes.sort((a, b) -> a.tick() != b.tick() ? Long.compare(a.tick(), b.tick()) : a.on() != b.on() ? Boolean.compare(a.on(), b.on()) : Integer.compare(b.pitch(), a.pitch()));
+        for (int i = 0; i < notes.size(); ) {
+            int j = i;
+            while (j < notes.size() && notes.get(j).tick() == notes.get(i).tick()) j++;
+            int firstOn = i;
+            while (firstOn < j && !notes.get(firstOn).on()) firstOn++;
+            if (j - firstOn > 2) notes.add(firstOn + 1, notes.remove(j - 1)); // (the lowest, straight after the highest)
+            i = j;
+        }
+        // a crowded song (lots of notes a second) is thinned more, down to a few at once
+        int starts = 0;
+        for (Note n : notes) if (n.on() && n.channel() != 9 && !vocal[n.channel()]) starts++;
+        double perSecond = starts / Math.max(1.0, seq.getMicrosecondLength() / 1e6);
+        int atOnce = allPiano && perSecond > CROWDED ? MAX_AT_ONCE - 3 : MAX_AT_ONCE;
         java.util.Map<Integer, Integer> sounding = new java.util.HashMap<>(); // pitch -> how many (piano parts)
+        java.util.Map<Integer, Integer> own = new java.util.HashMap<>();      // channel*128+pitch -> how many
         java.util.Map<Integer, Integer> dropOff = new java.util.HashMap<>();  // channel*128+pitch -> note-offs to drop
         int playing = 0;
         for (Note n : notes) {
@@ -184,27 +283,56 @@ final class Piano {
                 if (dropOff.getOrDefault(key, 0) > 0) {
                     dropOff.merge(key, -1, Integer::sum);
                     n.track().remove(n.event());
-                } else if (!vocal[n.channel()] && sounding.getOrDefault(n.pitch(), 0) > 0) {
+                } else if (own.getOrDefault(key, 0) > 0) {
+                    own.merge(key, -1, Integer::sum);
                     sounding.merge(n.pitch(), -1, Integer::sum);
                     playing--;
                 }
                 continue;
             }
             if (vocal[n.channel()] || n.channel() == 9) continue; // (his singing, and drums, are never thinned)
-            if (sounding.getOrDefault(n.pitch(), 0) > 0 || playing >= MAX_AT_ONCE) {
+            if (own.getOrDefault(key, 0) > 0) { // the same note again before the last one let go: struck again (not dropped)
+                n.track().add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.NOTE_OFF, n.channel(), n.pitch(), 0),
+                        Math.max(0, n.tick() - 1)));
+                dropOff.merge(key, 1, Integer::sum); // (and the old one's ending goes, since it's ended now)
+                continue;
+            }
+            if (sounding.getOrDefault(n.pitch(), 0) > 0 || playing >= atOnce) { // doubled by another part, or too many at once
                 n.track().remove(n.event());
                 dropOff.merge(key, 1, Integer::sum);
                 continue;
             }
             sounding.merge(n.pitch(), 1, Integer::sum);
+            own.merge(key, 1, Integer::sum);
             playing++;
+        }
+        // a song written very softly is played up, so it's about as loud as the others (the soft and loud bits stay soft and loud)
+        long velocities = 0;
+        int count = 0;
+        for (javax.sound.midi.Track track : tracks) {
+            for (int i = 0; i < track.size(); i++) {
+                if (track.get(i).getMessage() instanceof javax.sound.midi.ShortMessage m && m.getCommand() == javax.sound.midi.ShortMessage.NOTE_ON && m.getData2() > 0) {
+                    velocities += m.getData2();
+                    count++;
+                }
+            }
+        }
+        double louder = count == 0 ? 1 : Math.max(1, Math.min(3.5, LOUDNESS / ((double) velocities / count)));
+        if (louder > 1.05) {
+            for (javax.sound.midi.Track track : tracks) {
+                for (int i = 0; i < track.size(); i++) {
+                    if (track.get(i).getMessage() instanceof javax.sound.midi.ShortMessage m && m.getCommand() == javax.sound.midi.ShortMessage.NOTE_ON && m.getData2() > 0) {
+                        m.setMessage(m.getCommand(), m.getChannel(), m.getData1(), Math.min(127, (int) Math.round(m.getData2() * louder)));
+                    }
+                }
+            }
         }
         // and the instruments: his piano for everything, his beep voice for singing (a little softer)
         javax.sound.midi.Track first = tracks.length > 0 ? tracks[0] : seq.createTrack();
         for (int channel = 0; channel < 16; channel++) {
             if (channel == 9) continue;
             if (allPiano || vocal[channel]) first.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.PROGRAM_CHANGE,
-                    channel, vocal[channel] ? VOICE_PROGRAM : 0, 0), 0));
+                    channel, vocal[channel] ? VOICE_PROGRAM : pianoSound, 0), 0));
             first.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.CONTROL_CHANGE, channel, 91, 0), 0)); // no reverb
             first.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.CONTROL_CHANGE, channel, 93, 0), 0)); // no chorus
         }

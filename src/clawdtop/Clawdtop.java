@@ -775,6 +775,198 @@ public final class Clawdtop {
         return false;
     }
 
+    // ---- The desktop: fetching a song you drag near him, and tidying everything into a Neat folder ----
+    private Path desktopFolder;                                  // (learned the first time he looks)
+    private final java.util.Map<String, Boolean> songNearHim = new java.util.HashMap<>(); // song files on the desktop: near him last time?
+    private boolean lookingAtDesktop, desktopLooked;            // (the first look only learns what's already there)
+    private Path fetching;                                       // the song file he's off to get
+    private int fetchStage;                                      // 1: hopping over to it, 2: bringing it home
+    private long fetchSince;
+    private final java.util.ArrayDeque<Object[]> tidyQueue = new java.util.ArrayDeque<>(); // {file, x, y} still to tackle
+    private int tidyStage, tidiedCount;                          // 1: hopping to the next one
+    private long tidySince;
+
+    /** Every few seconds: a song file dragged near him on the desktop? He goes and gets it. */
+    private void watchDesktopForSongs() {
+        if (!Platform.WINDOWS || lookingAtDesktop || fetchStage != 0 || tidyStage != 0 || job != null || hidden || boxed
+                || body.state() != Body.State.HOME || pet.busyNow()) return;
+        Path folder = desktopFolder != null ? desktopFolder : Path.of(System.getProperty("user.home"), "Desktop");
+        boolean anySongs;
+        try (var files = java.nio.file.Files.list(folder)) {
+            anySongs = files.anyMatch(f -> Piano.isMidi(f.toFile()));
+        } catch (IOException | RuntimeException e) {
+            anySongs = desktopFolder == null; // (not the usual place: look once to learn where it is)
+        }
+        if (!anySongs) {
+            songNearHim.clear();
+            return;
+        }
+        lookingAtDesktop = true;
+        worker.execute(() -> {
+            Desktop.Layout layout = Desktop.look();
+            SwingUtilities.invokeLater(() -> {
+                lookingAtDesktop = false;
+                if (layout == null) return;
+                desktopFolder = layout.folder();
+                Rectangle screen = screenBounds();
+                double scale = window.getGraphicsConfiguration().getDefaultTransform().getScaleX();
+                double tile = 80; // (about one desktop icon's width, in Java's pixels)
+                boolean first = !desktopLooked;
+                desktopLooked = true;
+                String only = System.getProperty("clawdtop.tidyOnly"); // (the screen test: only its own pretend files)
+                for (Desktop.Icon icon : layout.icons()) {
+                    Path file = Desktop.fileFor(icon, layout.folder());
+                    if (file == null || !Piano.isMidi(file.toFile())) continue;
+                    if (only != null && !file.getFileName().toString().startsWith(only)) continue;
+                    double x = screen.x + icon.x() / scale + 37, y = screen.y + icon.y() / scale + 8;
+                    boolean near = Math.abs(x - homeX) < 3 * tile && groundY - y < 3.5 * tile && y < groundY;
+                    Boolean before = songNearHim.put(file.toString(), near);
+                    // dragged in close (or just put down there): off he goes. (Not for ones already there when he started)
+                    if (near && !first && (before == null || !before) && fetchStage == 0 && body.state() == Body.State.HOME && !pet.busyNow()) {
+                        fetching = file;
+                        fetchStage = 1;
+                        fetchSince = System.currentTimeMillis();
+                        pet.say("Ooh! Music! For me?!");
+                        body.perchAt(x, y);
+                    }
+                }
+            });
+        });
+    }
+
+    /** Each frame: how his trip to fetch a song, or to tidy the desktop, is going. */
+    private void desktopTrips() {
+        long now = System.currentTimeMillis();
+        if (fetchStage == 1 && body.state() == Body.State.PERCH) { // got there: he picks it up (into his songs) and hops down
+            Path into = Clawdtop.isJam(fetching.toFile()) ? songsFolder().resolve("jams") : songsFolder();
+            try {
+                java.nio.file.Files.createDirectories(into);
+                fetching = java.nio.file.Files.move(fetching, Desktop.free(into.resolve(fetching.getFileName().toString())));
+                pet.say("Got it! (It's in my songs now.)");
+            } catch (IOException | RuntimeException cant) {
+                pet.say("Hmm, I can't pick that one up.");
+                fetching = null;
+            }
+            body.leave();
+            fetchStage = 2;
+        } else if (fetchStage == 2 && body.state() == Body.State.HOME) { // home again: and he plays it
+            fetchStage = 0;
+            if (fetching != null) playDropped(fetching.toFile());
+            fetching = null;
+        } else if (fetchStage != 0 && now - fetchSince > 20_000) { // (something went wrong: never mind)
+            fetchStage = 0;
+            fetching = null;
+            if (body.state() == Body.State.PERCH || body.state() == Body.State.HOP_TO) body.leave();
+        }
+        if (tidyStage == 1 && body.state() == Body.State.PERCH && now - tidySince > 450) { // landed on it: tackled into Neat
+            Object[] next = tidyQueue.poll();
+            if (next != null) {
+                Path from = (Path) next[0];
+                Path to = Desktop.tidy(from, desktopFolder);
+                if (to != null) {
+                    settings.addTidied(to, from);
+                    tidiedCount++;
+                }
+            }
+            Object[] after = tidyQueue.peek();
+            if (after != null) {
+                body.perchAt((Double) after[1], (Double) after[2]);
+                tidySince = now;
+            } else {
+                tidyStage = 0;
+                body.leave();
+                pet.say(tidiedCount == 0 ? "Hmm, I couldn't move any of them." : "All neat! " + tidiedCount + (tidiedCount == 1 ? " file is" : " files are")
+                        + " in the Neat folder on your desktop,\nsorted by type. (\"Put my desktop back\" undoes it.)");
+                Diary.write("Tidied the desktop. Tackled " + tidiedCount + " files into a Neat folder.");
+            }
+        } else if (tidyStage == 1 && now - tidySince > 15_000) { // (stuck: stop there)
+            tidyStage = 0;
+            tidyQueue.clear();
+            if (body.state() == Body.State.PERCH || body.state() == Body.State.HOP_TO) body.leave();
+        }
+    }
+
+    /** Useful > Tidy my desktop: he asks first, then tackles each file into Neat (sorted by type). Nothing's deleted. */
+    private void tidyDesktop() {
+        if (lookingAtDesktop || tidyStage != 0) return;
+        lookingAtDesktop = true;
+        pet.say("Let me take a look...");
+        String only = System.getProperty("clawdtop.tidyOnly"); // (the screen test: only its own pretend files)
+        worker.execute(() -> {
+            Desktop.Layout layout = Desktop.look();
+            SwingUtilities.invokeLater(() -> {
+                lookingAtDesktop = false;
+                if (layout == null) {
+                    pet.say("Hmm, I can't see your desktop right now.");
+                    return;
+                }
+                desktopFolder = layout.folder();
+                Rectangle screen = screenBounds();
+                double scale = window.getGraphicsConfiguration().getDefaultTransform().getScaleX();
+                java.util.List<Object[]> todo = new java.util.ArrayList<>();
+                java.util.Set<Path> seen = new java.util.HashSet<>();
+                for (Desktop.Icon icon : layout.icons()) {
+                    Path file = Desktop.fileFor(icon, layout.folder());
+                    if (file == null || !seen.add(file) || Desktop.category(file) == null) continue;
+                    if (only != null && !file.getFileName().toString().startsWith(only)) continue;
+                    todo.add(new Object[] {file, screen.x + icon.x() / scale + 37, screen.y + icon.y() / scale + 8});
+                }
+                if (todo.isEmpty()) {
+                    pet.say("Your desktop's already neat! (Shortcuts and folders stay where they are.)");
+                    return;
+                }
+                pet.speak();
+                bubble.ask("I can tackle " + todo.size() + (todo.size() == 1 ? " file" : " files") + " into a Neat folder on your desktop,\n"
+                        + "sorted by type (Pictures, Music, Documents...).\nNothing gets deleted, and I can put them back. Go?",
+                        new String[] {"Go!", "Not now"}, choice -> {
+                            if (choice != 0) return;
+                            tidyQueue.clear();
+                            tidyQueue.addAll(todo);
+                            tidiedCount = 0;
+                            tidyStage = 1;
+                            tidySince = System.currentTimeMillis();
+                            Object[] firstOne = tidyQueue.peek();
+                            pet.say("Tidy time! HUP!");
+                            body.perchAt((Double) firstOne[1], (Double) firstOne[2]);
+                        }, head(), screenBounds());
+            });
+        });
+    }
+
+    /** Useful > Put my desktop back: every tidied file goes back where it was (and the empty Neat folders go). */
+    private void putDesktopBack() {
+        int back = 0;
+        for (String[] pair : settings.tidied()) {
+            try {
+                Path to = Path.of(pair[0]), from = Path.of(pair[1]);
+                if (java.nio.file.Files.exists(to)) {
+                    java.nio.file.Files.move(to, Desktop.free(from));
+                    back++;
+                }
+            } catch (IOException | RuntimeException moved) {
+                // (you've moved it yourself since: it stays)
+            }
+        }
+        settings.clearTidied();
+        if (desktopFolder != null) { // the Neat folders, if they're empty now
+            Path neat = desktopFolder.resolve("Neat");
+            try (var dirs = java.nio.file.Files.list(neat)) {
+                for (Path d : dirs.toList()) {
+                    if (!Desktop.CATEGORIES.contains(d.getFileName().toString())) continue; // (only the folders he made)
+                    try {
+                        java.nio.file.Files.delete(d); // (only works if it's empty)
+                    } catch (IOException notEmpty) {
+                        // keep it
+                    }
+                }
+                java.nio.file.Files.delete(neat);
+            } catch (IOException | RuntimeException keep) {
+                // something of yours is in there: it stays
+            }
+        }
+        pet.say(back == 0 ? "Everything's already back where it was!" : "Done! " + back + (back == 1 ? " file is" : " files are") + " back where they were.");
+    }
+
     /** A game of tic-tac-toe against him. */
     private TicTacToe game; // the game on the go, if there is one
 
@@ -1200,6 +1392,16 @@ public final class Clawdtop {
         // Useful
         javax.swing.JMenu useful = new javax.swing.JMenu("Useful");
         if (job == null) {
+            if (Platform.WINDOWS) {
+                JMenuItem tidyUp = new JMenuItem("Tidy my desktop");
+                tidyUp.addActionListener(e -> tidyDesktop());
+                useful.add(tidyUp);
+                if (!settings.tidied().isEmpty()) {
+                    JMenuItem putBack = new JMenuItem("Put my desktop back");
+                    putBack.addActionListener(e -> putDesktopBack());
+                    useful.add(putBack);
+                }
+            }
             JMenuItem clean = new JMenuItem("Clean a folder...");
             clean.addActionListener(e -> startCleaning());
             useful.add(clean);
@@ -2182,6 +2384,8 @@ public final class Clawdtop {
             pet.birthday(settings.name());
         }
         if (newTick && ticks % 300 == 150) checkTimes();
+        if (newTick && ticks % 90 == 20) watchDesktopForSongs();
+        desktopTrips();
         if (newTick && ticks % 3 == 0) react(nowMs);
         if (newTick && ticks % 90 == 60) updateTag(); // (points change as you earn and spend them)
         if (!greetings.isEmpty() && newTick && ticks % 15 == 3 && !pet.busyNow() && pet.takeLineIfAny() == null && !bubble.showing()
@@ -2512,6 +2716,8 @@ public final class Clawdtop {
             case "offer seeing" -> offerSense("Ooh, a video! Want me to watch this with you?", "seeing", "askedSeeing",
                     "Can Clawd see your screen?", "(test) He takes a quick look at how bright your screen is.");
             case "yes" -> bubble.press(0);
+            case "tidy" -> tidyDesktop();
+            case "put back" -> putDesktopBack();
             case "veterans" -> {
                 pet.salute();
                 nextVeteransSong = System.currentTimeMillis() + 7000;

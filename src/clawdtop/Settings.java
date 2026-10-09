@@ -448,6 +448,28 @@ public final class Settings {
         save();
     }
 
+    /** The files he tidied off the desktop (where each went, and where it came from), for putting them back. */
+    public java.util.List<String[]> tidied() {
+        java.util.List<String[]> list = new java.util.ArrayList<>();
+        for (String pair : values.getProperty("tidied", "").split("\u001e")) {
+            String[] p = pair.split("\u001f");
+            if (p.length == 2) list.add(p);
+        }
+        return list;
+    }
+
+    public void addTidied(java.nio.file.Path to, java.nio.file.Path from) {
+        String all = values.getProperty("tidied", "");
+        String pair = to + "\u001f" + from;
+        values.setProperty("tidied", all.isEmpty() ? pair : all + "\u001e" + pair);
+        save();
+    }
+
+    public void clearTidied() {
+        values.remove("tidied");
+        save();
+    }
+
     /** A remembered yes-or-no that isn't one of his options (like "already asked to watch videos with you"). */
     public boolean flag(String name) {
         return "true".equals(values.getProperty("flag." + name));
