@@ -533,6 +533,11 @@ final class Piano {
      * with the real timing. Null if it isn't a MIDI file or has no notes.
      */
     static Song fromMidi(java.io.File file) {
+        return fromMidi(file, false);
+    }
+
+    /** The same; for a jam session, a file that's only drums still counts (there's just no tune for his piano). */
+    static Song fromMidi(java.io.File file, boolean forJam) {
         try {
             javax.sound.midi.Sequence played = pianoOnly(javax.sound.midi.MidiSystem.getSequence(file)); // (exactly what you hear: silence cut, drums out)
             java.util.function.LongToDoubleFunction clock = clock(played);
@@ -567,7 +572,8 @@ final class Piano {
                 tune.add(note.getValue());
                 if (starts.size() >= MOST_NOTES) break;
             }
-            if (tune.isEmpty()) { // (only drums: there's no tune for his piano, but a jam session can still have it)
+            if (tune.isEmpty() && !forJam) return null; // (only drums: nothing for his piano to play)
+            if (tune.isEmpty()) { // (a jam session can still have it: the drums are recorded, and the band plays)
                 starts.add(0.0);
                 tune.add(60);
             }

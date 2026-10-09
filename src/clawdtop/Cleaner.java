@@ -53,7 +53,8 @@ public final class Cleaner {
         if (f.getParent() == null) return "That's a whole drive. Pick a folder inside it.";
         if (!Platform.WINDOWS) { // (a Mac's or Linux's drives: /Volumes/USB, /media/you/USB, /run/media/you/USB, /mnt/USB)
             String parent = f.getParent().toString(), above = f.getParent().getParent() == null ? "" : f.getParent().getParent().toString();
-            if (List.of("/Volumes", "/mnt", "/media").contains(parent) || List.of("/media", "/run/media").contains(above)) {
+            boolean userMedia = List.of("/media", "/run/media").contains(above) && f.getParent().getFileName().toString().equals(System.getProperty("user.name"));
+            if (List.of("/Volumes", "/mnt", "/media").contains(parent) || userMedia) {
                 return "That's a whole drive. Pick a folder inside it.";
             }
         }

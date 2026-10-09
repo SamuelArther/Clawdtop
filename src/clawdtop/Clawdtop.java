@@ -388,11 +388,8 @@ public final class Clawdtop {
         for (java.util.Iterator<Object[]> it = reminders.iterator(); it.hasNext(); ) {
             Object[] r = it.next();
             if (now < (Long) r[0]) continue;
-            if (hidden) { // (he's tucked away for your full-screen game or video: a little notice instead, so a timer still goes off on time)
-                if (notice("Clawdtop", "time's up!".equals(r[1]) || "time's up".equals(r[1]) ? "Time's up!" : "Reminder: " + r[1])) {
-                    it.remove();
-                    Diary.write("Reminded you: " + r[1]);
-                }
+            if (hidden) { // (tucked away for your full-screen game or video: a little notice now, so a timer goes off on time; he still tells you when you're back)
+                if (!Boolean.TRUE.equals(r[2]) && notice("Clawdtop", "time's up!".equals(r[1]) || "time's up".equals(r[1]) ? "Time's up!" : "Reminder: " + r[1])) r[2] = true;
                 continue;
             }
             if (pet.remind((String) r[1])) {
@@ -409,6 +406,7 @@ public final class Clawdtop {
     }
 
     private java.awt.TrayIcon noticeIcon;
+    private Timer noticeGone;
 
     /** A little notice from the corner of the screen (where the computer can show one). Whether it could. */
     private boolean notice(String title, String text) {
@@ -420,12 +418,14 @@ public final class Clawdtop {
                 java.awt.SystemTray.getSystemTray().add(noticeIcon);
             }
             noticeIcon.displayMessage(title, text, java.awt.TrayIcon.MessageType.INFO);
-            Timer gone = new Timer(30_000, e -> { // (and its little icon goes again, after)
-                if (noticeIcon != null) java.awt.SystemTray.getSystemTray().remove(noticeIcon);
-                noticeIcon = null;
-            });
-            gone.setRepeats(false);
-            gone.start();
+            if (noticeGone == null) {
+                noticeGone = new Timer(30_000, e -> { // (and its little icon goes again, 30 seconds after the last notice)
+                    if (noticeIcon != null) java.awt.SystemTray.getSystemTray().remove(noticeIcon);
+                    noticeIcon = null;
+                });
+                noticeGone.setRepeats(false);
+            }
+            noticeGone.restart();
             return true;
         } catch (Exception cant) {
             return false;
@@ -696,7 +696,7 @@ public final class Clawdtop {
     /** A jam session to a song file: recording the parts (the first time), or just playing it again. */
     private void jamTo(java.io.File f, boolean again) {
         songLoader.execute(() -> {
-            Piano.Song song = Piano.fromMidi(f);
+            Piano.Song song = Piano.fromMidi(f, true);
             java.util.List<Piano.Part> parts = again ? java.util.List.of() : Piano.jamParts(f); // (its own tracks: drums, bass, guitar...)
             SwingUtilities.invokeLater(() -> {
                 if (song == null) pet.say("I tried, but I can't read that music.");
@@ -851,7 +851,7 @@ public final class Clawdtop {
         if (firstTime && settings.on("earnPoints")) settings.earn(Shop.ASK);
         Reminders.Reminder reminder = Reminders.parse(question);
         if (reminder != null) {
-            reminders.add(new Object[] {System.currentTimeMillis() + reminder.inMs(), reminder.what()});
+            reminders.add(new Object[] {System.currentTimeMillis() + reminder.inMs(), reminder.what(), false}); // {due, what, notice shown}
             boolean atATime = question.toLowerCase(java.util.Locale.ROOT).matches(".*\\b(at|around) (\\d|noon|midnight).*");
             String clock = java.time.LocalTime.now().plusSeconds(reminder.inMs() / 1000).format(java.time.format.DateTimeFormatter.ofPattern("h:mm a", java.util.Locale.ENGLISH));
             pet.say(reminder.what().equals("time's up!") ? "Timer set for " + reminder.when() + "! Tick tock."
@@ -3021,7 +3021,8 @@ public final class Clawdtop {
         }
         if (focusUntil > 0) return; // shh: focus mode
         // (only when you're here to see it, and he's up: not in his sleep, or to an empty room. Then it waits for you)
-        if (pet.busyNow() || pet.sleepy() || hidden || System.currentTimeMillis() - lastMoved > 120_000) return;
+        boolean here = !pet.busyNow() && !pet.sleepy() && !hidden && System.currentTimeMillis() - lastMoved < 120_000;
+        if (!here) return;
         if ((hour >= 23 || hour < 4) && settings.on("lateNight") && settings.once("late:" + (hour < 4 ? today.minusDays(1) : today))) {
             pet.say("It's late... maybe bed soon?");
         } else if (now.getDayOfWeek() == java.time.DayOfWeek.MONDAY && hour >= 6 && hour < 12 && settings.on("monday") && settings.once("monday:" + today)) {
@@ -3031,7 +3032,7 @@ public final class Clawdtop {
         }
         long days = java.time.temporal.ChronoUnit.DAYS.between(settings.metDate(), today);
         for (long milestone : new long[] {1, 7, 30, 100, 365, 500, 1000}) {
-            if (days == milestone && settings.on("friendship") && settings.once("friends:" + milestone)) {
+            if (days >= milestone && days < milestone + 7 && settings.on("friendship") && settings.once("friends:" + milestone)) { // (away that day? the next time you're here that week)
                 pet.party("We've been friends for " + milestone + (milestone == 1 ? " day" : " days") + "!");
                 settings.earn((int) Math.min(50, milestone));
             }
@@ -3479,6 +3480,7 @@ public final class Clawdtop {
             if (tackleWindow == front) SwingUtilities.invokeLater(this::endTackle);
         });
         pet.say(TACKLE_SPOTS[new java.util.Random().nextInt(TACKLE_SPOTS.length)]);
+        Rectangle mine = window.getGraphicsConfiguration().getBounds(); // (his whole monitor: a taskbar on its side counts too)
         Thread.ofPlatform().daemon().name("taskbar").start(() -> {
             WindowTricks.TaskbarButton button = null;
             try {
@@ -3486,7 +3488,6 @@ public final class Clawdtop {
                 Process p = new ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
                         "-WindowStyle", "Hidden", "-EncodedCommand", encoded).redirectErrorStream(true).start();
                 String out = Desktop.output(p, 8); // (never waits forever on a stuck taskbar)
-                Rectangle mine = popupBounds();
                 java.util.List<WindowTricks.TaskbarButton> here = new java.util.ArrayList<>();
                 for (WindowTricks.TaskbarButton b : WindowTricks.parseTaskbar(out == null ? "" : out)) { // (the taskbar on his monitor)
                     double bx = toJava(b.centerX(), b.y() + b.height() / 2.0).x;
@@ -3571,16 +3572,20 @@ public final class Clawdtop {
      * tell you clicked away on its own: we watch the mouse buttons instead.)
      */
     private String menuOpenedOver; // (a Mac or Linux) the app in front when his menu opened
+    private long menuOpenedAt;
 
     private void closeMenuOnClickAway(Point mouse) {
         MenuElement[] open = MenuSelectionManager.defaultManager().getSelectedPath();
         if (open.length == 0) {
             menuOpenedOver = null;
+            menuOpenedAt = 0;
             return;
         }
         if (!Platform.WINDOWS) { // (a Mac or Linux can't tell him about clicks elsewhere: clicking another app, the menu closes)
             String front = Platform.frontApp();
-            if (menuOpenedOver == null) menuOpenedOver = front;
+            long now = System.currentTimeMillis();
+            if (menuOpenedAt == 0) menuOpenedAt = now;
+            if (now - menuOpenedAt < 2500) menuOpenedOver = front; // (just opened: whatever's in front settles first)
             else if (!front.isEmpty() && !front.equals(menuOpenedOver) && !front.toLowerCase(java.util.Locale.ROOT).matches(".*(java|clawd).*")) { // (not him: clicking his menu is fine)
                 MenuSelectionManager.defaultManager().clearSelectedPath();
             }

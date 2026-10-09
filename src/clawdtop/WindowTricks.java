@@ -256,14 +256,17 @@ final class WindowTricks {
             place.set(ValueLayout.JAVA_INT, 0, 44);
             if ((int) get.invokeExact(hwnd(window), place) != 0) {
                 int left = place.get(ValueLayout.JAVA_INT, 28), top = place.get(ValueLayout.JAVA_INT, 32);
-                if (left <= -30000 || top <= -30000) { // (its "restore to" spot is the parking spot: back where it was)
-                    place.set(ValueLayout.JAVA_INT, 28, x);
-                    place.set(ValueLayout.JAVA_INT, 32, y);
-                    place.set(ValueLayout.JAVA_INT, 36, x + place.get(ValueLayout.JAVA_INT, 36) - left);
-                    place.set(ValueLayout.JAVA_INT, 40, y + place.get(ValueLayout.JAVA_INT, 40) - top);
-                    int showCmd = place.get(ValueLayout.JAVA_INT, 8);
-                    int ignored = (int) set.invokeExact(hwnd(window), place);
-                    if (showCmd == 2 || showCmd == 6 || showCmd == 7) return; // (minimized: it comes back to the right spot when you restore it)
+                int showCmd = place.get(ValueLayout.JAVA_INT, 8);
+                boolean minimized = showCmd == 2 || showCmd == 6 || showCmd == 7;
+                if (minimized && (left <= -30000 || top <= -30000)) { // (minimized while parked: its "restore to" spot is the parking spot)
+                    int[] work = workAreaCorner(); // ("restore to" spots are measured from the work area's corner, not the screen's)
+                    int nx = x - work[0], ny = y - work[1];
+                    place.set(ValueLayout.JAVA_INT, 28, nx);
+                    place.set(ValueLayout.JAVA_INT, 32, ny);
+                    place.set(ValueLayout.JAVA_INT, 36, nx + place.get(ValueLayout.JAVA_INT, 36) - left);
+                    place.set(ValueLayout.JAVA_INT, 40, ny + place.get(ValueLayout.JAVA_INT, 40) - top);
+                    int ignored = (int) set.invokeExact(hwnd(window), place); // (it stays minimized: it just comes back to the right spot)
+                    return;
                 }
             }
             if ((int) iconic.invokeExact(hwnd(window)) != 0) return;
@@ -271,6 +274,19 @@ final class WindowTricks {
             // then just move it
         }
         move(window, x, y);
+    }
+
+    /** The top-left of the main monitor's work area (below a taskbar at the top, right of one on the left), in real pixels. */
+    private static int[] workAreaCorner() {
+        try (Arena arena = Arena.ofConfined()) {
+            MethodHandle info = Linker.nativeLinker().downcallHandle(SymbolLookup.libraryLookup("user32", Arena.global()).find("SystemParametersInfoW").orElseThrow(),
+                    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
+            MemorySegment rect = arena.allocate(16);
+            if ((int) info.invokeExact(0x0030, 0, rect, 0) != 0) return new int[] {rect.get(ValueLayout.JAVA_INT, 0), rect.get(ValueLayout.JAVA_INT, 4)}; // SPI_GETWORKAREA
+        } catch (Throwable e) {
+            // the screen's corner, then
+        }
+        return new int[2];
     }
 
     /** Where windows he's parked are written down, in case he's stopped suddenly (they're put back next time he starts). */

@@ -154,16 +154,21 @@ public class ClawdtopTest {
         }
         Handy.Unzipped mac = Handy.unzip(macZip);
         check("a Mac zip: just the photos, none of the Mac leftovers", mac.files() + " " + Files.exists(mac.folder().resolve("a.txt")) + " " + Files.exists(mac.folder().resolve("X")), "2 true false");
-        Path broken = desk.resolve("broken.zip");
-        byte[] good = Files.readAllBytes(macZip);
-        Files.write(broken, java.util.Arrays.copyOf(good, good.length / 2));
+        Path broken = desk.resolve("broken.zip"); // (its first file unzips fine, then the next one can't be made: it breaks halfway)
+        try (var zout = new java.util.zip.ZipOutputStream(Files.newOutputStream(broken))) {
+            for (String n : new String[] {"fine.txt", "bad" + (char) 0 + "name.txt"}) {
+                zout.putNextEntry(new java.util.zip.ZipEntry(n));
+                zout.write("x".getBytes());
+                zout.closeEntry();
+            }
+        }
         boolean threw = false;
         try {
             Handy.unzip(broken);
         } catch (Exception e) {
             threw = true;
         }
-        check("a broken zip: no half-unzipped folder left", !threw || !Files.exists(desk.resolve("broken")), true);
+        check("a zip that breaks halfway: no half-unzipped folder left", threw + " " + Files.exists(desk.resolve("broken")), "true false");
         check("uninstalling keeps a zip he was still unzipping", Cli.YOURS.contains("unzipping"), true);
         check("a brand-new file isn't one you gave him (a screenshot landing on a Mac desktop)", Clawdtop.oldFile(Files.writeString(desk.resolve("Screenshot.png"), "x")), false);
 
@@ -326,7 +331,7 @@ public class ClawdtopTest {
         for (int i = 0; i < 16; i++) dt.add(new javax.sound.midi.MidiEvent(new javax.sound.midi.ShortMessage(javax.sound.midi.ShortMessage.NOTE_ON, 9, 36, 90), i * 2L));
         Path drumFile = desk.resolve("drums_jam.mid");
         javax.sound.midi.MidiSystem.write(drums, 0, drumFile.toFile());
-        check("a drums-only jam track still jams", Piano.fromMidi(drumFile.toFile()) != null, true);
+        check("a drums-only jam track still jams (but isn't one for his piano)", (Piano.fromMidi(drumFile.toFile(), true) != null) + " " + (Piano.fromMidi(drumFile.toFile()) == null), "true true");
 
         // "12 tonight" is midnight (not noon tomorrow), "1 at night" is 1 am, "9 tonight" is 9 pm
         java.time.LocalTime evening = java.time.LocalTime.of(20, 0);
