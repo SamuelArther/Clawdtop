@@ -203,6 +203,7 @@ public final class Clawdtop {
     }
 
     private boolean inCorner; // sitting in the corner, watching your full-screen game
+    private Rectangle lastUsable; // the screen (above the taskbar) last time he looked
     private final java.util.List<Object[]> reminders = new java.util.ArrayList<>(); // {due ms, what}
     private long focusUntil;    // the focus timer runs out then (0: off)
     private long stopwatchFrom; // the stopwatch started then (0: off)
@@ -1157,6 +1158,12 @@ public final class Clawdtop {
         if (ticks % 300 == 150) checkTimes();
         if (ticks % 900 == 450 && focusUntil == 0) remindMe(nowMs);
         if (ticks % 15 == 7) checkReminders();
+        // The screen changed (another monitor, a new resolution, the taskbar moved)? Back to his spot on it
+        if (ticks % 90 == 30 && body.state() == Body.State.HOME && !inCorner) {
+            Rectangle usable = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+            if (lastUsable != null && !usable.equals(lastUsable)) place();
+            lastUsable = usable;
+        }
         updateClock();
         if (ticks % 150 == 75) worker.execute(() -> {
             Power.criticalLevel(); // asked once, here in the background
