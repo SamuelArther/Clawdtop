@@ -46,7 +46,7 @@ final class Options {
             Option.on("Antics", "blinks", "Blinking", true),
             Option.on("Antics", "breathing", "Breathing (a little bob)", true),
             Option.pick("Antics", "speed", "Animation speed", "Normal", "Slow", "Normal", "Fast", "Zoomies"),
-            Option.number("Antics", "sleepAfter", "Fall asleep after (minutes without the mouse)", 3, 1, 60),
+            Option.number("Antics", "sleepAfter", "Fall asleep after (minutes of nobody playing with him)", 5, 1, 60),
             // What makes him react
             Option.on("Reactions", "codingHappy", "Happy when a coding app comes up", true),
             Option.on("Reactions", "codingSad", "Sad when a coding app closes", false),

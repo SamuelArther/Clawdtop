@@ -203,7 +203,12 @@ public final class Pet {
     private Mood mood = Mood.IDLE;
     private long moodFor;          // how long he's been in this mood, in ms
     private long nextChange;       // when he'd like to do something else, in ms of the current mood
-    private long sinceMouseMoved;  // ms
+    private long sinceUsed;        // ms since you last did anything with him (not just used the computer)
+
+    /** You're doing something with him (the cursor's on him, you clicked him, he's riding...): no nodding off. */
+    public void used() {
+        sinceUsed = 0;
+    }
     private long blinkIn;          // ms until the next blink
     private long blinking;         // ms left of a blink
     private long time;             // ms since he woke up, for breathing and bouncing
@@ -238,7 +243,7 @@ public final class Pet {
         if (!prefs.on("codingHappy")) devAppInFront = false;
         time += ms;
         moodFor += mood == Mood.PIANO ? real : ms;
-        sinceMouseMoved = mouseMoved ? 0 : sinceMouseMoved + real;
+        sinceUsed += real;
 
         // A dev app coming to the front makes him happy for a moment, and his eyes stay lit while it's there
         if (devAppInFront && !devApp) cheer();
@@ -247,6 +252,7 @@ public final class Pet {
         // Moving the mouse near a sleeping or lying Clawd wakes him up
         double distance = Math.hypot(dx, dy);
         if ((mood == Mood.SLEEP || mood == Mood.LIE) && mouseMoved && distance < 120) {
+            sinceUsed = 0; // (you came over to see him)
             if (mood == Mood.SLEEP) wants = Beep.WAKE;
             set(Mood.IDLE, idleTime());
         }
@@ -502,10 +508,10 @@ public final class Pet {
                 }
             }
             case SIT -> {
-                if (moodFor > nextChange) set(sinceMouseMoved > 20_000 ? Mood.LIE : Mood.IDLE, sinceMouseMoved > 20_000 ? 60_000 + random.nextInt(120_000) : idleTime());
+                if (moodFor > nextChange) set(sinceUsed > 60_000 ? Mood.LIE : Mood.IDLE, sinceUsed > 60_000 ? 60_000 + random.nextInt(120_000) : idleTime());
             }
             case LIE -> {
-                if (sinceMouseMoved > sleepAfter()) {
+                if (sinceUsed > sleepAfter()) {
                     wants = Beep.YAWN;
                     set(Mood.SLEEP, Long.MAX_VALUE);
                 } else if (moodFor > nextChange) {
@@ -672,12 +678,12 @@ public final class Pet {
         set(Mood.ANNOYED, 3000);
     }
 
-    private long woozyAt = -60_000; // (when he last got woozy, by his clock: not again for a bit)
+    private long woozyAt = -1_000_000; // (when he last got woozy, by his clock: not again for a bit)
 
     /** The cursor zoomed right past him: his head's spinning (he stays put; his eyes swirl and birds go round). */
     public void spin() {
         if ((mood != Mood.IDLE && mood != Mood.SIT) || !prefs.on("spins")) return;
-        if (time - woozyAt < 30_000) return;
+        if (time - woozyAt < 90_000) return; // (not again for a minute and a half)
         woozyAt = time;
         String[] whoa = {"Whoa...", "Woah, slow down...", "So... many... cursors...", "Tweet tweet..."};
         line = whoa[random.nextInt(whoa.length)];
@@ -979,7 +985,7 @@ public final class Pet {
         if (mood == Mood.SLEEP || mood == Mood.LIE) {
             wants = Beep.WAKE;
             set(Mood.HAPPY, 700);
-            sinceMouseMoved = 0;
+            sinceUsed = 0;
             return;
         }
         wants = Beep.CLICKED;
@@ -1365,7 +1371,7 @@ public final class Pet {
             }
             case "awake" -> {
                 wants = Beep.WAKE;
-                sinceMouseMoved = 0;
+                sinceUsed = 0;
                 set(Mood.IDLE, idleTime());
             }
             default -> { }

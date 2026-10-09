@@ -18,13 +18,13 @@ public final class Body {
     static final long FLIP_TIME = 260;       // getting back onto his feet
     static final long SHAKE_TIME = 800;      // shaking it off once he's up
     static final int SHAKE_TURNS = 4;        // direction changes within half a second that count as shaking
-    static final double SHAKE_SPEED = 1400;  // and how fast (px/s on average) the cursor has to be going
+    static final double SHAKE_SPEED = 1900;  // and how fast (px/s on average) the cursor has to be going
     static final long FLY_TIME = 12_000;     // a ride on his flying carpet
     static final long ROCKET_TIME = 9000;    // his rocket's flight, before it crashes
     static final double LIFTOFF_SPEED = 1500, CRUISE_SPEED = 260; // px/s: a blast off, then a lot slower
 
     private double ceiling = Double.NaN;
-    static final double LAP_SPEED = 900; // px/s: as fast as he can
+    static final double LAP_SPEED = 420; // px/s: as fast as his little legs go (fast, but you can still see him)
     static final double TACKLE_SPEED = 800; // px/s: charging at a taskbar icon
     static final long DIVE_TIME = 380;      // the flying dive onto it
     private boolean diving, tackled;
@@ -505,7 +505,7 @@ public final class Body {
     /** Whether the cursor's being shaken: back and forth a few times, fast, within the last half second. */
     boolean shaking() {
         if (trail.size() < 4) return false;
-        int turns = 0;
+        int turnsX = 0, turnsY = 0; // (a real shake goes back and forth one way: wiggly moves don't count)
         double distance = 0;
         double lastDx = 0, lastDy = 0;
         double[] previous = null;
@@ -514,15 +514,15 @@ public final class Body {
                 double dx = p[1] - previous[1];
                 double dy = p[2] - previous[2];
                 distance += Math.hypot(dx, dy);
-                if (Math.abs(dx) > 2 && lastDx != 0 && Math.signum(dx) != Math.signum(lastDx)) turns++;
-                if (Math.abs(dy) > 2 && lastDy != 0 && Math.signum(dy) != Math.signum(lastDy)) turns++;
+                if (Math.abs(dx) > 6 && lastDx != 0 && Math.signum(dx) != Math.signum(lastDx)) turnsX++;
+                if (Math.abs(dy) > 6 && lastDy != 0 && Math.signum(dy) != Math.signum(lastDy)) turnsY++;
                 if (Math.abs(dx) > 2) lastDx = dx;
                 if (Math.abs(dy) > 2) lastDy = dy;
             }
             previous = p;
         }
         double seconds = Math.max(0.001, (trail.peekLast()[0] - trail.peekFirst()[0]) / 1000.0);
-        return turns >= SHAKE_TURNS && distance / seconds > shakeSpeed;
+        return Math.max(turnsX, turnsY) >= SHAKE_TURNS && distance / seconds > shakeSpeed;
     }
 
     private void set(State next) {

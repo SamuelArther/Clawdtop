@@ -78,6 +78,7 @@ public final class Clawdtop {
     private int frames;         // every frame (60 a second)
     private boolean newTick;    // this frame is also a mood tick
     private boolean movedSinceMood; // the mouse moved since his last mood tick
+    private boolean dropZone;       // you're dragging something near him: his whole window takes drops, not just him
     private final Body body = new Body();
     private double homeX, groundY; // his perch: the point between his feet, on the taskbar's top edge
     private CleanJob job; // a folder he's cleaning, or null
@@ -97,6 +98,10 @@ public final class Clawdtop {
                 g2.setComposite(java.awt.AlphaComposite.Clear); // a see-through window: clear last frame first
                 g2.fillRect(0, 0, getWidth(), getHeight());
                 g2.setComposite(java.awt.AlphaComposite.SrcOver);
+                if (dropZone) { // dragging something near him: his whole window catches it (all but invisible)
+                    g2.setColor(new Color(0, 0, 0, 1));
+                    g2.fillRect(0, 0, getWidth(), getHeight());
+                }
                 if (farewell) {
                     g2.translate(0, FAREWELL_ROOM * settings.unit());
                     Sprite.drawCrumbling(g2, pet, settings.unit(), pet.crumbled());
@@ -153,6 +158,7 @@ public final class Clawdtop {
         MouseAdapter mouse = new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
+                pet.used();
                 if (!bubble.asking()) bubble.hide();
                 if (SwingUtilities.isLeftMouseButton(e) && body.state() == Body.State.FLY) {
                     body.knockOff(); // poof, no more carpet
@@ -1123,7 +1129,7 @@ public final class Clawdtop {
             }
             boolean fromOutside = Math.abs(zoomFrom.x - eyesX) >= 7 * settings.unit() || Math.abs(zoomFrom.y - eyesY) >= 4 * settings.unit();
             if (acrossFace && fromOutside && speed > 450) pet.booped();
-            else if (speed > 4000 && near.contains(mouse)) pet.spin();
+            else if (speed > 6500 && near.contains(mouse)) pet.spin(); // (really zooming right past him: not just heading for the clock)
         }
         zoomFrom = mouse;
         zoomAt = now;
@@ -1607,6 +1613,11 @@ public final class Clawdtop {
         lastMouse = mouse;
         movedSinceMood |= moved;
         closeMenuOnClickAway(mouse);
+        Rectangle near = window.getBounds();
+        near.grow(220, 220);
+        boolean zone = Foreground.leftButtonDown() && near.contains(mouse) && dragFrom == Integer.MIN_VALUE && window.isShowing()
+                && !window.getBounds().contains(mouse) || (dropZone && Foreground.leftButtonDown()); // (stays on till you let go)
+        if (zone != dropZone) dropZone = zone;
         boolean right = Foreground.rightButtonDown();
         if (right && !rightWasDown && body.state() == Body.State.RIDE) body.dropOff(); // right-click: he hops down (no flick needed)
         rightWasDown = right;
@@ -1811,6 +1822,9 @@ public final class Clawdtop {
         double eyesY = window.getY() + Sprite.eyesY() * unit;
         // the cursor resting on him (he gets shy), or swiping across his face (boop!)
         boolean overHim = Math.abs(mouse.x - eyesX) < 7 * unit && Math.abs(mouse.y - eyesY) < 4 * unit && body.state() == Body.State.HOME;
+        // using him (the cursor on him, riding, a job, a question or game open): he stays awake
+        if (head().contains(mouse) || body.state() != Body.State.HOME || job != null || bubble.asking()
+                || (game != null && game.showing()) || yourPiano.showing()) pet.used();
         if (newTick) { // (his moods at their own pace; his window moves every frame)
             pet.hover(overHim && !movedSinceMood, MOOD_MS);
             pet.tick(MOOD_MS, mouse.x - eyesX, mouse.y - eyesY, movedSinceMood, devApp);

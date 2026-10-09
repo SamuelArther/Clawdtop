@@ -203,6 +203,16 @@ public final class Foreground {
         return false;
     }
 
+    /** Whether the left mouse button is held down right now (Windows only). */
+    public static boolean leftButtonDown() {
+        if (Buttons.STATE == null) return false;
+        try {
+            return ((short) Buttons.STATE.invokeExact(0x01) & 0x8000) != 0;
+        } catch (Throwable notAvailable) {
+            return false;
+        }
+    }
+
     /** Whether the right mouse button is held down right now (Windows only). */
     public static boolean rightButtonDown() {
         if (Buttons.STATE == null) return false;
